@@ -65,9 +65,12 @@ describe("transpileModule", () => {
         await writeFixturesToDisk(tempDir, {
           "helper.tsx":
             "export function Hero({ title }: { title: string }) { return <h1>{title}</h1>; }",
+          "meta-helper.ts":
+            "export function buildMeta(slug: string) { return { slug, from: 'helper' as const }; }",
           "entry.tsx": [
             "import { Hero } from './helper';",
-            "export const meta = { slug: 'hello-world' };",
+            "import { buildMeta } from './meta-helper';",
+            "export const meta = buildMeta('hello-world');",
             "export default function Page() {",
             "  return <section><Hero title='Hello' /></section>;",
             "}",
@@ -91,7 +94,7 @@ describe("transpileModule", () => {
             },
           ],
         });
-        expect(result.meta).toEqual({ slug: "hello-world" });
+        expect(result.meta).toEqual({ slug: "hello-world", from: "helper" });
         expect(result.manifest).toEqual({ externals: [] });
         expect(result.diagnostics).toEqual([]);
       });
@@ -431,6 +434,50 @@ describe("transpileModule", () => {
         [
           {
             "message": "default export resolved to undefined",
+          },
+        ]
+      `);
+    });
+  });
+
+  describe("issue #17 scope guards", () => {
+    it("returns error when default export is async function", async () => {
+      const result = expectErrorResult(
+        await transpileModule({
+          entryFile: "/virtual/async-default.tsx",
+          fs: createVirtualFs({
+            "/virtual/async-default.tsx":
+              "export default async function Page() { return <main>nope</main>; }",
+          }),
+        }),
+      );
+
+      expect(result.diagnostics).toMatchInlineSnapshot(`
+        [
+          {
+            "message": "Module default export must be synchronous",
+          },
+        ]
+      `);
+    });
+
+    it("returns error when local component is async", async () => {
+      const result = expectErrorResult(
+        await transpileModule({
+          entryFile: "/virtual/async-component.tsx",
+          fs: createVirtualFs({
+            "/virtual/async-component.tsx": [
+              "async function AsyncBlock() { return <p>later</p>; }",
+              "export default <main><AsyncBlock /></main>;",
+            ].join("\n"),
+          }),
+        }),
+      );
+
+      expect(result.diagnostics).toMatchInlineSnapshot(`
+        [
+          {
+            "message": "default export.children[0] must be synchronous",
           },
         ]
       `);

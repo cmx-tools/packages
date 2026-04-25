@@ -70,6 +70,15 @@ type SerializeOptions = {
   unsupportedValues: UnsupportedValuesPolicy;
 };
 
+function isPromiseLike(value: unknown): value is Promise<unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "then" in value &&
+    typeof (value as { then?: unknown }).then === "function"
+  );
+}
+
 export async function transpileModule(
   input: TranspileModuleInput,
 ): Promise<TranspileModuleResult> {
@@ -112,6 +121,10 @@ export async function transpileModule(
       typeof exportedDefault === "function"
         ? exportedDefault()
         : exportedDefault;
+
+    if (isPromiseLike(renderedRoot)) {
+      throw new Error("Module default export must be synchronous");
+    }
 
     return {
       kind: "success",
@@ -167,6 +180,10 @@ function toCmx(
   pathLabel: string,
   options: SerializeOptions,
 ): CmxNode {
+  if (isPromiseLike(value)) {
+    throw new Error(`${pathLabel} must be synchronous`);
+  }
+
   if (value === undefined) {
     throw new Error(`${pathLabel} resolved to undefined`);
   }
