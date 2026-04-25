@@ -649,6 +649,26 @@ describe("transpileModule", () => {
     });
   });
 
+  describe("data URL import identity", () => {
+    it("re-evaluates top-level module scope on each transpileModule call for identical source", async () => {
+      const entryFile = "/virtual/random-default.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: "export default Math.random();",
+      });
+
+      const first = expectTreeResult(
+        await transpileModule({ entryFile, fs }),
+      );
+      const second = expectTreeResult(
+        await transpileModule({ entryFile, fs }),
+      );
+
+      expect(typeof first.tree).toBe("number");
+      expect(typeof second.tree).toBe("number");
+      expect(first.tree).not.toBe(second.tree);
+    });
+  });
+
   describe("result envelope stability", () => {
     it("keeps success envelope stable for future behavior tickets", async () => {
       const result = await transpileModule({

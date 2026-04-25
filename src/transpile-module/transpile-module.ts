@@ -103,6 +103,8 @@ type RuntimeNode = {
 
 const RUNTIME_NODE_MARKER_KEY = Symbol.for("cmx.runtime-node-marker");
 
+let dataUrlImportNonce = 0;
+
 type SerializeOptions = {
   unsupportedValues: UnsupportedValuesPolicy;
   onExternalRefUsed(ref: ExternalUsageRef): void;
@@ -157,7 +159,7 @@ export async function transpileModule(
       );
     }
 
-    const moduleUrl = `data:text/javascript;base64,${Buffer.from(compiledCode).toString("base64")}`;
+    const moduleUrl = `data:text/javascript;base64,${Buffer.from(compiledCode).toString("base64")}#${++dataUrlImportNonce}`;
     const compiledModule = (await import(moduleUrl)) as Record<string, unknown>;
 
     if (!hasOwn(compiledModule, "default")) {
