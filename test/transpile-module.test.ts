@@ -183,6 +183,106 @@ describe("transpileModule", () => {
       expect(result.diagnostics).toEqual([]);
     });
 
+    it("omits undefined props and preserves spread/style prop data", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "const base = { id: 'hero', hidden: undefined };",
+          "export default <label",
+          "  {...base}",
+          "  htmlFor='email'",
+          "  className={undefined}",
+          "  style={{ color: 'red', nested: { ok: true } }}",
+          "/>;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(await transpileModule({ entryFile, fs }));
+
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "label",
+        props: {
+          id: "hero",
+          htmlFor: "email",
+          style: {
+            color: "red",
+            nested: { ok: true },
+          },
+        },
+      });
+    });
+
+    it("returns error when prop contains unsupported function value by default", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: "export default <button onClick={() => {}} data-x='ok' />;",
+      });
+
+      const result = expectErrorResult(
+        await transpileModule({ entryFile, fs }),
+      );
+
+      expect(result.diagnostics).toMatchInlineSnapshot(`
+        [
+          {
+            "message": "Unsupported prop value at default export.props.onClick",
+          },
+        ]
+      `);
+    });
+
+    it("omits unsupported prop values when configured to omit", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "export default <button",
+          "  onClick={() => {}}",
+          "  data={{ keep: 'ok', nested: { skip: () => {}, pass: 42 } }}",
+          "/>;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(
+        await transpileModule({ entryFile, fs, unsupportedValues: "omit" }),
+      );
+
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "button",
+        props: {
+          data: {
+            keep: "ok",
+            nested: {
+              pass: 42,
+            },
+          },
+        },
+      });
+    });
+
+    it("keeps plain CMX-looking objects and arrays in props as data", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]:
+          "export default <div payload={{ type: 'element', tag: 'fake', list: [{ type: 'fragment' }, 1, 'x'] }} />;",
+      });
+
+      const result = expectTreeResult(await transpileModule({ entryFile, fs }));
+
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "div",
+        props: {
+          payload: {
+            type: "element",
+            tag: "fake",
+            list: [{ type: "fragment" }, 1, "x"],
+          },
+        },
+      });
+    });
+
     it("returns error diagnostics for missing virtual import", async () => {
       const entryFile = "/virtual/entry.tsx";
       const fs = createVirtualFs({

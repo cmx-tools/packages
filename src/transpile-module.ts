@@ -45,6 +45,7 @@ export type FileSystem = {
 export type TranspileModuleInput = {
   entryFile: string;
   fs?: FileSystem;
+  unsupportedValues?: UnsupportedValuesPolicy;
 };
 
 type RuntimeNode = {
@@ -53,6 +54,12 @@ type RuntimeNode = {
   tag?: string;
   props?: Record<string, unknown>;
   children?: unknown[];
+};
+
+type UnsupportedValuesPolicy = "error" | "omit";
+
+type SerializeOptions = {
+  unsupportedValues: UnsupportedValuesPolicy;
 };
 
 function diagnosticsFromError(error: unknown): Diagnostic[] {
@@ -79,7 +86,106 @@ function flattenChildren(input: unknown[], output: unknown[]): void {
   }
 }
 
-function toCmx(value: unknown, pathLabel: string): CmxNode {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function isRuntimeNode(value: unknown): value is RuntimeNode {
+  if (typeof value !== "object" || value === null || !("__cmxRuntimeNode" in value)) {
+    return false;
+  }
+
+  const maybeRuntime = value as RuntimeNode;
+  return (
+    maybeRuntime.__cmxRuntimeNode === true &&
+    (maybeRuntime.kind === "fragment" || maybeRuntime.kind === "element")
+  );
+}
+
+function unsupportedProp(pathLabel: string, options: SerializeOptions): { keep: false } {
+  if (options.unsupportedValues === "omit") {
+    return { keep: false };
+  }
+
+  throw new Error(`Unsupported prop value at ${pathLabel}`);
+}
+
+function serializePropValue(
+  value: unknown,
+  pathLabel: string,
+  options: SerializeOptions
+): { keep: true; value: unknown } | { keep: false } {
+  if (value === undefined) {
+    return { keep: false };
+  }
+
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return { keep: true, value };
+  }
+
+  if (Array.isArray(value)) {
+    const normalized: unknown[] = [];
+
+    for (let index = 0; index < value.length; index += 1) {
+      const item = serializePropValue(value[index], `${pathLabel}[${index}]`, options);
+      if (item.keep) {
+        normalized.push(item.value);
+      }
+    }
+
+    return { keep: true, value: normalized };
+  }
+
+  if (isRuntimeNode(value)) {
+    return { keep: true, value: toCmx(value, pathLabel, options) };
+  }
+
+  if (!isPlainObject(value)) {
+    return unsupportedProp(pathLabel, options);
+  }
+
+  const normalized: Record<string, unknown> = {};
+  for (const [key, nestedValue] of Object.entries(value)) {
+    const result = serializePropValue(nestedValue, `${pathLabel}.${key}`, options);
+    if (result.keep) {
+      normalized[key] = result.value;
+    }
+  }
+
+  return { keep: true, value: normalized };
+}
+
+function serializeProps(
+  value: Record<string, unknown>,
+  pathLabel: string,
+  options: SerializeOptions
+): Record<string, unknown> | undefined {
+  const normalized: Record<string, unknown> = {};
+  for (const [key, propValue] of Object.entries(value)) {
+    const result = serializePropValue(propValue, `${pathLabel}.${key}`, options);
+    if (result.keep) {
+      normalized[key] = result.value;
+    }
+  }
+
+  if (Object.keys(normalized).length === 0) {
+    return undefined;
+  }
+
+  return normalized;
+}
+
+function toCmx(value: unknown, pathLabel: string, options: SerializeOptions): CmxNode {
   if (value === undefined) {
     throw new Error(`${pathLabel} resolved to undefined`);
   }
@@ -98,18 +204,15 @@ function toCmx(value: unknown, pathLabel: string): CmxNode {
     flattenChildren(value, flattened);
     return {
       type: "fragment",
-      children: flattened.map((child, index) => toCmx(child, `${pathLabel}[${index}]`))
+      children: flattened.map((child, index) => toCmx(child, `${pathLabel}[${index}]`, options))
     };
   }
 
-  if (typeof value !== "object" || value === null || !("__cmxRuntimeNode" in value)) {
+  if (!isRuntimeNode(value)) {
     throw new Error(`${pathLabel} is not CMX runtime output`);
   }
 
-  const runtimeNode = value as RuntimeNode;
-  if (runtimeNode.__cmxRuntimeNode !== true) {
-    throw new Error(`${pathLabel} is not CMX runtime output`);
-  }
+  const runtimeNode = value;
 
   if (runtimeNode.kind === "fragment") {
     if (!Array.isArray(runtimeNode.children) || runtimeNode.children.length === 0) {
@@ -125,7 +228,7 @@ function toCmx(value: unknown, pathLabel: string): CmxNode {
     return {
       type: "fragment",
       children: flattenedChildren.map((child, index) =>
-        toCmx(child, `${pathLabel}.children[${index}]`)
+        toCmx(child, `${pathLabel}.children[${index}]`, options)
       )
     };
   }
@@ -136,7 +239,10 @@ function toCmx(value: unknown, pathLabel: string): CmxNode {
   };
 
   if (runtimeNode.props && Object.keys(runtimeNode.props).length > 0) {
-    output.props = runtimeNode.props;
+    const normalizedProps = serializeProps(runtimeNode.props, `${pathLabel}.props`, options);
+    if (normalizedProps) {
+      output.props = normalizedProps;
+    }
   }
 
   if (Array.isArray(runtimeNode.children) && runtimeNode.children.length > 0) {
@@ -144,7 +250,7 @@ function toCmx(value: unknown, pathLabel: string): CmxNode {
     flattenChildren(runtimeNode.children, flattenedChildren);
     if (flattenedChildren.length > 0) {
       output.children = flattenedChildren.map((child, index) =>
-        toCmx(child, `${pathLabel}.children[${index}]`)
+        toCmx(child, `${pathLabel}.children[${index}]`, options)
       );
     }
   }
@@ -201,6 +307,9 @@ function jsxRuntimePlugin(): Plugin {
 
 export async function transpileModule(input: TranspileModuleInput): Promise<TranspileModuleResult> {
   try {
+    const options: SerializeOptions = {
+      unsupportedValues: input.unsupportedValues ?? "error"
+    };
     const plugins = input.fs ? [virtualFsPlugin(input.fs), jsxRuntimePlugin()] : [jsxRuntimePlugin()];
 
     const result = await build({
@@ -232,7 +341,7 @@ export async function transpileModule(input: TranspileModuleInput): Promise<Tran
 
     return {
       kind: "success",
-      tree: toCmx(renderedRoot, "default export"),
+      tree: toCmx(renderedRoot, "default export", options),
       meta: hasOwn(compiledModule, "meta") ? compiledModule.meta : null,
       manifest: { externals: [] },
       diagnostics: []
