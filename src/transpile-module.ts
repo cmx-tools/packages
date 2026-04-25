@@ -11,11 +11,11 @@ export type CmxNode =
   | number
   | string
   | {
-      kind: "fragment";
+      type: "fragment";
       children?: CmxNode[];
     }
   | {
-      kind: "element";
+      type: "element";
       tag: string;
       props?: Record<string, unknown>;
       children?: CmxNode[];
@@ -97,7 +97,7 @@ function toCmx(value: unknown, pathLabel: string): CmxNode {
     const flattened: unknown[] = [];
     flattenChildren(value, flattened);
     return {
-      kind: "fragment",
+      type: "fragment",
       children: flattened.map((child, index) => toCmx(child, `${pathLabel}[${index}]`))
     };
   }
@@ -113,16 +113,16 @@ function toCmx(value: unknown, pathLabel: string): CmxNode {
 
   if (runtimeNode.kind === "fragment") {
     if (!Array.isArray(runtimeNode.children) || runtimeNode.children.length === 0) {
-      return { kind: "fragment" };
+      return { type: "fragment" };
     }
     return {
-      kind: "fragment",
+      type: "fragment",
       children: runtimeNode.children.map((child, index) => toCmx(child, `${pathLabel}.children[${index}]`))
     };
   }
 
-  const output: Extract<CmxNode, { kind: "element" }> = {
-    kind: "element",
+  const output: Extract<CmxNode, { type: "element" }> = {
+    type: "element",
     tag: runtimeNode.tag ?? ""
   };
 
