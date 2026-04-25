@@ -9,8 +9,8 @@ import type {
   TranspileErrorResult,
   TranspileModuleResult,
   TranspileSuccessResult,
-} from "../src/transpile-module.js";
-import { transpileModule } from "../src/transpile-module.js";
+} from "../src/transpile-module/index.js";
+import { transpileModule } from "../src/transpile-module/index.js";
 
 type SourceFixtures = Record<string, string>;
 

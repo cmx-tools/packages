@@ -3,38 +3,6 @@ import path from "node:path";
 import type { Plugin } from "esbuild";
 import type { FileSystem } from "./transpile-module.js";
 
-function loaderFromFilePath(filePath: string): "ts" | "tsx" | "js" | "jsx" {
-  const ext = path.extname(filePath).toLowerCase();
-  if (ext === ".ts") {
-    return "ts";
-  }
-  if (ext === ".tsx") {
-    return "tsx";
-  }
-  if (ext === ".jsx") {
-    return "jsx";
-  }
-  return "js";
-}
-
-function createVirtualCandidates(basePath: string): string[] {
-  const normalized = path.normalize(basePath);
-  if (path.extname(normalized) !== "") {
-    return [normalized];
-  }
-  return [
-    normalized,
-    `${normalized}.ts`,
-    `${normalized}.tsx`,
-    `${normalized}.js`,
-    `${normalized}.jsx`,
-    path.join(normalized, "index.ts"),
-    path.join(normalized, "index.tsx"),
-    path.join(normalized, "index.js"),
-    path.join(normalized, "index.jsx")
-  ];
-}
-
 export function virtualFsPlugin(virtualFs: FileSystem): Plugin {
   const namespace = "cmx-vfs";
   function isVirtualSpecifier(specifier: string): boolean {
@@ -101,4 +69,36 @@ export function virtualFsPlugin(virtualFs: FileSystem): Plugin {
       });
     }
   };
+}
+
+function loaderFromFilePath(filePath: string): "ts" | "tsx" | "js" | "jsx" {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === ".ts") {
+    return "ts";
+  }
+  if (ext === ".tsx") {
+    return "tsx";
+  }
+  if (ext === ".jsx") {
+    return "jsx";
+  }
+  return "js";
+}
+
+function createVirtualCandidates(basePath: string): string[] {
+  const normalized = path.normalize(basePath);
+  if (path.extname(normalized) !== "") {
+    return [normalized];
+  }
+  return [
+    normalized,
+    `${normalized}.ts`,
+    `${normalized}.tsx`,
+    `${normalized}.js`,
+    `${normalized}.jsx`,
+    path.join(normalized, "index.ts"),
+    path.join(normalized, "index.tsx"),
+    path.join(normalized, "index.js"),
+    path.join(normalized, "index.jsx")
+  ];
 }
