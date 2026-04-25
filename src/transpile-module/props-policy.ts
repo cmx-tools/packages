@@ -1,3 +1,8 @@
+import {
+  ErrorCode,
+  TranspileError,
+} from "./diagnostics.js";
+
 export type UnsupportedValuesPolicy = "error" | "omit";
 
 type KeepResult = { keep: true; value: unknown };
@@ -36,7 +41,10 @@ function unsupportedProp(pathLabel: string, options: NormalizePropOptions): Drop
     return { keep: false };
   }
 
-  throw new Error(`Unsupported prop value at ${pathLabel}`);
+  throw new TranspileError(
+    ErrorCode.UNSUPPORTED_PROP_VALUE,
+    `Unsupported prop value at ${pathLabel}`,
+  );
 }
 
 function normalizePropValue(
@@ -58,8 +66,9 @@ function normalizePropValue(
   }
 
   if (options.isExternalRuntimeValue(value)) {
-    throw new Error(
-      "[cmx:external-runtime-value] External import used as runtime value.",
+    throw new TranspileError(
+      ErrorCode.EXTERNAL_RUNTIME_VALUE,
+      "External import used as runtime value.",
     );
   }
 

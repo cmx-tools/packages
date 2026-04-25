@@ -1,16 +1,17 @@
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { describe, expect, it, vi } from "vitest";
 import os from "node:os";
 import path from "node:path";
-
-import { describe, expect, it } from "vitest";
-
 import type {
   FileSystem,
   TranspileErrorResult,
   TranspileModuleResult,
   TranspileSuccessResult,
 } from "../src/transpile-module/index.js";
-import { transpileModule } from "../src/transpile-module/index.js";
+import {
+  ErrorCode,
+  transpileModule,
+} from "../src/transpile-module/index.js";
 
 type SourceFixtures = Record<string, string>;
 
@@ -113,6 +114,9 @@ describe("transpileModule", () => {
         );
 
         expect(result.diagnostics.length).toBeGreaterThan(0);
+        expect(result.diagnostics[0]?.code).toBe(
+          ErrorCode.MISSING_DEFAULT_EXPORT,
+        );
         expect(result.diagnostics[0]?.message).toMatch(
           /has no default export/u,
         );
@@ -226,13 +230,10 @@ describe("transpileModule", () => {
         await transpileModule({ entryFile, fs }),
       );
 
-      expect(result.diagnostics).toMatchInlineSnapshot(`
-        [
-          {
-            "message": "Unsupported prop value at default export.props.onClick",
-          },
-        ]
-      `);
+      expect(result.diagnostics[0]).toEqual({
+        code: ErrorCode.UNSUPPORTED_PROP_VALUE,
+        message: "Unsupported prop value at default export.props.onClick",
+      });
     });
 
     it("omits unsupported prop values when configured to omit", async () => {
@@ -300,6 +301,7 @@ describe("transpileModule", () => {
       );
 
       expect(result.diagnostics.length).toBeGreaterThan(0);
+      expect(result.diagnostics[0]?.code).toBe(ErrorCode.UNEXPECTED);
       expect(result.diagnostics[0]?.message).toMatch(
         /Virtual module not found: \.\/missing/u,
       );
@@ -433,6 +435,7 @@ describe("transpileModule", () => {
       expect(result.diagnostics).toMatchInlineSnapshot(`
         [
           {
+            "code": "undefined-value",
             "message": "default export resolved to undefined",
           },
         ]
@@ -455,6 +458,7 @@ describe("transpileModule", () => {
       expect(result.diagnostics).toMatchInlineSnapshot(`
         [
           {
+            "code": "async-default-export",
             "message": "Module default export must be synchronous",
           },
         ]
@@ -477,6 +481,7 @@ describe("transpileModule", () => {
       expect(result.diagnostics).toMatchInlineSnapshot(`
         [
           {
+            "code": "async-value",
             "message": "default export.children[0] must be synchronous",
           },
         ]
@@ -540,6 +545,7 @@ describe("transpileModule", () => {
       expect(result.diagnostics).toMatchInlineSnapshot(`
         [
           {
+            "code": "invalid-runtime-output",
             "message": "default export is not CMX runtime output",
           },
         ]
@@ -560,6 +566,7 @@ describe("transpileModule", () => {
       expect(result.diagnostics).toMatchInlineSnapshot(`
         [
           {
+            "code": "undefined-value",
             "message": "default export.children[0] resolved to undefined",
           },
         ]
@@ -580,6 +587,7 @@ describe("transpileModule", () => {
       expect(result.diagnostics).toMatchInlineSnapshot(`
         [
           {
+            "code": "invalid-runtime-output",
             "message": "default export.children[0] is not CMX runtime output",
           },
         ]
@@ -763,6 +771,7 @@ describe("transpileModule", () => {
         }),
       );
 
+      expect(result.diagnostics[0]?.code).toBe(ErrorCode.UNEXPECTED);
       expect(result.diagnostics[0]?.message).toMatch(/Could not resolve/u);
     });
 
@@ -844,7 +853,7 @@ describe("transpileModule", () => {
       );
 
       expect(result.diagnostics[0]).toEqual({
-        code: "namespace-import-unsupported",
+        code: ErrorCode.NAMESPACE_IMPORT_UNSUPPORTED,
         message: "Namespace imports are not supported for externals",
       });
     });
@@ -867,7 +876,7 @@ describe("transpileModule", () => {
       );
 
       expect(result.diagnostics[0]).toEqual({
-        code: "external-component-called",
+        code: ErrorCode.EXTERNAL_COMPONENT_CALLED,
         message: "External component must be used as JSX.",
       });
     });
@@ -890,9 +899,59 @@ describe("transpileModule", () => {
       );
 
       expect(result.diagnostics[0]).toEqual({
-        code: "external-runtime-value",
+        code: ErrorCode.EXTERNAL_RUNTIME_VALUE,
         message: "External import used as runtime value.",
       });
+    });
+  });
+
+  describe("diagnostic code contract coverage", () => {
+    it("returns unsupported jsx element type error code for invalid jsx runtime type", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "import { jsx } from 'cmx-internal/jsx-runtime';",
+          "export default jsx(123 as unknown as string, {});",
+        ].join("\n"),
+      });
+
+      const result = expectErrorResult(
+        await transpileModule({
+          entryFile,
+          fs,
+        }),
+      );
+
+      expect(result.diagnostics[0]).toEqual({
+        code: ErrorCode.UNSUPPORTED_JSX_ELEMENT_TYPE,
+        message: "Unsupported JSX element type.",
+      });
+    });
+
+    it("returns build no output error code when esbuild emits no output file", async () => {
+      vi.resetModules();
+      vi.doMock("esbuild", () => ({
+        build: vi.fn().mockResolvedValue({ outputFiles: [] }),
+      }));
+
+      try {
+        const { transpileModule: mockedTranspileModule } = await import(
+          "../src/transpile-module/index.js"
+        );
+        const result = expectErrorResult(
+          await mockedTranspileModule({
+            entryFile: "/virtual/entry.tsx",
+          }),
+        );
+
+        expect(result.diagnostics[0]).toEqual({
+          code: ErrorCode.BUILD_NO_OUTPUT,
+          message: "esbuild did not emit output",
+        });
+      } finally {
+        vi.doUnmock("esbuild");
+        vi.resetModules();
+      }
     });
   });
 });

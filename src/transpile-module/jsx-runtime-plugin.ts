@@ -1,4 +1,5 @@
 import type { Plugin } from "esbuild";
+import { ErrorCode } from "./diagnostics.js";
 
 const JSX_RUNTIME_MODULE_ID = "cmx:jsx-runtime";
 
@@ -21,7 +22,7 @@ const JSX_RUNTIME_CONTENTS = [
   "}",
   "export function __registerExternal(ref) {",
   "  function ExternalReference() {",
-  "    throw new Error('[cmx:external-component-called] External component must be used as JSX.');",
+  `    throw new Error('[cmx:${ErrorCode.EXTERNAL_COMPONENT_CALLED}] External component must be used as JSX.');`,
   "  }",
   "  Object.defineProperty(ExternalReference, '__cmxExternalRef', { value: true });",
   "  externalRefs.set(ExternalReference, ref);",
@@ -48,7 +49,7 @@ const JSX_RUNTIME_CONTENTS = [
   "    const componentProps = children.length > 0 ? { ...rest, children } : rest;",
   "    return type(componentProps);",
   "  }",
-  "  throw new Error('Unsupported JSX element type');",
+  `  throw new Error('[cmx:${ErrorCode.UNSUPPORTED_JSX_ELEMENT_TYPE}] Unsupported JSX element type.');`,
   "}",
   "export { Fragment };",
   "export const jsx = render;",

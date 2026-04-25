@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import type { Plugin } from "esbuild";
+import { ErrorCode } from "./diagnostics.js";
 
 type FileSystemLike = {
   readFile(filePath: string): Promise<string | undefined> | string | undefined;
@@ -78,7 +79,7 @@ function collectImportBindings(
 
     if (clause.startsWith("* as ")) {
       throw new Error(
-        "[cmx:namespace-import-unsupported] Namespace imports are not supported for externals",
+        `[cmx:${ErrorCode.NAMESPACE_IMPORT_UNSUPPORTED}] Namespace imports are not supported for externals`,
       );
     }
 

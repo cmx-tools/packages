@@ -12,6 +12,12 @@ import {
 import { jsxRuntimePlugin } from "./jsx-runtime-plugin.js";
 import { normalizeMeta } from "./meta-normalization.js";
 import {
+  diagnosticsFromError,
+  type Diagnostic,
+  ErrorCode,
+  TranspileError,
+} from "./diagnostics.js";
+import {
   normalizeProps,
   type UnsupportedValuesPolicy,
 } from "./props-policy.js";
@@ -55,8 +61,6 @@ export type CmxManifestExternal = {
 export type CmxManifest = {
   externals: CmxManifestExternal[];
 };
-
-export type Diagnostic = { message: string; code?: string };
 
 export type TranspileSuccessResult = {
   kind: "success";
@@ -146,14 +150,18 @@ export async function transpileModule(
 
     const compiledCode = result.outputFiles?.[0]?.text;
     if (!compiledCode) {
-      throw new Error("esbuild did not emit output");
+      throw new TranspileError(
+        ErrorCode.BUILD_NO_OUTPUT,
+        "esbuild did not emit output",
+      );
     }
 
     const moduleUrl = `data:text/javascript;base64,${Buffer.from(compiledCode).toString("base64")}`;
     const compiledModule = (await import(moduleUrl)) as Record<string, unknown>;
 
     if (!hasOwn(compiledModule, "default")) {
-      throw new Error(
+      throw new TranspileError(
+        ErrorCode.MISSING_DEFAULT_EXPORT,
         `Module ${pathToFileURL(input.entryFile).href} has no default export`,
       );
     }
@@ -165,7 +173,10 @@ export async function transpileModule(
         : exportedDefault;
 
     if (isPromiseLike(renderedRoot)) {
-      throw new Error("Module default export must be synchronous");
+      throw new TranspileError(
+        ErrorCode.ASYNC_DEFAULT_EXPORT,
+        "Module default export must be synchronous",
+      );
     }
 
     return {
@@ -181,17 +192,6 @@ export async function transpileModule(
       diagnostics: diagnosticsFromError(error),
     };
   }
-}
-
-function diagnosticsFromError(error: unknown): Diagnostic[] {
-  const message = error instanceof Error ? error.message : String(error);
-  const taggedCodeMatch = /\[cmx:([a-z0-9-]+)\]\s*([^\n]+)/u.exec(message);
-  if (taggedCodeMatch) {
-    const [, code, stableMessage] = taggedCodeMatch;
-    return [{ code, message: stableMessage }];
-  }
-
-  return [{ message }];
 }
 
 function hasOwn(value: object, key: string): boolean {
@@ -239,16 +239,23 @@ function toCmx(
   options: SerializeOptions,
 ): CmxNode {
   if (isPromiseLike(value)) {
-    throw new Error(`${pathLabel} must be synchronous`);
+    throw new TranspileError(
+      ErrorCode.ASYNC_VALUE,
+      `${pathLabel} must be synchronous`,
+    );
   }
 
   if (value === undefined) {
-    throw new Error(`${pathLabel} resolved to undefined`);
+    throw new TranspileError(
+      ErrorCode.UNDEFINED_VALUE,
+      `${pathLabel} resolved to undefined`,
+    );
   }
 
   if (isExternalRuntimeValue(value)) {
-    throw new Error(
-      "[cmx:external-runtime-value] External import used as runtime value.",
+    throw new TranspileError(
+      ErrorCode.EXTERNAL_RUNTIME_VALUE,
+      "External import used as runtime value.",
     );
   }
 
@@ -273,7 +280,10 @@ function toCmx(
   }
 
   if (!isRuntimeNode(value)) {
-    throw new Error(`${pathLabel} is not CMX runtime output`);
+    throw new TranspileError(
+      ErrorCode.INVALID_RUNTIME_OUTPUT,
+      `${pathLabel} is not CMX runtime output`,
+    );
   }
 
   const runtimeNode = value;
