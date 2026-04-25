@@ -7,11 +7,11 @@ import type {
   TranspileErrorResult,
   TranspileModuleResult,
   TranspileSuccessResult,
-} from "../src/transpile-module/index.js";
+} from "content-management-jsx";
 import {
   ErrorCode,
   transpileModule,
-} from "../src/transpile-module/index.js";
+} from "content-management-jsx";
 
 type SourceFixtures = Record<string, string>;
 
@@ -1474,7 +1474,7 @@ describe("transpileModule", () => {
 
       try {
         const { transpileModule: mockedTranspileModule } = await import(
-          "../src/transpile-module/index.js"
+          "content-management-jsx"
         );
         const result = expectErrorResult(
           await mockedTranspileModule({

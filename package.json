@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/transpile-module/index.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "test": "vitest run"
