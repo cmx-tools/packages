@@ -466,6 +466,73 @@ describe("transpileModule", () => {
       });
     });
 
+    it("keeps runtime node identity stable across concurrent transpiles", async () => {
+      const delayedTranspile = transpileModule({
+        entryFile: "/virtual/delayed.tsx",
+        fs: createVirtualFs({
+          "/virtual/delayed.tsx": [
+            "const node = <section><p>delayed</p></section>;",
+            "export default async function Page() {",
+            "  await new Promise((resolve) => setTimeout(resolve, 10));",
+            "  return node;",
+            "}",
+          ].join("\n"),
+        }),
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 5));
+
+      const fastResult = expectTreeResult(
+        await transpileModule({
+          entryFile: "/virtual/fast.tsx",
+          fs: createVirtualFs({
+            "/virtual/fast.tsx": "export default <main>fast</main>;",
+          }),
+        }),
+      );
+
+      const delayedResult = expectTreeResult(await delayedTranspile);
+
+      expect(fastResult.tree).toEqual({
+        type: "element",
+        tag: "main",
+        children: ["fast"],
+      });
+      expect(delayedResult.tree).toEqual({
+        type: "element",
+        tag: "section",
+        children: [
+          {
+            type: "element",
+            tag: "p",
+            children: ["delayed"],
+          },
+        ],
+      });
+    });
+
+    it("does not mutate global runtime checker state", async () => {
+      const runtimeCheckerKey = Symbol.for("cmx.runtime-node-checker");
+      const globalRecord = globalThis as Record<PropertyKey, unknown>;
+      const before = globalRecord[runtimeCheckerKey];
+
+      const result = expectTreeResult(
+        await transpileModule({
+          entryFile: "/virtual/global-checker.tsx",
+          fs: createVirtualFs({
+            "/virtual/global-checker.tsx": "export default <main>ok</main>;",
+          }),
+        }),
+      );
+
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "main",
+        children: ["ok"],
+      });
+      expect(globalRecord[runtimeCheckerKey]).toBe(before);
+    });
+
     it("returns error diagnostics for missing virtual import", async () => {
       const entryFile = "/virtual/entry.tsx";
       const fs = createVirtualFs({

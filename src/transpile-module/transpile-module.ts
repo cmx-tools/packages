@@ -1,10 +1,7 @@
 import { build } from "esbuild";
 import { pathToFileURL } from "node:url";
 import { flattenChildren } from "./children-normalization.js";
-import {
-  externalsPlugin,
-  normalizeExternals,
-} from "./externals-plugin.js";
+import { externalsPlugin, normalizeExternals } from "./externals-plugin.js";
 import {
   createExternalsManifest,
   type ExternalUsageRef,
@@ -104,7 +101,7 @@ type RuntimeNode = {
   children?: unknown[];
 };
 
-const RUNTIME_NODE_CHECKER_KEY = Symbol.for("cmx.runtime-node-checker");
+const RUNTIME_NODE_MARKER_KEY = Symbol.for("cmx.runtime-node-marker");
 
 type SerializeOptions = {
   unsupportedValues: UnsupportedValuesPolicy;
@@ -223,22 +220,15 @@ function isRuntimeNode(value: unknown): value is RuntimeNode {
     return false;
   }
 
-  const maybeChecker = (
-    globalThis as Record<PropertyKey, unknown>
-  )[RUNTIME_NODE_CHECKER_KEY];
-  if (typeof maybeChecker !== "function") {
+  const maybeRuntime = value as RuntimeNode & Record<PropertyKey, unknown>;
+  if (maybeRuntime[RUNTIME_NODE_MARKER_KEY] !== true) {
     return false;
   }
 
-  if (!(maybeChecker as (candidate: unknown) => boolean)(value)) {
-    return false;
-  }
-
-  const maybeRuntime = value as RuntimeNode;
   return (
-    (maybeRuntime.kind === "fragment" ||
-      maybeRuntime.kind === "element" ||
-      maybeRuntime.kind === "component")
+    maybeRuntime.kind === "fragment" ||
+    maybeRuntime.kind === "element" ||
+    maybeRuntime.kind === "component"
   );
 }
 
@@ -288,7 +278,9 @@ async function toCmx(
     const flattened: unknown[] = [];
     flattenChildren(resolvedValue, flattened);
     const children = await Promise.all(
-      flattened.map((child, index) => toCmx(child, `${pathLabel}[${index}]`, options)),
+      flattened.map((child, index) =>
+        toCmx(child, `${pathLabel}[${index}]`, options),
+      ),
     );
     return {
       type: "fragment",
@@ -421,4 +413,3 @@ async function resolveMaybePromise(
     throw new TranspileError(code, rejectedMessage);
   }
 }
-
