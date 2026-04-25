@@ -6,12 +6,74 @@ import { describe, expect, it } from "vitest";
 
 import { transpileModule } from "../src/transpile-module.js";
 
+function createVirtualFs(files: Record<string, string>) {
+  return {
+    async readFile(filePath: string): Promise<string | undefined> {
+      return files[filePath];
+    }
+  };
+}
+
 async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "cmx-spike-"));
   await run(tempDir);
 }
 
 describe("transpileModule", () => {
+  it("transpiles module graph from virtual filesystem", async () => {
+    const entryFile = "/virtual/entry.tsx";
+    const helperFile = "/virtual/helper.tsx";
+    const fs = createVirtualFs({
+      [entryFile]: [
+        "import { Hero } from './helper';",
+        "export const meta = { slug: 'virtual' };",
+        "export default <main><Hero title='Hello VFS' /></main>;"
+      ].join("\n"),
+      [helperFile]: "export function Hero({ title }) { return <h1>{title}</h1>; }"
+    });
+
+    const result = await transpileModule({ entryFile, fs });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error("expected successful result");
+    }
+
+    expect(result.meta).toEqual({ slug: "virtual" });
+    expect(result.manifest).toEqual({ externals: [] });
+    expect(result.tree).toEqual({
+      kind: "element",
+      tag: "main",
+      children: [
+        {
+          kind: "element",
+          tag: "h1",
+          children: ["Hello VFS"]
+        }
+      ]
+    });
+  });
+
+  it("returns diagnostics for missing virtual imports", async () => {
+    const entryFile = "/virtual/entry.tsx";
+    const fs = createVirtualFs({
+      [entryFile]: [
+        "import { Missing } from './missing';",
+        "export default <main><Missing /></main>;"
+      ].join("\n")
+    });
+
+    const result = await transpileModule({ entryFile, fs });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("expected error result");
+    }
+
+    expect(result.diagnostics.length).toBeGreaterThan(0);
+    expect(result.diagnostics[0]?.message).toMatch(/Virtual module not found: \.\/missing/u);
+  });
+
   it("converts TSX module to CMX-like tree", async () => {
     await withTempDir(async (tempDir) => {
       const helperFile = path.join(tempDir, "helper.tsx");

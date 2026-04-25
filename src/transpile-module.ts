@@ -1,6 +1,8 @@
 import { build, type Plugin } from "esbuild";
 import { pathToFileURL } from "node:url";
 
+import { type VirtualFileSystem, virtualFsPlugin } from "./virtual-fs-plugin.js";
+
 const JSX_RUNTIME_MODULE_ID = "cmx:jsx-runtime";
 
 export type CmxNode =
@@ -172,8 +174,10 @@ function jsxRuntimePlugin(): Plugin {
   };
 }
 
-export async function transpileModule(input: { entryFile: string }): Promise<TranspileResult> {
+export async function transpileModule(input: { entryFile: string; fs?: VirtualFileSystem }): Promise<TranspileResult> {
   try {
+    const plugins = input.fs ? [virtualFsPlugin(input.fs), jsxRuntimePlugin()] : [jsxRuntimePlugin()];
+
     const result = await build({
       absWorkingDir: process.cwd(),
       entryPoints: [input.entryFile],
@@ -183,7 +187,7 @@ export async function transpileModule(input: { entryFile: string }): Promise<Tra
       write: false,
       jsx: "automatic",
       jsxImportSource: "cmx-internal",
-      plugins: [jsxRuntimePlugin()]
+      plugins
     });
 
     const compiledCode = result.outputFiles?.[0]?.text;
