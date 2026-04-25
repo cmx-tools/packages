@@ -765,5 +765,65 @@ describe("transpileModule", () => {
 
       expect(result.diagnostics[0]?.message).toMatch(/Could not resolve/u);
     });
+
+    it("sorts manifest refs deterministically by module + named import", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "import { zeta as Zeta, alpha as AlphaB } from '@vendor/b';",
+          "import { zebra as ZebraA, alpha as AlphaA } from '@vendor/a';",
+          "export default <main><AlphaA /><Zeta /><ZebraA /><AlphaB /></main>;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(
+        await transpileModule({
+          entryFile,
+          fs,
+          externals: ["@vendor/a", "@vendor/b"],
+        }),
+      );
+
+      expect(result.manifest).toEqual({
+        externals: [
+          {
+            from: "@vendor/a",
+            imports: ["alpha", "zebra"],
+          },
+          {
+            from: "@vendor/b",
+            imports: ["alpha", "zeta"],
+          },
+        ],
+      });
+    });
+
+    it("records only external refs used in output", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "import { Used } from '@vendor/ui';",
+          "import { Unused } from '@vendor/ui';",
+          "export default <Used />;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(
+        await transpileModule({
+          entryFile,
+          fs,
+          externals: ["@vendor/ui"],
+        }),
+      );
+
+      expect(result.manifest).toEqual({
+        externals: [
+          {
+            from: "@vendor/ui",
+            imports: ["Used"],
+          },
+        ],
+      });
+    });
   });
 });
