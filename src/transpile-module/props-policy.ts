@@ -1,7 +1,4 @@
-import {
-  ErrorCode,
-  TranspileError,
-} from "./diagnostics.js";
+import { ErrorCode, TranspileError } from "./diagnostics.js";
 
 export type UnsupportedValuesPolicy = "error" | "omit";
 export type SlotPathSegment = string | number;
@@ -22,7 +19,7 @@ type NormalizePropOptions = {
 export function normalizeProps(
   value: Record<string, unknown>,
   pathLabel: string,
-  options: NormalizePropOptions
+  options: NormalizePropOptions,
 ): Promise<Record<string, unknown> | undefined> {
   return normalizePropsInternal(value, pathLabel, options);
 }
@@ -52,7 +49,10 @@ async function normalizePropsInternal(
   return normalized;
 }
 
-function unsupportedProp(pathLabel: string, options: NormalizePropOptions): DropResult {
+function unsupportedProp(
+  pathLabel: string,
+  options: NormalizePropOptions,
+): DropResult {
   if (options.unsupportedValues === "omit") {
     return { keep: false };
   }
@@ -67,7 +67,7 @@ function normalizePropValue(
   value: unknown,
   pathLabel: string,
   propPath: SlotPath,
-  options: NormalizePropOptions
+  options: NormalizePropOptions,
 ): Promise<KeepResult | DropResult> {
   return normalizePropValueInternal(value, pathLabel, propPath, options);
 }

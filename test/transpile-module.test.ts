@@ -1479,5 +1479,47 @@ describe("transpileModule", () => {
         children: ["From JSX"],
       });
     });
+
+    it("passes single JSX child to local component as scalar children (automatic jsx shape)", async () => {
+      const entryFile = "/virtual/local-children-scalar.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "function X({ children }: { children?: unknown }) {",
+          "  const shape = Array.isArray(children) ? 'array' : 'scalar';",
+          "  return <p>{shape}</p>;",
+          "}",
+          "export default <X>Hello</X>;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(await transpileModule({ entryFile, fs }));
+
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "p",
+        children: ["scalar"],
+      });
+    });
+
+    it("passes multiple JSX children to local component as children array", async () => {
+      const entryFile = "/virtual/local-children-array.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "function X({ children }: { children?: unknown }) {",
+          "  const shape = Array.isArray(children) ? 'array' : 'scalar';",
+          "  return <p>{shape}</p>;",
+          "}",
+          "export default <X><span />2</X>;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(await transpileModule({ entryFile, fs }));
+
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "p",
+        children: ["array"],
+      });
+    });
   });
 });
