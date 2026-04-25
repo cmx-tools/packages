@@ -1,7 +1,7 @@
 import { build, type Plugin } from "esbuild";
 import { pathToFileURL } from "node:url";
 
-import { type VirtualFileSystem, virtualFsPlugin } from "./virtual-fs-plugin.js";
+import { virtualFsPlugin } from "./virtual-fs-plugin.js";
 
 const JSX_RUNTIME_MODULE_ID = "cmx:jsx-runtime";
 
@@ -24,7 +24,7 @@ export type CmxNode =
 export type Diagnostic = { message: string };
 
 export type TranspileSuccessResult = {
-  ok: true;
+  kind: "success";
   tree: CmxNode;
   meta: unknown;
   manifest: { externals: unknown[] };
@@ -32,11 +32,20 @@ export type TranspileSuccessResult = {
 };
 
 export type TranspileErrorResult = {
-  ok: false;
+  kind: "error";
   diagnostics: Diagnostic[];
 };
 
-type TranspileResult = TranspileSuccessResult | TranspileErrorResult;
+export type TranspileModuleResult = TranspileSuccessResult | TranspileErrorResult;
+
+export type FileSystem = {
+  readFile(filePath: string): Promise<string | undefined> | string | undefined;
+};
+
+export type TranspileModuleInput = {
+  entryFile: string;
+  fs?: FileSystem;
+};
 
 type RuntimeNode = {
   __cmxRuntimeNode: true;
@@ -174,7 +183,7 @@ function jsxRuntimePlugin(): Plugin {
   };
 }
 
-export async function transpileModule(input: { entryFile: string; fs?: VirtualFileSystem }): Promise<TranspileResult> {
+export async function transpileModule(input: TranspileModuleInput): Promise<TranspileModuleResult> {
   try {
     const plugins = input.fs ? [virtualFsPlugin(input.fs), jsxRuntimePlugin()] : [jsxRuntimePlugin()];
 
@@ -206,7 +215,7 @@ export async function transpileModule(input: { entryFile: string; fs?: VirtualFi
     const renderedRoot = typeof exportedDefault === "function" ? exportedDefault() : exportedDefault;
 
     return {
-      ok: true,
+      kind: "success",
       tree: toCmx(renderedRoot, "default export"),
       meta: hasOwn(compiledModule, "meta") ? compiledModule.meta : null,
       manifest: { externals: [] },
@@ -214,7 +223,7 @@ export async function transpileModule(input: { entryFile: string; fs?: VirtualFi
     };
   } catch (error) {
     return {
-      ok: false,
+      kind: "error",
       diagnostics: diagnosticsFromError(error)
     };
   }

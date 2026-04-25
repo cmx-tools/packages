@@ -1,10 +1,7 @@
 import path from "node:path";
 
 import type { Plugin } from "esbuild";
-
-export type VirtualFileSystem = {
-  readFile(filePath: string): Promise<string | undefined> | string | undefined;
-};
+import type { FileSystem } from "./transpile-module.js";
 
 function loaderFromFilePath(filePath: string): "ts" | "tsx" | "js" | "jsx" {
   const ext = path.extname(filePath).toLowerCase();
@@ -38,7 +35,7 @@ function createVirtualCandidates(basePath: string): string[] {
   ];
 }
 
-export function virtualFsPlugin(virtualFs: VirtualFileSystem): Plugin {
+export function virtualFsPlugin(virtualFs: FileSystem): Plugin {
   const namespace = "cmx-vfs";
   function isVirtualSpecifier(specifier: string): boolean {
     return specifier.startsWith(".") || specifier.startsWith("/");

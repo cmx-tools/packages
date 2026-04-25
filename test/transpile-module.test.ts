@@ -34,8 +34,8 @@ describe("transpileModule", () => {
 
     const result = await transpileModule({ entryFile, fs });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
+    expect(result.kind).toBe("success");
+    if (result.kind !== "success") {
       throw new Error("expected successful result");
     }
 
@@ -65,8 +65,8 @@ describe("transpileModule", () => {
 
     const result = await transpileModule({ entryFile, fs });
 
-    expect(result.ok).toBe(false);
-    if (result.ok) {
+    expect(result.kind).toBe("error");
+    if (result.kind !== "error") {
       throw new Error("expected error result");
     }
 
@@ -99,8 +99,8 @@ describe("transpileModule", () => {
 
       const result = await transpileModule({ entryFile });
 
-      expect(result.ok).toBe(true);
-      if (!result.ok) {
+      expect(result.kind).toBe("success");
+      if (result.kind !== "success") {
         throw new Error("expected successful result");
       }
 
@@ -127,13 +127,55 @@ describe("transpileModule", () => {
 
       const result = await transpileModule({ entryFile });
 
-      expect(result.ok).toBe(false);
-      if (result.ok) {
+      expect(result.kind).toBe("error");
+      if (result.kind !== "error") {
         throw new Error("expected error result");
       }
 
       expect(result.diagnostics.length).toBeGreaterThan(0);
       expect(result.diagnostics[0]?.message).toMatch(/has no default export/u);
     });
+  });
+
+  it("returns stable success shape with diagnostics", async () => {
+    const entryFile = "/virtual/entry.tsx";
+    const fs = createVirtualFs({
+      [entryFile]: "export default <article>ok</article>;"
+    });
+
+    const result = await transpileModule({ entryFile, fs });
+
+    expect(result.kind).toBe("success");
+    expect(result).toHaveProperty("diagnostics");
+    expect(Array.isArray(result.diagnostics)).toBe(true);
+    expect(result).toHaveProperty("tree");
+    expect(result).toHaveProperty("manifest");
+    if (result.kind !== "success") {
+      throw new Error("expected successful result");
+    }
+    expect(result.manifest).toEqual({ externals: [] });
+  });
+
+  it("returns stable error shape with diagnostics only", async () => {
+    const entryFile = "/virtual/entry.tsx";
+    const fs = createVirtualFs({
+      [entryFile]: "export default () => undefined;"
+    });
+
+    const result = await transpileModule({ entryFile, fs });
+
+    expect(result.kind).toBe("error");
+    expect(result).toHaveProperty("diagnostics");
+    expect(Array.isArray(result.diagnostics)).toBe(true);
+    expect(result.diagnostics).toMatchInlineSnapshot(`
+      [
+        {
+          "message": "default export resolved to undefined",
+        },
+      ]
+    `);
+    expect(result).not.toHaveProperty("tree");
+    expect(result).not.toHaveProperty("manifest");
+    expect(result).not.toHaveProperty("meta");
   });
 });
