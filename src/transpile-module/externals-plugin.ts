@@ -48,6 +48,20 @@ function matchesExternal(canonicalId: string, externals: string[]): boolean {
   return false;
 }
 
+function escapeRegexLiteral(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+/** `import "specifier"` / `import 'specifier'` (no `from` clause). */
+function hasSideEffectOnlyImport(source: string, specifier: string): boolean {
+  const escaped = escapeRegexLiteral(specifier);
+  const re = new RegExp(
+    String.raw`\bimport\s+(["'])` + escaped + String.raw`\1\s*(?:;|[\r\n]|$)`,
+    "mu",
+  );
+  return re.test(source);
+}
+
 async function readImporterSource(
   importer: string,
   virtualFs?: FileSystemLike,
@@ -259,6 +273,13 @@ export function externalsPlugin(options: ExternalsPluginOptions): Plugin {
 
         const importerSource = await readImporterSource(importer, options.fs);
         const bindings = collectImportBindings(importerSource, rawSpecifier);
+
+        if (hasSideEffectOnlyImport(importerSource, rawSpecifier)) {
+          throw new Error(
+            `[cmx:${ErrorCode.SIDE_EFFECT_EXTERNAL_IMPORT_UNSUPPORTED}] Side-effect external imports are not supported; external modules are not executed at transpile time`,
+          );
+        }
+
         const lines: string[] = [
           "import { __registerExternal } from 'cmx-internal/jsx-runtime';",
           `const __cmxFrom = ${JSON.stringify(canonicalId)};`,

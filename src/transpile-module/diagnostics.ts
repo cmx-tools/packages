@@ -44,6 +44,11 @@ export enum ErrorCode {
    */
   NAMESPACE_IMPORT_UNSUPPORTED = "namespace-import-unsupported",
   /**
+   * Side-effect-only external import (`import "pkg"` without bindings);
+   * external modules are not executed, so the import cannot be represented.
+   */
+  SIDE_EFFECT_EXTERNAL_IMPORT_UNSUPPORTED = "side-effect-external-import-unsupported",
+  /**
    * JSX runtime received element type other than string/function/fragment.
    */
   UNSUPPORTED_JSX_ELEMENT_TYPE = "unsupported-jsx-element-type",

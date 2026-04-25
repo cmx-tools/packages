@@ -1352,6 +1352,50 @@ describe("transpileModule", () => {
       });
     });
 
+    it("rejects side-effect-only external imports with stable diagnostic code", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: ["import '@theme/ui';", "export default <div />;"].join("\n"),
+      });
+
+      const result = expectErrorResult(
+        await transpileModule({
+          entryFile,
+          fs,
+          externals: ["@theme/ui"],
+        }),
+      );
+
+      expect(result.diagnostics[0]).toEqual({
+        code: ErrorCode.SIDE_EFFECT_EXTERNAL_IMPORT_UNSUPPORTED,
+        message:
+          "Side-effect external imports are not supported; external modules are not executed at transpile time",
+      });
+    });
+
+    it("rejects side-effect external import even when same module has value imports", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "import '@theme/ui';",
+          "import { H1 } from '@theme/ui';",
+          "export default <H1>Hi</H1>;",
+        ].join("\n"),
+      });
+
+      const result = expectErrorResult(
+        await transpileModule({
+          entryFile,
+          fs,
+          externals: ["@theme/ui"],
+        }),
+      );
+
+      expect(result.diagnostics[0]?.code).toBe(
+        ErrorCode.SIDE_EFFECT_EXTERNAL_IMPORT_UNSUPPORTED,
+      );
+    });
+
     it("rejects external components called as functions with stable diagnostic code", async () => {
       const entryFile = "/virtual/entry.tsx";
       const fs = createVirtualFs({
