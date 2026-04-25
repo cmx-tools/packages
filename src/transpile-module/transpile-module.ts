@@ -82,13 +82,18 @@ export type TranspileModuleResult =
 export type { UnsupportedValuesPolicy } from "./props-policy.js";
 
 export type FileSystem = {
+  /** Return source text for an absolute module path, or undefined when missing. */
   readFile(filePath: string): Promise<string | undefined> | string | undefined;
 };
 
 export type TranspileModuleInput = {
+  /** Absolute path to the TSX module that exports the root CMX content. */
   entryFile: string;
+  /** Optional virtual file system used instead of reading modules from disk. */
   fs?: FileSystem;
+  /** Module specifiers or glob patterns to keep as external CMX components. */
   externals?: string[];
+  /** How to handle values that cannot be represented in CMX output. */
   unsupportedValues?: UnsupportedValuesPolicy;
 };
 
