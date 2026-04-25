@@ -776,6 +776,23 @@ describe("transpileModule", () => {
       expect(numberResult.tree).toBe(42);
     });
 
+    it("preserves null and booleans in fragment children", async () => {
+      const result = expectTreeResult(
+        await transpileModule({
+          entryFile: "/virtual/null-boolean-children.tsx",
+          fs: createVirtualFs({
+            "/virtual/null-boolean-children.tsx":
+              "export default <>{null}{false}{true}</>;",
+          }),
+        }),
+      );
+
+      expect(result.tree).toEqual({
+        type: "fragment",
+        children: [null, false, true],
+      });
+    });
+
     it("returns error when root resolves to plain object", async () => {
       const result = expectErrorResult(
         await transpileModule({

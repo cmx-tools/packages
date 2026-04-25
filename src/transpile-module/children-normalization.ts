@@ -4,11 +4,6 @@ export function flattenChildren(input: unknown[], output: unknown[]): void {
       flattenChildren(entry, output);
       continue;
     }
-
-    if (entry === null || entry === false || entry === true) {
-      continue;
-    }
-
     output.push(entry);
   }
 }
