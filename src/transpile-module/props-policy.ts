@@ -7,6 +7,7 @@ type NormalizePropOptions = {
   unsupportedValues: UnsupportedValuesPolicy;
   isPlainObject(value: unknown): value is Record<string, unknown>;
   isRuntimeNode(value: unknown): boolean;
+  isExternalRuntimeValue(value: unknown): boolean;
   normalizeRuntimeNode(value: unknown, pathLabel: string): unknown;
 };
 
@@ -54,6 +55,12 @@ function normalizePropValue(
     typeof value === "boolean"
   ) {
     return { keep: true, value };
+  }
+
+  if (options.isExternalRuntimeValue(value)) {
+    throw new Error(
+      "[cmx:external-runtime-value] External import used as runtime value.",
+    );
   }
 
   if (Array.isArray(value)) {

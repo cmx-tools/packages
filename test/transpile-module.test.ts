@@ -825,5 +825,74 @@ describe("transpileModule", () => {
         ],
       });
     });
+
+    it("rejects namespace imports from externals with stable diagnostic code", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "import * as UI from '@theme/ui';",
+          "export default <UI.H1 />;",
+        ].join("\n"),
+      });
+
+      const result = expectErrorResult(
+        await transpileModule({
+          entryFile,
+          fs,
+          externals: ["@theme/ui"],
+        }),
+      );
+
+      expect(result.diagnostics[0]).toEqual({
+        code: "namespace-import-unsupported",
+        message: "Namespace imports are not supported for externals",
+      });
+    });
+
+    it("rejects external components called as functions with stable diagnostic code", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "import { H1 } from '@theme/ui';",
+          "export default H1({ children: 'Hello' });",
+        ].join("\n"),
+      });
+
+      const result = expectErrorResult(
+        await transpileModule({
+          entryFile,
+          fs,
+          externals: ["@theme/ui"],
+        }),
+      );
+
+      expect(result.diagnostics[0]).toEqual({
+        code: "external-component-called",
+        message: "External component must be used as JSX.",
+      });
+    });
+
+    it("rejects external imports used as runtime values with stable diagnostic code", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "import { themeName } from '@theme/ui';",
+          "export default <p>{themeName}</p>;",
+        ].join("\n"),
+      });
+
+      const result = expectErrorResult(
+        await transpileModule({
+          entryFile,
+          fs,
+          externals: ["@theme/ui"],
+        }),
+      );
+
+      expect(result.diagnostics[0]).toEqual({
+        code: "external-runtime-value",
+        message: "External import used as runtime value.",
+      });
+    });
   });
 });

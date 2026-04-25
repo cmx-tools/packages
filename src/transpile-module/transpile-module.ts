@@ -56,7 +56,7 @@ export type CmxManifest = {
   externals: CmxManifestExternal[];
 };
 
-export type Diagnostic = { message: string };
+export type Diagnostic = { message: string; code?: string };
 
 export type TranspileSuccessResult = {
   kind: "success";
@@ -185,6 +185,12 @@ export async function transpileModule(
 
 function diagnosticsFromError(error: unknown): Diagnostic[] {
   const message = error instanceof Error ? error.message : String(error);
+  const taggedCodeMatch = /\[cmx:([a-z0-9-]+)\]\s*([^\n]+)/u.exec(message);
+  if (taggedCodeMatch) {
+    const [, code, stableMessage] = taggedCodeMatch;
+    return [{ code, message: stableMessage }];
+  }
+
   return [{ message }];
 }
 
@@ -219,6 +225,14 @@ function isRuntimeNode(value: unknown): value is RuntimeNode {
   );
 }
 
+function isExternalRuntimeValue(value: unknown): boolean {
+  return (
+    typeof value === "function" &&
+    "__cmxExternalRef" in value &&
+    (value as { __cmxExternalRef?: unknown }).__cmxExternalRef === true
+  );
+}
+
 function toCmx(
   value: unknown,
   pathLabel: string,
@@ -230,6 +244,12 @@ function toCmx(
 
   if (value === undefined) {
     throw new Error(`${pathLabel} resolved to undefined`);
+  }
+
+  if (isExternalRuntimeValue(value)) {
+    throw new Error(
+      "[cmx:external-runtime-value] External import used as runtime value.",
+    );
   }
 
   if (
@@ -307,6 +327,7 @@ function toCmx(
         unsupportedValues: options.unsupportedValues,
         isPlainObject,
         isRuntimeNode,
+        isExternalRuntimeValue,
         normalizeRuntimeNode: (runtimeValue, runtimePathLabel) =>
           toCmx(runtimeValue, runtimePathLabel, options),
       },

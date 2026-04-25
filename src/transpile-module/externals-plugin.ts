@@ -77,7 +77,9 @@ function collectImportBindings(
     }
 
     if (clause.startsWith("* as ")) {
-      throw new Error("Namespace imports are not supported for externals");
+      throw new Error(
+        "[cmx:namespace-import-unsupported] Namespace imports are not supported for externals",
+      );
     }
 
     if (clause.startsWith("{")) {
