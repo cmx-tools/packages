@@ -633,6 +633,72 @@ describe("transpileModule", () => {
       expect(result.diagnostics).toEqual([]);
     });
 
+    it("maps explicit children prop on external component to node children", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "import { H1 } from '@theme/ui';",
+          "export default <H1 children='From prop' />;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(
+        await transpileModule({
+          entryFile,
+          fs,
+          externals: ["@theme/ui"],
+        }),
+      );
+
+      expect(result.tree).toEqual({
+        type: "component",
+        from: "@theme/ui",
+        import: "H1",
+        children: ["From prop"],
+      });
+      expect(result.manifest).toEqual({
+        externals: [
+          {
+            from: "@theme/ui",
+            imports: ["H1"],
+          },
+        ],
+      });
+    });
+
+    it("prefers JSX child over explicit children prop on external component", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "import { H1 } from '@theme/ui';",
+          "export default <H1 children='From prop'>From JSX</H1>;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(
+        await transpileModule({
+          entryFile,
+          fs,
+          externals: ["@theme/ui"],
+        }),
+      );
+
+      expect(result.tree).toEqual({
+        type: "component",
+        from: "@theme/ui",
+        import: "H1",
+        children: ["From JSX"],
+      });
+      expect(result.manifest).toEqual({
+        externals: [
+          {
+            from: "@theme/ui",
+            imports: ["H1"],
+          },
+        ],
+      });
+    });
+
     it("supports default + named externals and merges manifest refs", async () => {
       const entryFile = "/virtual/entry.tsx";
       const fs = createVirtualFs({
@@ -952,6 +1018,38 @@ describe("transpileModule", () => {
         vi.doUnmock("esbuild");
         vi.resetModules();
       }
+    });
+  });
+
+  describe("children semantics baseline (issue #21 context)", () => {
+    it("maps explicit children prop on intrinsic element to node children", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: "export default <p children='From prop' />;",
+      });
+
+      const result = expectTreeResult(await transpileModule({ entryFile, fs }));
+
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "p",
+        children: ["From prop"],
+      });
+    });
+
+    it("prefers JSX child over explicit children prop on intrinsic element", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: "export default <p children='From prop'>From JSX</p>;",
+      });
+
+      const result = expectTreeResult(await transpileModule({ entryFile, fs }));
+
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "p",
+        children: ["From JSX"],
+      });
     });
   });
 });
