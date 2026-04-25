@@ -42,8 +42,8 @@ async function writeFixturesToDisk(
 function expectTreeResult(
   result: TranspileModuleResult,
 ): TranspileSuccessResult {
-  expect(result.kind).toBe("success");
-  if (result.kind !== "success") {
+  expect(result.result).toBe("tree");
+  if (result.result !== "tree") {
     throw new Error("expected tree result");
   }
   return result;
@@ -52,8 +52,8 @@ function expectTreeResult(
 function expectErrorResult(
   result: TranspileModuleResult,
 ): TranspileErrorResult {
-  expect(result.kind).toBe("error");
-  if (result.kind !== "error") {
+  expect(result.result).toBe("error");
+  if (result.result !== "error") {
     throw new Error("expected error result");
   }
   return result;
@@ -734,7 +734,7 @@ describe("transpileModule", () => {
         }),
       });
 
-      expect(result.kind).toBe("success");
+      expect(result.result).toBe("tree");
       expect(result).toHaveProperty("tree");
       expect(result).toHaveProperty("manifest");
       expect(result).not.toHaveProperty("meta");
@@ -749,7 +749,7 @@ describe("transpileModule", () => {
         }),
       });
 
-      expect(result.kind).toBe("error");
+      expect(result.result).toBe("error");
       expect(result).toHaveProperty("diagnostics");
       expect(result).not.toHaveProperty("tree");
       expect(result).not.toHaveProperty("manifest");

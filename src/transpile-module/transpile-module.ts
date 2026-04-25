@@ -63,7 +63,7 @@ export type CmxManifest = {
 };
 
 export type TranspileSuccessResult = {
-  kind: "success";
+  result: "tree";
   tree: CmxNode;
   meta?: CmxMeta;
   manifest: CmxManifest;
@@ -71,7 +71,7 @@ export type TranspileSuccessResult = {
 };
 
 export type TranspileErrorResult = {
-  kind: "error";
+  result: "error";
   diagnostics: Diagnostic[];
 };
 
@@ -190,7 +190,7 @@ export async function transpileModule(
     });
 
     return {
-      kind: "success",
+      result: "tree",
       tree: await toCmx(resolvedRoot, "default export", options),
       ...(meta ? { meta } : {}),
       manifest: createExternalsManifest(usedExternalRefs),
@@ -198,7 +198,7 @@ export async function transpileModule(
     };
   } catch (error) {
     return {
-      kind: "error",
+      result: "error",
       diagnostics: diagnosticsFromError(error),
     };
   }
