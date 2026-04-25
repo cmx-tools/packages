@@ -16,18 +16,29 @@ type MetaNormalizationOptions = {
   isPlainObject(value: unknown): value is Record<string, unknown>;
   isRuntimeNode(value: unknown): boolean;
   isExternalRuntimeValue(value: unknown): boolean;
-  normalizeRuntimeNode(value: unknown, pathLabel: string): unknown;
+  normalizeRuntimeNode(value: unknown, pathLabel: string): Promise<unknown>;
 };
 
 export function normalizeMeta(
   compiledModule: Record<string, unknown>,
   options: MetaNormalizationOptions,
-): CmxMeta | undefined {
+): Promise<CmxMeta | undefined> {
+  return normalizeMetaInternal(compiledModule, options);
+}
+
+async function normalizeMetaInternal(
+  compiledModule: Record<string, unknown>,
+  options: MetaNormalizationOptions,
+): Promise<CmxMeta | undefined> {
   if (!Object.prototype.hasOwnProperty.call(compiledModule, "meta")) {
     return undefined;
   }
 
-  const normalizedMeta = normalizeMetaValue(compiledModule.meta, "meta", options);
+  const normalizedMeta = await normalizeMetaValue(
+    compiledModule.meta,
+    "meta",
+    options,
+  );
   if (!normalizedMeta.keep) {
     return undefined;
   }
@@ -55,32 +66,42 @@ function normalizeMetaValue(
   value: unknown,
   pathLabel: string,
   options: MetaNormalizationOptions,
-): KeepResult | DropResult {
-  if (value === undefined) {
+): Promise<KeepResult | DropResult> {
+  return normalizeMetaValueInternal(value, pathLabel, options);
+}
+
+async function normalizeMetaValueInternal(
+  value: unknown,
+  pathLabel: string,
+  options: MetaNormalizationOptions,
+): Promise<KeepResult | DropResult> {
+  const resolvedValue = await value;
+
+  if (resolvedValue === undefined) {
     return unsupportedMeta(pathLabel, options);
   }
 
   if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
+    resolvedValue === null ||
+    typeof resolvedValue === "string" ||
+    typeof resolvedValue === "number" ||
+    typeof resolvedValue === "boolean"
   ) {
-    return { keep: true, value };
+    return { keep: true, value: resolvedValue };
   }
 
-  if (options.isExternalRuntimeValue(value)) {
+  if (options.isExternalRuntimeValue(resolvedValue)) {
     throw new TranspileError(
       ErrorCode.EXTERNAL_RUNTIME_VALUE,
       "External import used as runtime value.",
     );
   }
 
-  if (Array.isArray(value)) {
+  if (Array.isArray(resolvedValue)) {
     const normalized: unknown[] = [];
-    for (let index = 0; index < value.length; index += 1) {
-      const item = normalizeMetaValue(
-        value[index],
+    for (let index = 0; index < resolvedValue.length; index += 1) {
+      const item = await normalizeMetaValue(
+        resolvedValue[index],
         `${pathLabel}[${index}]`,
         options,
       );
@@ -91,20 +112,20 @@ function normalizeMetaValue(
     return { keep: true, value: normalized };
   }
 
-  if (options.isRuntimeNode(value)) {
+  if (options.isRuntimeNode(resolvedValue)) {
     return {
       keep: true,
-      value: options.normalizeRuntimeNode(value, pathLabel),
+      value: await options.normalizeRuntimeNode(resolvedValue, pathLabel),
     };
   }
 
-  if (!options.isPlainObject(value)) {
+  if (!options.isPlainObject(resolvedValue)) {
     return unsupportedMeta(pathLabel, options);
   }
 
   const normalized: Record<string, unknown> = {};
-  for (const [key, nestedValue] of Object.entries(value)) {
-    const result = normalizeMetaValue(
+  for (const [key, nestedValue] of Object.entries(resolvedValue)) {
+    const result = await normalizeMetaValue(
       nestedValue,
       `${pathLabel}.${key}`,
       options,

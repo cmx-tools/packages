@@ -175,15 +175,13 @@ export async function transpileModule(
       typeof exportedDefault === "function"
         ? exportedDefault()
         : exportedDefault;
+    const resolvedRoot = await resolveMaybePromise(
+      renderedRoot,
+      ErrorCode.ASYNC_DEFAULT_EXPORT,
+      "Module default export threw while awaiting async result",
+    );
 
-    if (isPromiseLike(renderedRoot)) {
-      throw new TranspileError(
-        ErrorCode.ASYNC_DEFAULT_EXPORT,
-        "Module default export must be synchronous",
-      );
-    }
-
-    const meta = normalizeMeta(compiledModule, {
+    const meta = await normalizeMeta(compiledModule, {
       unsupportedValues: options.unsupportedValues,
       isPlainObject,
       isRuntimeNode,
@@ -194,7 +192,7 @@ export async function transpileModule(
 
     return {
       kind: "success",
-      tree: toCmx(renderedRoot, "default export", options),
+      tree: await toCmx(resolvedRoot, "default export", options),
       ...(meta ? { meta } : {}),
       manifest: createExternalsManifest(usedExternalRefs),
       diagnostics: [],
@@ -252,26 +250,25 @@ function isExternalRuntimeValue(value: unknown): boolean {
   );
 }
 
-function toCmx(
+async function toCmx(
   value: unknown,
   pathLabel: string,
   options: SerializeOptions,
-): CmxNode {
-  if (isPromiseLike(value)) {
-    throw new TranspileError(
-      ErrorCode.ASYNC_VALUE,
-      `${pathLabel} must be synchronous`,
-    );
-  }
+): Promise<CmxNode> {
+  const resolvedValue = await resolveMaybePromise(
+    value,
+    ErrorCode.ASYNC_VALUE,
+    `${pathLabel} async evaluation rejected`,
+  );
 
-  if (value === undefined) {
+  if (resolvedValue === undefined) {
     throw new TranspileError(
       ErrorCode.UNDEFINED_VALUE,
       `${pathLabel} resolved to undefined`,
     );
   }
 
-  if (isExternalRuntimeValue(value)) {
+  if (isExternalRuntimeValue(resolvedValue)) {
     throw new TranspileError(
       ErrorCode.EXTERNAL_RUNTIME_VALUE,
       "External import used as runtime value.",
@@ -279,33 +276,34 @@ function toCmx(
   }
 
   if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
+    resolvedValue === null ||
+    typeof resolvedValue === "string" ||
+    typeof resolvedValue === "number" ||
+    typeof resolvedValue === "boolean"
   ) {
-    return value;
+    return resolvedValue;
   }
 
-  if (Array.isArray(value)) {
+  if (Array.isArray(resolvedValue)) {
     const flattened: unknown[] = [];
-    flattenChildren(value, flattened);
+    flattenChildren(resolvedValue, flattened);
+    const children = await Promise.all(
+      flattened.map((child, index) => toCmx(child, `${pathLabel}[${index}]`, options)),
+    );
     return {
       type: "fragment",
-      children: flattened.map((child, index) =>
-        toCmx(child, `${pathLabel}[${index}]`, options),
-      ),
+      children,
     };
   }
 
-  if (!isRuntimeNode(value)) {
+  if (!isRuntimeNode(resolvedValue)) {
     throw new TranspileError(
       ErrorCode.INVALID_RUNTIME_OUTPUT,
       `${pathLabel} is not CMX runtime output`,
     );
   }
 
-  const runtimeNode = value;
+  const runtimeNode = resolvedValue;
 
   if (runtimeNode.kind === "fragment") {
     if (
@@ -315,16 +313,27 @@ function toCmx(
       return { type: "fragment" };
     }
 
+    const resolvedChildren = await Promise.all(
+      runtimeNode.children.map((child, index) =>
+        resolveMaybePromise(
+          child,
+          ErrorCode.ASYNC_VALUE,
+          `${pathLabel}.children[${index}] async evaluation rejected`,
+        ),
+      ),
+    );
     const flattenedChildren: unknown[] = [];
-    flattenChildren(runtimeNode.children, flattenedChildren);
+    flattenChildren(resolvedChildren, flattenedChildren);
     if (flattenedChildren.length === 0) {
       return { type: "fragment" };
     }
 
     return {
       type: "fragment",
-      children: flattenedChildren.map((child, index) =>
-        toCmx(child, `${pathLabel}.children[${index}]`, options),
+      children: await Promise.all(
+        flattenedChildren.map((child, index) =>
+          toCmx(child, `${pathLabel}.children[${index}]`, options),
+        ),
       ),
     };
   }
@@ -350,7 +359,7 @@ function toCmx(
 
   if (runtimeNode.props && Object.keys(runtimeNode.props).length > 0) {
     const slots: SlotPath[] = [];
-    const normalizedProps = normalizeProps(
+    const normalizedProps = await normalizeProps(
       runtimeNode.props,
       `${pathLabel}.props`,
       {
@@ -374,15 +383,42 @@ function toCmx(
   }
 
   if (Array.isArray(runtimeNode.children) && runtimeNode.children.length > 0) {
+    const resolvedChildren = await Promise.all(
+      runtimeNode.children.map((child, index) =>
+        resolveMaybePromise(
+          child,
+          ErrorCode.ASYNC_VALUE,
+          `${pathLabel}.children[${index}] async evaluation rejected`,
+        ),
+      ),
+    );
     const flattenedChildren: unknown[] = [];
-    flattenChildren(runtimeNode.children, flattenedChildren);
+    flattenChildren(resolvedChildren, flattenedChildren);
     if (flattenedChildren.length > 0) {
-      output.children = flattenedChildren.map((child, index) =>
-        toCmx(child, `${pathLabel}.children[${index}]`, options),
+      output.children = await Promise.all(
+        flattenedChildren.map((child, index) =>
+          toCmx(child, `${pathLabel}.children[${index}]`, options),
+        ),
       );
     }
   }
 
   return output;
+}
+
+async function resolveMaybePromise(
+  value: unknown,
+  code: ErrorCode,
+  rejectedMessage: string,
+): Promise<unknown> {
+  if (!isPromiseLike(value)) {
+    return value;
+  }
+
+  try {
+    return await value;
+  } catch {
+    throw new TranspileError(code, rejectedMessage);
+  }
 }
 

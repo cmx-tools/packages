@@ -622,30 +622,28 @@ describe("transpileModule", () => {
     });
   });
 
-  describe("issue #17 scope guards", () => {
-    it("returns error when default export is async function", async () => {
-      const result = expectErrorResult(
+  describe("async component support", () => {
+    it("awaits async default export function", async () => {
+      const result = expectTreeResult(
         await transpileModule({
           entryFile: "/virtual/async-default.tsx",
           fs: createVirtualFs({
             "/virtual/async-default.tsx":
-              "export default async function Page() { return <main>nope</main>; }",
+              "export default async function Page() { return <main>ok</main>; }",
           }),
         }),
       );
 
-      expect(result.diagnostics).toMatchInlineSnapshot(`
-        [
-          {
-            "code": "async-default-export",
-            "message": "Module default export must be synchronous",
-          },
-        ]
-      `);
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "main",
+        children: ["ok"],
+      });
+      expect(result.diagnostics).toEqual([]);
     });
 
-    it("returns error when local component is async", async () => {
-      const result = expectErrorResult(
+    it("awaits async local components in JSX tree", async () => {
+      const result = expectTreeResult(
         await transpileModule({
           entryFile: "/virtual/async-component.tsx",
           fs: createVirtualFs({
@@ -657,14 +655,81 @@ describe("transpileModule", () => {
         }),
       );
 
-      expect(result.diagnostics).toMatchInlineSnapshot(`
-        [
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "main",
+        children: [
           {
-            "code": "async-value",
-            "message": "default export.children[0] must be synchronous",
+            type: "element",
+            tag: "p",
+            children: ["later"],
           },
-        ]
-      `);
+        ],
+      });
+      expect(result.diagnostics).toEqual([]);
+    });
+
+    it("preserves order for mixed sync and async child composition", async () => {
+      const result = expectTreeResult(
+        await transpileModule({
+          entryFile: "/virtual/async-mixed.tsx",
+          fs: createVirtualFs({
+            "/virtual/async-mixed.tsx": [
+              "async function AsyncLeaf({ label }: { label: string }) { return <li>{label}</li>; }",
+              "function SyncLeaf() { return <li>sync</li>; }",
+              "async function AsyncGroup() {",
+              "  return [<AsyncLeaf label='a' />, [<SyncLeaf />, 'tail']];",
+              "}",
+              "export default <ul><AsyncGroup /><AsyncLeaf label='b' /></ul>;",
+            ].join("\n"),
+          }),
+        }),
+      );
+
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "ul",
+        children: [
+          {
+            type: "element",
+            tag: "li",
+            children: ["a"],
+          },
+          {
+            type: "element",
+            tag: "li",
+            children: ["sync"],
+          },
+          "tail",
+          {
+            type: "element",
+            tag: "li",
+            children: ["b"],
+          },
+        ],
+      });
+      expect(result.diagnostics).toEqual([]);
+    });
+
+    it("keeps invalid-output diagnostics after awaiting async components", async () => {
+      const result = expectErrorResult(
+        await transpileModule({
+          entryFile: "/virtual/async-undefined-child.tsx",
+          fs: createVirtualFs({
+            "/virtual/async-undefined-child.tsx": [
+              "async function AsyncBlock() { return undefined; }",
+              "export default <main><AsyncBlock /></main>;",
+            ].join("\n"),
+          }),
+        }),
+      );
+
+      expect(result.diagnostics).toEqual([
+        {
+          code: ErrorCode.UNDEFINED_VALUE,
+          message: "default export.children[0] resolved to undefined",
+        },
+      ]);
     });
   });
 
@@ -1224,7 +1289,7 @@ describe("transpileModule", () => {
     });
   });
 
-  describe("children semantics baseline (issue #21 context)", () => {
+  describe("children semantics baseline", () => {
     it("maps explicit children prop on intrinsic element to node children", async () => {
       const entryFile = "/virtual/entry.tsx";
       const fs = createVirtualFs({
