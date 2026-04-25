@@ -1,4 +1,4 @@
-Github Repo is `Xiphe/content-is-jsx`
+Github Repo is `Xiphe/content-management-jsx`
 ALWAYS use GitHub MCP - NEVER `gh` CLI.
 ALWAYS use conventional commit message format.
 NEVER write docs for intermediate steps.
