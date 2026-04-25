@@ -28,9 +28,9 @@ export enum ErrorCode {
    */
   INVALID_RUNTIME_OUTPUT = "invalid-runtime-output",
   /**
-   * Prop value cannot be normalized to supported CMX serializable data.
+   * Value cannot be normalized to supported CMX serializable data.
    */
-  UNSUPPORTED_PROP_VALUE = "unsupported-prop-value",
+  UNSUPPORTED_VALUE = "unsupported-value",
   /**
    * External import was used as plain runtime data instead of component ref.
    */
@@ -49,20 +49,7 @@ export enum ErrorCode {
   UNSUPPORTED_JSX_ELEMENT_TYPE = "unsupported-jsx-element-type",
 }
 
-const KNOWN_ERROR_CODES = [
-  ErrorCode.UNEXPECTED,
-  ErrorCode.BUILD_NO_OUTPUT,
-  ErrorCode.MISSING_DEFAULT_EXPORT,
-  ErrorCode.ASYNC_DEFAULT_EXPORT,
-  ErrorCode.ASYNC_VALUE,
-  ErrorCode.UNDEFINED_VALUE,
-  ErrorCode.INVALID_RUNTIME_OUTPUT,
-  ErrorCode.UNSUPPORTED_PROP_VALUE,
-  ErrorCode.EXTERNAL_RUNTIME_VALUE,
-  ErrorCode.EXTERNAL_COMPONENT_CALLED,
-  ErrorCode.NAMESPACE_IMPORT_UNSUPPORTED,
-  ErrorCode.UNSUPPORTED_JSX_ELEMENT_TYPE,
-] as const;
+const ERROR_CODE_VALUES = new Set<string>(Object.values(ErrorCode));
 
 export type Diagnostic = { code: ErrorCode; message: string };
 
@@ -77,7 +64,7 @@ export class TranspileError extends Error {
 }
 
 export function isKnownErrorCode(value: string): value is ErrorCode {
-  return KNOWN_ERROR_CODES.includes(value as ErrorCode);
+  return ERROR_CODE_VALUES.has(value);
 }
 
 export function diagnosticsFromError(error: unknown): Diagnostic[] {

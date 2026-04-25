@@ -95,7 +95,9 @@ describe("transpileModule", () => {
             },
           ],
         });
-        expect(result.meta).toEqual({ slug: "hello-world", from: "helper" });
+        expect(result.meta).toEqual({
+          data: { slug: "hello-world", from: "helper" },
+        });
         expect(result.manifest).toEqual({ externals: [] });
         expect(result.diagnostics).toEqual([]);
       });
@@ -125,6 +127,88 @@ describe("transpileModule", () => {
   });
 
   describe("source-to-output contract (virtual fs)", () => {
+    it("emits meta as wrapped data when meta export exists", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "export const meta = { slug: 'wrapped' };",
+          "export default <main />;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(await transpileModule({ entryFile, fs }));
+
+      expect(result.meta).toEqual({
+        data: {
+          slug: "wrapped",
+        },
+      });
+    });
+
+    it("omits meta field when meta export does not exist", async () => {
+      const entryFile = "/virtual/no-meta.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: "export default <main />;",
+      });
+
+      const result = expectTreeResult(await transpileModule({ entryFile, fs }));
+
+      expect(result).not.toHaveProperty("meta");
+    });
+
+    it("returns error when meta contains unsupported value by default", async () => {
+      const entryFile = "/virtual/meta-unsupported.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "export const meta = {",
+          "  slug: 'ok',",
+          "  onBuild: () => 'not-serializable',",
+          "};",
+          "export default <main />;",
+        ].join("\n"),
+      });
+
+      const result = expectErrorResult(await transpileModule({ entryFile, fs }));
+
+      expect(result.diagnostics[0]).toEqual({
+        code: ErrorCode.UNSUPPORTED_VALUE,
+        message: "Unsupported meta value at meta.onBuild",
+      });
+    });
+
+    it("omits unsupported meta values when configured to omit", async () => {
+      const entryFile = "/virtual/meta-omit.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "export const meta = {",
+          "  slug: 'ok',",
+          "  nested: {",
+          "    keep: 1,",
+          "    skip: () => 'x',",
+          "  },",
+          "};",
+          "export default <main />;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(
+        await transpileModule({
+          entryFile,
+          fs,
+          unsupportedValues: "omit",
+        }),
+      );
+
+      expect(result.meta).toEqual({
+        data: {
+          slug: "ok",
+          nested: {
+            keep: 1,
+          },
+        },
+      });
+    });
+
     it("transpiles virtual module graph via public API", async () => {
       const entryFile = "/virtual/entry.tsx";
       const fs = createVirtualFs({
@@ -150,7 +234,9 @@ describe("transpileModule", () => {
           },
         ],
       });
-      expect(result.meta).toEqual({ slug: "virtual" });
+      expect(result.meta).toEqual({
+        data: { slug: "virtual" },
+      });
       expect(result.manifest).toEqual({ externals: [] });
       expect(result.diagnostics).toEqual([]);
     });
@@ -231,7 +317,7 @@ describe("transpileModule", () => {
       );
 
       expect(result.diagnostics[0]).toEqual({
-        code: ErrorCode.UNSUPPORTED_PROP_VALUE,
+        code: ErrorCode.UNSUPPORTED_VALUE,
         message: "Unsupported prop value at default export.props.onClick",
       });
     });
@@ -508,7 +594,7 @@ describe("transpileModule", () => {
       expect(result.kind).toBe("success");
       expect(result).toHaveProperty("tree");
       expect(result).toHaveProperty("manifest");
-      expect(result).toHaveProperty("meta");
+      expect(result).not.toHaveProperty("meta");
       expect(result).toHaveProperty("diagnostics");
     });
 
@@ -689,6 +775,30 @@ describe("transpileModule", () => {
   });
 
   describe("external modules become unresolved CMX component refs", () => {
+    it("rejects external imports used as meta runtime values", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "import { themeName } from '@theme/ui';",
+          "export const meta = themeName;",
+          "export default <p>ok</p>;",
+        ].join("\n"),
+      });
+
+      const result = expectErrorResult(
+        await transpileModule({
+          entryFile,
+          fs,
+          externals: ["@theme/ui"],
+        }),
+      );
+
+      expect(result.diagnostics[0]).toEqual({
+        code: ErrorCode.EXTERNAL_RUNTIME_VALUE,
+        message: "External import used as runtime value.",
+      });
+    });
+
     it("emits component node + manifest for named external alias", async () => {
       const entryFile = "/virtual/entry.tsx";
       const fs = createVirtualFs({

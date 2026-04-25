@@ -50,7 +50,7 @@ function unsupportedProp(pathLabel: string, options: NormalizePropOptions): Drop
   }
 
   throw new TranspileError(
-    ErrorCode.UNSUPPORTED_PROP_VALUE,
+    ErrorCode.UNSUPPORTED_VALUE,
     `Unsupported prop value at ${pathLabel}`,
   );
 }

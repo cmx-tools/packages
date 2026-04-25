@@ -10,7 +10,7 @@ import {
   type ExternalUsageRef,
 } from "./externals-manifest.js";
 import { jsxRuntimePlugin } from "./jsx-runtime-plugin.js";
-import { normalizeMeta } from "./meta-normalization.js";
+import { normalizeMeta, type CmxMeta } from "./meta-normalization.js";
 import {
   diagnosticsFromError,
   type Diagnostic,
@@ -68,7 +68,7 @@ export type CmxManifest = {
 export type TranspileSuccessResult = {
   kind: "success";
   tree: CmxNode;
-  meta: unknown;
+  meta?: CmxMeta;
   manifest: CmxManifest;
   diagnostics: Diagnostic[];
 };
@@ -183,10 +183,19 @@ export async function transpileModule(
       );
     }
 
+    const meta = normalizeMeta(compiledModule, {
+      unsupportedValues: options.unsupportedValues,
+      isPlainObject,
+      isRuntimeNode,
+      isExternalRuntimeValue,
+      normalizeRuntimeNode: (runtimeValue, runtimePathLabel) =>
+        toCmx(runtimeValue, runtimePathLabel, options),
+    });
+
     return {
       kind: "success",
       tree: toCmx(renderedRoot, "default export", options),
-      meta: normalizeMeta(compiledModule),
+      ...(meta ? { meta } : {}),
       manifest: createExternalsManifest(usedExternalRefs),
       diagnostics: [],
     };
