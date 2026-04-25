@@ -1,12 +1,20 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import type {
+  FileSystem,
+  TranspileErrorResult,
+  TranspileModuleResult,
+  TranspileSuccessResult
+} from "../src/transpile-module.js";
 import { transpileModule } from "../src/transpile-module.js";
 
-function createVirtualFs(files: Record<string, string>) {
+type SourceFixtures = Record<string, string>;
+
+function createVirtualFs(files: SourceFixtures): FileSystem {
   return {
     async readFile(filePath: string): Promise<string | undefined> {
       return files[filePath];
@@ -19,163 +27,168 @@ async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
   await run(tempDir);
 }
 
+async function writeFixturesToDisk(rootDir: string, fixtures: SourceFixtures): Promise<void> {
+  for (const [relativePath, source] of Object.entries(fixtures)) {
+    const absolutePath = path.join(rootDir, relativePath);
+    await mkdir(path.dirname(absolutePath), { recursive: true });
+    await writeFile(absolutePath, source, "utf8");
+  }
+}
+
+function expectTreeResult(result: TranspileModuleResult): TranspileSuccessResult {
+  expect(result.kind).toBe("success");
+  if (result.kind !== "success") {
+    throw new Error("expected tree result");
+  }
+  return result;
+}
+
+function expectErrorResult(result: TranspileModuleResult): TranspileErrorResult {
+  expect(result.kind).toBe("error");
+  if (result.kind !== "error") {
+    throw new Error("expected error result");
+  }
+  return result;
+}
+
 describe("transpileModule", () => {
-  it("transpiles module graph from virtual filesystem", async () => {
-    const entryFile = "/virtual/entry.tsx";
-    const helperFile = "/virtual/helper.tsx";
-    const fs = createVirtualFs({
-      [entryFile]: [
-        "import { Hero } from './helper';",
-        "export const meta = { slug: 'virtual' };",
-        "export default <main><Hero title='Hello VFS' /></main>;"
-      ].join("\n"),
-      [helperFile]: "export function Hero({ title }) { return <h1>{title}</h1>; }"
-    });
+  describe("source-to-output contract (real fs)", () => {
+    it("returns tree, meta, manifest, and diagnostics for valid source input", async () => {
+      await withTempDir(async (tempDir) => {
+        await writeFixturesToDisk(tempDir, {
+          "helper.tsx": "export function Hero({ title }: { title: string }) { return <h1>{title}</h1>; }",
+          "entry.tsx": [
+            "import { Hero } from './helper';",
+            "export const meta = { slug: 'hello-world' };",
+            "export default function Page() {",
+            "  return <section><Hero title='Hello' /></section>;",
+            "}"
+          ].join("\n")
+        });
 
-    const result = await transpileModule({ entryFile, fs });
+        const result = expectTreeResult(
+          await transpileModule({
+            entryFile: path.join(tempDir, "entry.tsx")
+          })
+        );
 
-    expect(result.kind).toBe("success");
-    if (result.kind !== "success") {
-      throw new Error("expected successful result");
-    }
-
-    expect(result.meta).toEqual({ slug: "virtual" });
-    expect(result.manifest).toEqual({ externals: [] });
-    expect(result.tree).toEqual({
-      kind: "element",
-      tag: "main",
-      children: [
-        {
+        expect(result.tree).toEqual({
           kind: "element",
-          tag: "h1",
-          children: ["Hello VFS"]
-        }
-      ]
+          tag: "section",
+          children: [
+            {
+              kind: "element",
+              tag: "h1",
+              children: ["Hello"]
+            }
+          ]
+        });
+        expect(result.meta).toEqual({ slug: "hello-world" });
+        expect(result.manifest).toEqual({ externals: [] });
+        expect(result.diagnostics).toEqual([]);
+      });
     });
-  });
 
-  it("returns diagnostics for missing virtual imports", async () => {
-    const entryFile = "/virtual/entry.tsx";
-    const fs = createVirtualFs({
-      [entryFile]: [
-        "import { Missing } from './missing';",
-        "export default <main><Missing /></main>;"
-      ].join("\n")
-    });
+    it("returns error + diagnostics when default export is missing", async () => {
+      await withTempDir(async (tempDir) => {
+        await writeFixturesToDisk(tempDir, {
+          "entry.tsx": "export const value = 1;\n"
+        });
 
-    const result = await transpileModule({ entryFile, fs });
+        const result = expectErrorResult(
+          await transpileModule({
+            entryFile: path.join(tempDir, "entry.tsx")
+          })
+        );
 
-    expect(result.kind).toBe("error");
-    if (result.kind !== "error") {
-      throw new Error("expected error result");
-    }
-
-    expect(result.diagnostics.length).toBeGreaterThan(0);
-    expect(result.diagnostics[0]?.message).toMatch(/Virtual module not found: \.\/missing/u);
-  });
-
-  it("converts TSX module to CMX-like tree", async () => {
-    await withTempDir(async (tempDir) => {
-      const helperFile = path.join(tempDir, "helper.tsx");
-      const entryFile = path.join(tempDir, "entry.tsx");
-
-      await writeFile(
-        helperFile,
-        ["export function Hero({ title }) {", "  return <h1>{title}</h1>;", "}"].join("\n"),
-        "utf8"
-      );
-
-      await writeFile(
-        entryFile,
-        [
-          "import { Hero } from './helper';",
-          "export const meta = { slug: 'hello-world' };",
-          "export default function Page() {",
-          "  return <section><Hero title='Hello' /></section>;",
-          "}"
-        ].join("\n"),
-        "utf8"
-      );
-
-      const result = await transpileModule({ entryFile });
-
-      expect(result.kind).toBe("success");
-      if (result.kind !== "success") {
-        throw new Error("expected successful result");
-      }
-
-      expect(result.meta).toEqual({ slug: "hello-world" });
-      expect(result.manifest).toEqual({ externals: [] });
-      expect(result.tree).toEqual({
-        kind: "element",
-        tag: "section",
-        children: [
-          {
-            kind: "element",
-            tag: "h1",
-            children: ["Hello"]
-          }
-        ]
+        expect(result.diagnostics.length).toBeGreaterThan(0);
+        expect(result.diagnostics[0]?.message).toMatch(/has no default export/u);
       });
     });
   });
 
-  it("returns diagnostics when default export missing", async () => {
-    await withTempDir(async (tempDir) => {
-      const entryFile = path.join(tempDir, "entry.tsx");
-      await writeFile(entryFile, "export const value = 1;\n", "utf8");
+  describe("source-to-output contract (virtual fs)", () => {
+    it("transpiles virtual module graph via public API", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "import { Hero } from './helper';",
+          "export const meta = { slug: 'virtual' };",
+          "export default <main><Hero title='Hello VFS' /></main>;"
+        ].join("\n"),
+        "/virtual/helper.tsx": "export function Hero({ title }) { return <h1>{title}</h1>; }"
+      });
 
-      const result = await transpileModule({ entryFile });
+      const result = expectTreeResult(await transpileModule({ entryFile, fs }));
 
-      expect(result.kind).toBe("error");
-      if (result.kind !== "error") {
-        throw new Error("expected error result");
-      }
+      expect(result.tree).toEqual({
+        kind: "element",
+        tag: "main",
+        children: [
+          {
+            kind: "element",
+            tag: "h1",
+            children: ["Hello VFS"]
+          }
+        ]
+      });
+      expect(result.meta).toEqual({ slug: "virtual" });
+      expect(result.manifest).toEqual({ externals: [] });
+      expect(result.diagnostics).toEqual([]);
+    });
+
+    it("returns error diagnostics for missing virtual import", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "import { Missing } from './missing';",
+          "export default <main><Missing /></main>;"
+        ].join("\n")
+      });
+
+      const result = expectErrorResult(await transpileModule({ entryFile, fs }));
 
       expect(result.diagnostics.length).toBeGreaterThan(0);
-      expect(result.diagnostics[0]?.message).toMatch(/has no default export/u);
+      expect(result.diagnostics[0]?.message).toMatch(/Virtual module not found: \.\/missing/u);
     });
   });
 
-  it("returns stable success shape with diagnostics", async () => {
-    const entryFile = "/virtual/entry.tsx";
-    const fs = createVirtualFs({
-      [entryFile]: "export default <article>ok</article>;"
+  describe("result envelope stability", () => {
+    it("keeps success envelope stable for future behavior tickets", async () => {
+      const result = await transpileModule({
+        entryFile: "/virtual/entry.tsx",
+        fs: createVirtualFs({
+          "/virtual/entry.tsx": "export default <article>ok</article>;"
+        })
+      });
+
+      expect(result.kind).toBe("success");
+      expect(result).toHaveProperty("tree");
+      expect(result).toHaveProperty("manifest");
+      expect(result).toHaveProperty("meta");
+      expect(result).toHaveProperty("diagnostics");
     });
 
-    const result = await transpileModule({ entryFile, fs });
+    it("keeps error envelope stable for future behavior tickets", async () => {
+      const result = await transpileModule({
+        entryFile: "/virtual/entry.tsx",
+        fs: createVirtualFs({
+          "/virtual/entry.tsx": "export default () => undefined;"
+        })
+      });
 
-    expect(result.kind).toBe("success");
-    expect(result).toHaveProperty("diagnostics");
-    expect(Array.isArray(result.diagnostics)).toBe(true);
-    expect(result).toHaveProperty("tree");
-    expect(result).toHaveProperty("manifest");
-    if (result.kind !== "success") {
-      throw new Error("expected successful result");
-    }
-    expect(result.manifest).toEqual({ externals: [] });
-  });
-
-  it("returns stable error shape with diagnostics only", async () => {
-    const entryFile = "/virtual/entry.tsx";
-    const fs = createVirtualFs({
-      [entryFile]: "export default () => undefined;"
+      expect(result.kind).toBe("error");
+      expect(result).toHaveProperty("diagnostics");
+      expect(result).not.toHaveProperty("tree");
+      expect(result).not.toHaveProperty("manifest");
+      expect(result).not.toHaveProperty("meta");
+      expect(result.diagnostics).toMatchInlineSnapshot(`
+        [
+          {
+            "message": "default export resolved to undefined",
+          },
+        ]
+      `);
     });
-
-    const result = await transpileModule({ entryFile, fs });
-
-    expect(result.kind).toBe("error");
-    expect(result).toHaveProperty("diagnostics");
-    expect(Array.isArray(result.diagnostics)).toBe(true);
-    expect(result.diagnostics).toMatchInlineSnapshot(`
-      [
-        {
-          "message": "default export resolved to undefined",
-        },
-      ]
-    `);
-    expect(result).not.toHaveProperty("tree");
-    expect(result).not.toHaveProperty("manifest");
-    expect(result).not.toHaveProperty("meta");
   });
 });
