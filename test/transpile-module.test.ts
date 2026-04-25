@@ -586,4 +586,184 @@ describe("transpileModule", () => {
       `);
     });
   });
+
+  describe("external modules become unresolved CMX component refs", () => {
+    it("emits component node + manifest for named external alias", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "import { H1 as Heading } from '@theme/ui';",
+          "export default <Heading tone='strong'>Hello</Heading>;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(
+        await transpileModule({
+          entryFile,
+          fs,
+          externals: ["@theme/ui"],
+        }),
+      );
+
+      expect(result.tree).toEqual({
+        type: "component",
+        from: "@theme/ui",
+        import: "H1",
+        props: {
+          tone: "strong",
+        },
+        children: ["Hello"],
+      });
+      expect(result.manifest).toEqual({
+        externals: [
+          {
+            from: "@theme/ui",
+            imports: ["H1"],
+          },
+        ],
+      });
+      expect(result.diagnostics).toEqual([]);
+    });
+
+    it("supports default + named externals and merges manifest refs", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "import Hero, { H1 as Heading } from '@theme/ui';",
+          "export default <Hero><Heading>Hello</Heading></Hero>;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(
+        await transpileModule({
+          entryFile,
+          fs,
+          externals: ["@theme/ui"],
+        }),
+      );
+
+      expect(result.tree).toEqual({
+        type: "component",
+        from: "@theme/ui",
+        children: [
+          {
+            type: "component",
+            from: "@theme/ui",
+            import: "H1",
+            children: ["Hello"],
+          },
+        ],
+      });
+      expect(result.manifest).toEqual({
+        externals: [
+          {
+            from: "@theme/ui",
+            default: true,
+            imports: ["H1"],
+          },
+        ],
+      });
+      expect(result.diagnostics).toEqual([]);
+    });
+
+    it("matches externals after module resolution using canonical module ids", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "import { Hero } from './external/hero';",
+          "export default <main><Hero title='Canonical' /></main>;",
+        ].join("\n"),
+        "/virtual/external/hero.tsx":
+          "export function Hero({ title }: { title: string }) { return <h1>{title}</h1>; }",
+      });
+
+      const result = expectTreeResult(
+        await transpileModule({
+          entryFile,
+          fs,
+          externals: ["/virtual/external"],
+        }),
+      );
+
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "main",
+        children: [
+          {
+            type: "component",
+            from: "/virtual/external/hero.tsx",
+            import: "Hero",
+            props: {
+              title: "Canonical",
+            },
+          },
+        ],
+      });
+      expect(result.manifest).toEqual({
+        externals: [
+          {
+            from: "/virtual/external/hero.tsx",
+            imports: ["Hero"],
+          },
+        ],
+      });
+      expect(result.diagnostics).toEqual([]);
+    });
+
+    it("supports /** suffix for deep package path matches", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "import { Button } from '@theme/ui/button';",
+          "export default <Button size='lg'>Go</Button>;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(
+        await transpileModule({
+          entryFile,
+          fs,
+          externals: ["@theme/**"],
+        }),
+      );
+
+      expect(result.tree).toEqual({
+        type: "component",
+        from: "@theme/ui/button",
+        import: "Button",
+        props: {
+          size: "lg",
+        },
+        children: ["Go"],
+      });
+      expect(result.manifest).toEqual({
+        externals: [
+          {
+            from: "@theme/ui/button",
+            imports: ["Button"],
+          },
+        ],
+      });
+    });
+
+    it("supports /* suffix for one-segment package path matches only", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "import { Button } from '@theme/ui/button';",
+          "export default <Button />;",
+        ].join("\n"),
+      });
+
+      const result = expectErrorResult(
+        await transpileModule({
+          entryFile,
+          fs,
+          externals: ["@theme/*"],
+        }),
+      );
+
+      expect(result.diagnostics[0]?.message).toMatch(/Could not resolve/u);
+    });
+  });
 });

@@ -1,7 +1,14 @@
 import { build, type Plugin } from "esbuild";
 import { pathToFileURL } from "node:url";
 import { flattenChildren } from "./children-normalization.js";
-import { createExternalsManifest } from "./externals-manifest.js";
+import {
+  externalsPlugin,
+  normalizeExternals,
+} from "./externals-plugin.js";
+import {
+  createExternalsManifest,
+  type ExternalUsageRef,
+} from "./externals-manifest.js";
 import { normalizeMeta } from "./meta-normalization.js";
 import {
   normalizeProps,
@@ -11,21 +18,44 @@ import { virtualFsPlugin } from "./virtual-fs-plugin.js";
 
 const JSX_RUNTIME_MODULE_ID = "cmx:jsx-runtime";
 
+export type CmxFragmentNode = {
+  type: "fragment";
+  children?: CmxNode[];
+};
+
+export type CmxElementNode = {
+  type: "element";
+  tag: string;
+  props?: Record<string, unknown>;
+  children?: CmxNode[];
+};
+
+export type CmxComponentNode = {
+  type: "component";
+  from: string;
+  import?: string;
+  props?: Record<string, unknown>;
+  children?: CmxNode[];
+};
+
 export type CmxNode =
   | null
   | boolean
   | number
   | string
-  | {
-      type: "fragment";
-      children?: CmxNode[];
-    }
-  | {
-      type: "element";
-      tag: string;
-      props?: Record<string, unknown>;
-      children?: CmxNode[];
-    };
+  | CmxFragmentNode
+  | CmxElementNode
+  | CmxComponentNode;
+
+export type CmxManifestExternal = {
+  from: string;
+  imports?: string[];
+  default?: true;
+};
+
+export type CmxManifest = {
+  externals: CmxManifestExternal[];
+};
 
 export type Diagnostic = { message: string };
 
@@ -33,7 +63,7 @@ export type TranspileSuccessResult = {
   kind: "success";
   tree: CmxNode;
   meta: unknown;
-  manifest: { externals: unknown[] };
+  manifest: CmxManifest;
   diagnostics: Diagnostic[];
 };
 
@@ -55,19 +85,23 @@ export type FileSystem = {
 export type TranspileModuleInput = {
   entryFile: string;
   fs?: FileSystem;
+  externals?: string[];
   unsupportedValues?: UnsupportedValuesPolicy;
 };
 
 type RuntimeNode = {
   __cmxRuntimeNode: true;
-  kind: "fragment" | "element";
+  kind: "fragment" | "element" | "component";
   tag?: string;
+  from?: string;
+  import?: string;
   props?: Record<string, unknown>;
   children?: unknown[];
 };
 
 type SerializeOptions = {
   unsupportedValues: UnsupportedValuesPolicy;
+  onExternalRefUsed(ref: ExternalUsageRef): void;
 };
 
 function isPromiseLike(value: unknown): value is Promise<unknown> {
@@ -83,12 +117,21 @@ export async function transpileModule(
   input: TranspileModuleInput,
 ): Promise<TranspileModuleResult> {
   try {
+    const usedExternalRefs: ExternalUsageRef[] = [];
     const options: SerializeOptions = {
       unsupportedValues: input.unsupportedValues ?? "error",
+      onExternalRefUsed(ref) {
+        usedExternalRefs.push(ref);
+      },
     };
+    const externals = normalizeExternals(input.externals ?? []);
     const plugins = input.fs
-      ? [virtualFsPlugin(input.fs), jsxRuntimePlugin()]
-      : [jsxRuntimePlugin()];
+      ? [
+          externalsPlugin({ externals, fs: input.fs }),
+          virtualFsPlugin(input.fs),
+          jsxRuntimePlugin(),
+        ]
+      : [externalsPlugin({ externals }), jsxRuntimePlugin()];
 
     const result = await build({
       absWorkingDir: process.cwd(),
@@ -130,7 +173,7 @@ export async function transpileModule(
       kind: "success",
       tree: toCmx(renderedRoot, "default export", options),
       meta: normalizeMeta(compiledModule),
-      manifest: createExternalsManifest(),
+      manifest: createExternalsManifest(usedExternalRefs),
       diagnostics: [],
     };
   } catch (error) {
@@ -171,7 +214,9 @@ function isRuntimeNode(value: unknown): value is RuntimeNode {
   const maybeRuntime = value as RuntimeNode;
   return (
     maybeRuntime.__cmxRuntimeNode === true &&
-    (maybeRuntime.kind === "fragment" || maybeRuntime.kind === "element")
+    (maybeRuntime.kind === "fragment" ||
+      maybeRuntime.kind === "element" ||
+      maybeRuntime.kind === "component")
   );
 }
 
@@ -236,10 +281,24 @@ function toCmx(
     };
   }
 
-  const output: Extract<CmxNode, { type: "element" }> = {
-    type: "element",
-    tag: runtimeNode.tag ?? "",
-  };
+  const output: Extract<CmxNode, { type: "element" | "component" }> =
+    runtimeNode.kind === "element"
+      ? {
+          type: "element",
+          tag: runtimeNode.tag ?? "",
+        }
+      : {
+          type: "component",
+          from: runtimeNode.from ?? "",
+          ...(runtimeNode.import ? { import: runtimeNode.import } : {}),
+        };
+
+  if (runtimeNode.kind === "component") {
+    options.onExternalRefUsed({
+      from: runtimeNode.from ?? "",
+      import: runtimeNode.import,
+    });
+  }
 
   if (runtimeNode.props && Object.keys(runtimeNode.props).length > 0) {
     const normalizedProps = normalizeProps(
@@ -286,17 +345,27 @@ function jsxRuntimePlugin(): Plugin {
           loader: "js",
           contents: [
             "const Fragment = Symbol.for('cmx.fragment');",
+            "const externalRefs = new WeakMap();",
             "function normalizeChildren(hasChildren, children) {",
             "  if (!hasChildren) return [];",
             "  if (Array.isArray(children)) return children;",
             "  return [children];",
             "}",
-            "function createNode(kind, tag, props, children) {",
+            "function createNode(kind, tag, props, children, extra) {",
             "  const node = { __cmxRuntimeNode: true, kind };",
             "  if (tag !== undefined) node.tag = tag;",
+            "  if (extra?.from !== undefined) node.from = extra.from;",
+            "  if (extra?.import !== undefined) node.import = extra.import;",
             "  if (props && Object.keys(props).length > 0) node.props = props;",
             "  if (children.length > 0) node.children = children;",
             "  return node;",
+            "}",
+            "export function __registerExternal(ref) {",
+            "  function ExternalReference() {",
+            "    throw new Error('External components must be used as JSX tags');",
+            "  }",
+            "  externalRefs.set(ExternalReference, ref);",
+            "  return ExternalReference;",
             "}",
             "function render(type, props) {",
             "  const inputProps = props ?? {};",
@@ -306,6 +375,16 @@ function jsxRuntimePlugin(): Plugin {
             "  if (type === Fragment) return createNode('fragment', undefined, undefined, children);",
             "  if (typeof type === 'string') return createNode('element', type, rest, children);",
             "  if (typeof type === 'function') {",
+            "    const externalRef = externalRefs.get(type);",
+            "    if (externalRef) {",
+            "      return createNode(",
+            "        'component',",
+            "        undefined,",
+            "        rest,",
+            "        children,",
+            "        { from: externalRef.from, import: externalRef.importName },",
+            "      );",
+            "    }",
             "    const componentProps = children.length > 0 ? { ...rest, children } : rest;",
             "    return type(componentProps);",
             "  }",
