@@ -201,6 +201,101 @@ describe("transpileModule", () => {
         /Virtual module not found: \.\/missing/u,
       );
     });
+
+    it("normalizes root arrays to fragment nodes", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]:
+          "export default [<h1 key='a'>A</h1>, <h2 key='b'>B</h2>, 'tail'];",
+      });
+
+      const result = expectTreeResult(await transpileModule({ entryFile, fs }));
+
+      expect(result.tree).toEqual({
+        type: "fragment",
+        children: [
+          {
+            type: "element",
+            tag: "h1",
+            children: ["A"],
+          },
+          {
+            type: "element",
+            tag: "h2",
+            children: ["B"],
+          },
+          "tail",
+        ],
+      });
+    });
+
+    it("flattens nested child arrays recursively", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "const chunks = [",
+          "  ['before', ['mid']],",
+          "  [[[<strong key='deep'>deep</strong>]]],",
+          "  'after',",
+          "];",
+          "export default <p>{chunks}</p>;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(await transpileModule({ entryFile, fs }));
+
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "p",
+        children: [
+          "before",
+          "mid",
+          {
+            type: "element",
+            tag: "strong",
+            children: ["deep"],
+          },
+          "after",
+        ],
+      });
+    });
+
+    it("omits JSX comments from children output", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "export default <section>",
+          "  alpha",
+          "  {/* hidden note */}",
+          "  beta",
+          "</section>;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(await transpileModule({ entryFile, fs }));
+
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "section",
+        children: ["alpha", "beta"],
+      });
+    });
+
+    it("preserves adjacent text boundaries without merging", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]:
+          "export default <p>hello{' '}world{''}!</p>;",
+      });
+
+      const result = expectTreeResult(await transpileModule({ entryFile, fs }));
+
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "p",
+        children: ["hello", " ", "world", "", "!"],
+      });
+    });
   });
 
   describe("result envelope stability", () => {

@@ -71,7 +71,7 @@ function flattenChildren(input: unknown[], output: unknown[]): void {
       continue;
     }
 
-    if (entry === undefined || entry === null || entry === false || entry === true) {
+    if (entry === null || entry === false || entry === true) {
       continue;
     }
 
@@ -115,9 +115,18 @@ function toCmx(value: unknown, pathLabel: string): CmxNode {
     if (!Array.isArray(runtimeNode.children) || runtimeNode.children.length === 0) {
       return { type: "fragment" };
     }
+
+    const flattenedChildren: unknown[] = [];
+    flattenChildren(runtimeNode.children, flattenedChildren);
+    if (flattenedChildren.length === 0) {
+      return { type: "fragment" };
+    }
+
     return {
       type: "fragment",
-      children: runtimeNode.children.map((child, index) => toCmx(child, `${pathLabel}.children[${index}]`))
+      children: flattenedChildren.map((child, index) =>
+        toCmx(child, `${pathLabel}.children[${index}]`)
+      )
     };
   }
 
@@ -131,7 +140,13 @@ function toCmx(value: unknown, pathLabel: string): CmxNode {
   }
 
   if (Array.isArray(runtimeNode.children) && runtimeNode.children.length > 0) {
-    output.children = runtimeNode.children.map((child, index) => toCmx(child, `${pathLabel}.children[${index}]`));
+    const flattenedChildren: unknown[] = [];
+    flattenChildren(runtimeNode.children, flattenedChildren);
+    if (flattenedChildren.length > 0) {
+      output.children = flattenedChildren.map((child, index) =>
+        toCmx(child, `${pathLabel}.children[${index}]`)
+      );
+    }
   }
 
   return output;
