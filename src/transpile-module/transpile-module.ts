@@ -19,6 +19,7 @@ import {
 } from "./diagnostics.js";
 import {
   normalizeProps,
+  type SlotPath,
   type UnsupportedValuesPolicy,
 } from "./props-policy.js";
 import { virtualFsPlugin } from "./virtual-fs-plugin.js";
@@ -32,6 +33,7 @@ export type CmxElementNode = {
   type: "element";
   tag: string;
   props?: Record<string, unknown>;
+  slots?: SlotPath[];
   children?: CmxNode[];
 };
 
@@ -40,6 +42,7 @@ export type CmxComponentNode = {
   from: string;
   import?: string;
   props?: Record<string, unknown>;
+  slots?: SlotPath[];
   children?: CmxNode[];
 };
 
@@ -93,7 +96,6 @@ export type TranspileModuleInput = {
 };
 
 type RuntimeNode = {
-  __cmxRuntimeNode: true;
   kind: "fragment" | "element" | "component";
   tag?: string;
   from?: string;
@@ -101,6 +103,8 @@ type RuntimeNode = {
   props?: Record<string, unknown>;
   children?: unknown[];
 };
+
+const RUNTIME_NODE_CHECKER_KEY = Symbol.for("cmx.runtime-node-checker");
 
 type SerializeOptions = {
   unsupportedValues: UnsupportedValuesPolicy;
@@ -208,17 +212,23 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function isRuntimeNode(value: unknown): value is RuntimeNode {
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    !("__cmxRuntimeNode" in value)
-  ) {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const maybeChecker = (
+    globalThis as Record<PropertyKey, unknown>
+  )[RUNTIME_NODE_CHECKER_KEY];
+  if (typeof maybeChecker !== "function") {
+    return false;
+  }
+
+  if (!(maybeChecker as (candidate: unknown) => boolean)(value)) {
     return false;
   }
 
   const maybeRuntime = value as RuntimeNode;
   return (
-    maybeRuntime.__cmxRuntimeNode === true &&
     (maybeRuntime.kind === "fragment" ||
       maybeRuntime.kind === "element" ||
       maybeRuntime.kind === "component")
@@ -330,6 +340,7 @@ function toCmx(
   }
 
   if (runtimeNode.props && Object.keys(runtimeNode.props).length > 0) {
+    const slots: SlotPath[] = [];
     const normalizedProps = normalizeProps(
       runtimeNode.props,
       `${pathLabel}.props`,
@@ -340,10 +351,16 @@ function toCmx(
         isExternalRuntimeValue,
         normalizeRuntimeNode: (runtimeValue, runtimePathLabel) =>
           toCmx(runtimeValue, runtimePathLabel, options),
+        onRuntimeNodePath(propPath) {
+          slots.push(propPath);
+        },
       },
     );
     if (normalizedProps) {
       output.props = normalizedProps;
+    }
+    if (slots.length > 0) {
+      output.slots = slots;
     }
   }
 

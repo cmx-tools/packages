@@ -287,6 +287,99 @@ describe("transpileModule", () => {
       });
     });
 
+    it("emits inline prop-relative slots for runtime JSX nodes in props only", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "const hero = <em>Hero</em>;",
+          "const nested = [{ deep: <strong>Strong</strong> }];",
+          "export default <article slot={hero} data={{ nested }}><p>Child</p></article>;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(await transpileModule({ entryFile, fs }));
+
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "article",
+        props: {
+          slot: {
+            type: "element",
+            tag: "em",
+            children: ["Hero"],
+          },
+          data: {
+            nested: [
+              {
+                deep: {
+                  type: "element",
+                  tag: "strong",
+                  children: ["Strong"],
+                },
+              },
+            ],
+          },
+        },
+        slots: [["slot"], ["data", "nested", 0, "deep"]],
+        children: [
+          {
+            type: "element",
+            tag: "p",
+            children: ["Child"],
+          },
+        ],
+      });
+    });
+
+    it("keeps CMX-shaped plain objects in props as data unless runtime-created", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "const fake = { __cmxRuntimeNode: true, kind: 'element', tag: 'fake' };",
+          "export default <div payload={fake} />;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(await transpileModule({ entryFile, fs }));
+
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "div",
+        props: {
+          payload: {
+            __cmxRuntimeNode: true,
+            kind: "element",
+            tag: "fake",
+          },
+        },
+      });
+    });
+
+    it("keeps JSON-cloned runtime-shaped objects in props as data", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "const runtimeNode = <mark>runtime</mark>;",
+          "const cloned = JSON.parse(JSON.stringify(runtimeNode));",
+          "export default <div payload={cloned} />;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(await transpileModule({ entryFile, fs }));
+
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "div",
+        props: {
+          payload: {
+            kind: "element",
+            tag: "mark",
+            children: ["runtime"],
+          },
+        },
+      });
+    });
+
     it("returns error diagnostics for missing virtual import", async () => {
       const entryFile = "/virtual/entry.tsx";
       const fs = createVirtualFs({

@@ -4,6 +4,8 @@ import {
 } from "./diagnostics.js";
 
 export type UnsupportedValuesPolicy = "error" | "omit";
+export type SlotPathSegment = string | number;
+export type SlotPath = SlotPathSegment[];
 
 type KeepResult = { keep: true; value: unknown };
 type DropResult = { keep: false };
@@ -14,6 +16,7 @@ type NormalizePropOptions = {
   isRuntimeNode(value: unknown): boolean;
   isExternalRuntimeValue(value: unknown): boolean;
   normalizeRuntimeNode(value: unknown, pathLabel: string): unknown;
+  onRuntimeNodePath(path: SlotPath): void;
 };
 
 export function normalizeProps(
@@ -23,7 +26,12 @@ export function normalizeProps(
 ): Record<string, unknown> | undefined {
   const normalized: Record<string, unknown> = {};
   for (const [key, propValue] of Object.entries(value)) {
-    const result = normalizePropValue(propValue, `${pathLabel}.${key}`, options);
+    const result = normalizePropValue(
+      propValue,
+      `${pathLabel}.${key}`,
+      [key],
+      options,
+    );
     if (result.keep) {
       normalized[key] = result.value;
     }
@@ -50,6 +58,7 @@ function unsupportedProp(pathLabel: string, options: NormalizePropOptions): Drop
 function normalizePropValue(
   value: unknown,
   pathLabel: string,
+  propPath: SlotPath,
   options: NormalizePropOptions
 ): KeepResult | DropResult {
   if (value === undefined) {
@@ -76,7 +85,12 @@ function normalizePropValue(
     const normalized: unknown[] = [];
 
     for (let index = 0; index < value.length; index += 1) {
-      const item = normalizePropValue(value[index], `${pathLabel}[${index}]`, options);
+      const item = normalizePropValue(
+        value[index],
+        `${pathLabel}[${index}]`,
+        [...propPath, index],
+        options,
+      );
       if (item.keep) {
         normalized.push(item.value);
       }
@@ -86,6 +100,7 @@ function normalizePropValue(
   }
 
   if (options.isRuntimeNode(value)) {
+    options.onRuntimeNodePath(propPath);
     return { keep: true, value: options.normalizeRuntimeNode(value, pathLabel) };
   }
 
@@ -95,7 +110,12 @@ function normalizePropValue(
 
   const normalized: Record<string, unknown> = {};
   for (const [key, nestedValue] of Object.entries(value)) {
-    const result = normalizePropValue(nestedValue, `${pathLabel}.${key}`, options);
+    const result = normalizePropValue(
+      nestedValue,
+      `${pathLabel}.${key}`,
+      [...propPath, key],
+      options,
+    );
     if (result.keep) {
       normalized[key] = result.value;
     }
