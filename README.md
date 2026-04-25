@@ -1,4 +1,4 @@
-# content-is-jsx
+# content-management-jsx
 
 ## Quick start
 
