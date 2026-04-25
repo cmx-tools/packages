@@ -1,7 +1,12 @@
 {
-  "extends": "astro/tsconfigs/strict",
   "compilerOptions": {
-    "jsx": "react-jsx"
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "types": ["node", "vitest/globals"]
   },
-  "include": [".astro/types.d.ts", "src/**/*", "example/content/**/*"]
+  "include": ["src/**/*", "test/**/*"]
 }

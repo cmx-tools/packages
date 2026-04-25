@@ -1,8 +1,0 @@
-{
-  "name": "example-content",
-  "private": true,
-  "version": "0.0.0",
-  "scripts": {
-    "dev": "node ../../bin/cmx.js dev"
-  }
-}
