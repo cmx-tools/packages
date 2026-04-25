@@ -107,7 +107,7 @@ async function normalizePropValueInternal(
       const item = await normalizePropValue(
         resolvedValue[index],
         `${pathLabel}[${index}]`,
-        [...propPath, index],
+        [...propPath, normalized.length],
         options,
       );
       if (item.keep) {

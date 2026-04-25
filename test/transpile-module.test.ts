@@ -417,6 +417,62 @@ describe("transpileModule", () => {
       });
     });
 
+    it("slot paths use compacted array indices after omitted undefined entries", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "const row = <span>Row</span>;",
+          "export default <div actions={[undefined, row]} />;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(await transpileModule({ entryFile, fs }));
+
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "div",
+        props: {
+          actions: [
+            {
+              type: "element",
+              tag: "span",
+              children: ["Row"],
+            },
+          ],
+        },
+        slots: [["actions", 0]],
+      });
+    });
+
+    it("slot paths use compacted array indices after unsupportedValues omit drops earlier items", async () => {
+      const entryFile = "/virtual/entry.tsx";
+      const fs = createVirtualFs({
+        [entryFile]: [
+          "const row = <span>Row</span>;",
+          "export default <div items={[() => {}, row]} />;",
+        ].join("\n"),
+      });
+
+      const result = expectTreeResult(
+        await transpileModule({ entryFile, fs, unsupportedValues: "omit" }),
+      );
+
+      expect(result.tree).toEqual({
+        type: "element",
+        tag: "div",
+        props: {
+          items: [
+            {
+              type: "element",
+              tag: "span",
+              children: ["Row"],
+            },
+          ],
+        },
+        slots: [["items", 0]],
+      });
+    });
+
     it("keeps CMX-shaped plain objects in props as data unless runtime-created", async () => {
       const entryFile = "/virtual/entry.tsx";
       const fs = createVirtualFs({
