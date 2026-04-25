@@ -241,4 +241,107 @@ describe("transpileModule", () => {
       `);
     });
   });
+
+  describe("primitive roots and invalid node diagnostics", () => {
+    it("supports null, boolean, string, and number as root nodes", async () => {
+      const nullResult = expectTreeResult(
+        await transpileModule({
+          entryFile: "/virtual/null.tsx",
+          fs: createVirtualFs({
+            "/virtual/null.tsx": "export default null;",
+          }),
+        }),
+      );
+      expect(nullResult.tree).toBeNull();
+
+      const booleanResult = expectTreeResult(
+        await transpileModule({
+          entryFile: "/virtual/boolean.tsx",
+          fs: createVirtualFs({
+            "/virtual/boolean.tsx": "export default true;",
+          }),
+        }),
+      );
+      expect(booleanResult.tree).toBe(true);
+
+      const stringResult = expectTreeResult(
+        await transpileModule({
+          entryFile: "/virtual/string.tsx",
+          fs: createVirtualFs({
+            "/virtual/string.tsx": "export default 'hello';",
+          }),
+        }),
+      );
+      expect(stringResult.tree).toBe("hello");
+
+      const numberResult = expectTreeResult(
+        await transpileModule({
+          entryFile: "/virtual/number.tsx",
+          fs: createVirtualFs({
+            "/virtual/number.tsx": "export default 42;",
+          }),
+        }),
+      );
+      expect(numberResult.tree).toBe(42);
+    });
+
+    it("returns error when root resolves to plain object", async () => {
+      const result = expectErrorResult(
+        await transpileModule({
+          entryFile: "/virtual/root-object.tsx",
+          fs: createVirtualFs({
+            "/virtual/root-object.tsx": "export default { hello: 'world' };",
+          }),
+        }),
+      );
+
+      expect(result.diagnostics).toMatchInlineSnapshot(`
+        [
+          {
+            "message": "default export is not CMX runtime output",
+          },
+        ]
+      `);
+    });
+
+    it("returns error when child resolves to undefined", async () => {
+      const result = expectErrorResult(
+        await transpileModule({
+          entryFile: "/virtual/undefined-child.tsx",
+          fs: createVirtualFs({
+            "/virtual/undefined-child.tsx":
+              "export default <article>{undefined}</article>;",
+          }),
+        }),
+      );
+
+      expect(result.diagnostics).toMatchInlineSnapshot(`
+        [
+          {
+            "message": "default export.children[0] resolved to undefined",
+          },
+        ]
+      `);
+    });
+
+    it("returns error when child resolves to plain object", async () => {
+      const result = expectErrorResult(
+        await transpileModule({
+          entryFile: "/virtual/object-child.tsx",
+          fs: createVirtualFs({
+            "/virtual/object-child.tsx":
+              "export default <article>{{ hello: 'world' }}</article>;",
+          }),
+        }),
+      );
+
+      expect(result.diagnostics).toMatchInlineSnapshot(`
+        [
+          {
+            "message": "default export.children[0] is not CMX runtime output",
+          },
+        ]
+      `);
+    });
+  });
 });
