@@ -9,9 +9,9 @@ type ManifestExternalRef = {
   default?: true;
 };
 
-export function createExternalsManifest(
-  usedRefs: ExternalUsageRef[],
-): { externals: ManifestExternalRef[] } {
+export function createExternalsManifest(usedRefs: ExternalUsageRef[]): {
+  externals: ManifestExternalRef[];
+} {
   const mergedByModule = new Map<
     string,
     { hasDefault: boolean; imports: Set<string> }

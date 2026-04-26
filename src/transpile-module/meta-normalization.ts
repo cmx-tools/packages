@@ -1,7 +1,4 @@
-import {
-  ErrorCode,
-  TranspileError,
-} from "./diagnostics.js";
+import { ErrorCode, TranspileError } from "./diagnostics.js";
 import type { UnsupportedValuesPolicy } from "./props-policy.js";
 
 export type CmxMeta = {

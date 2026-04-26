@@ -8,10 +8,7 @@ import type {
   TranspileModuleResult,
   TranspileSuccessResult,
 } from "content-management-jsx";
-import {
-  ErrorCode,
-  transpileModule,
-} from "content-management-jsx";
+import { ErrorCode, transpileModule } from "content-management-jsx";
 
 type SourceFixtures = Record<string, string>;
 
@@ -168,7 +165,9 @@ describe("transpileModule", () => {
         ].join("\n"),
       });
 
-      const result = expectErrorResult(await transpileModule({ entryFile, fs }));
+      const result = expectErrorResult(
+        await transpileModule({ entryFile, fs }),
+      );
 
       expect(result.diagnostics[0]).toEqual({
         code: ErrorCode.UNSUPPORTED_VALUE,
@@ -309,7 +308,8 @@ describe("transpileModule", () => {
     it("returns error when prop contains unsupported function value by default", async () => {
       const entryFile = "/virtual/entry.tsx";
       const fs = createVirtualFs({
-        [entryFile]: "export default <button onClick={() => {}} data-x='ok' />;",
+        [entryFile]:
+          "export default <button onClick={() => {}} data-x='ok' />;",
       });
 
       const result = expectErrorResult(
@@ -691,8 +691,7 @@ describe("transpileModule", () => {
     it("preserves adjacent text boundaries without merging", async () => {
       const entryFile = "/virtual/entry.tsx";
       const fs = createVirtualFs({
-        [entryFile]:
-          "export default <p>hello{' '}world{''}!</p>;",
+        [entryFile]: "export default <p>hello{' '}world{''}!</p>;",
       });
 
       const result = expectTreeResult(await transpileModule({ entryFile, fs }));
@@ -712,12 +711,8 @@ describe("transpileModule", () => {
         [entryFile]: "export default Math.random();",
       });
 
-      const first = expectTreeResult(
-        await transpileModule({ entryFile, fs }),
-      );
-      const second = expectTreeResult(
-        await transpileModule({ entryFile, fs }),
-      );
+      const first = expectTreeResult(await transpileModule({ entryFile, fs }));
+      const second = expectTreeResult(await transpileModule({ entryFile, fs }));
 
       expect(typeof first.tree).toBe("number");
       expect(typeof second.tree).toBe("number");
@@ -1414,7 +1409,9 @@ describe("transpileModule", () => {
     it("rejects side-effect-only external imports with stable diagnostic code", async () => {
       const entryFile = "/virtual/entry.tsx";
       const fs = createVirtualFs({
-        [entryFile]: ["import '@theme/ui';", "export default <div />;"].join("\n"),
+        [entryFile]: ["import '@theme/ui';", "export default <div />;"].join(
+          "\n",
+        ),
       });
 
       const result = expectErrorResult(
@@ -1532,9 +1529,8 @@ describe("transpileModule", () => {
       }));
 
       try {
-        const { transpileModule: mockedTranspileModule } = await import(
-          "content-management-jsx"
-        );
+        const { transpileModule: mockedTranspileModule } =
+          await import("content-management-jsx");
         const result = expectErrorResult(
           await mockedTranspileModule({
             entryFile: "/virtual/entry.tsx",

@@ -13,6 +13,7 @@ People need agency and control over what exactly happens on their site. That mea
 The source of truth must be the thing people and agents can both read, edit, review, version, preview, and ship without translation. That is code in Git.
 
 Our job is to make this model operationally effortless:
+
 - Git as the database.
 - TypeScript as the contract.
 - JSX as the content model.
@@ -54,16 +55,16 @@ Users must get the freedom of code without inheriting the burden of operating it
 
 A good decision makes the system feel more like:
 
-* code in Git
-* explicit types
-* safe hosted execution
-* branch based workflow
-* inspectable contracts
+- code in Git
+- explicit types
+- safe hosted execution
+- branch based workflow
+- inspectable contracts
 
 A bad decision makes the system feel more like:
 
-* hidden state
-* proprietary editor logic
-* schema first modeling
-* implicit theme contracts
-* runtime magic
+- hidden state
+- proprietary editor logic
+- schema first modeling
+- implicit theme contracts
+- runtime magic

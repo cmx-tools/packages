@@ -48,7 +48,9 @@ async function readImporterSource(
   importer: string,
   virtualFs?: FileSystemLike,
 ): Promise<string> {
-  const virtualContent = virtualFs ? await virtualFs.readFile(importer) : undefined;
+  const virtualContent = virtualFs
+    ? await virtualFs.readFile(importer)
+    : undefined;
   if (virtualContent !== undefined) {
     return virtualContent;
   }
@@ -177,11 +179,12 @@ export function externalsPlugin(options: ExternalsPluginOptions): Plugin {
         }
 
         const importerSource = await readImporterSource(importer, options.fs);
-        const { bindings, hasSideEffectOnly } = collectExternalImportBindingInfo(
-          importerSource,
-          rawSpecifier,
-          importer,
-        );
+        const { bindings, hasSideEffectOnly } =
+          collectExternalImportBindingInfo(
+            importerSource,
+            rawSpecifier,
+            importer,
+          );
 
         if (hasSideEffectOnly) {
           throw new Error(

@@ -26,7 +26,9 @@ export function collectExternalImportBindingInfo(
   targetSpecifier: string,
   filename: string,
 ): ExternalImportScan {
-  const { module, errors } = parseSync(filename, source, { sourceType: "module" });
+  const { module, errors } = parseSync(filename, source, {
+    sourceType: "module",
+  });
   if (errors.length > 0) {
     throw new Error(
       `Failed to parse importer for external bindings: ${errors[0]?.message ?? "parse error"}`,

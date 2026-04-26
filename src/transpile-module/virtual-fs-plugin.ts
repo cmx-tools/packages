@@ -9,7 +9,10 @@ export function virtualFsPlugin(virtualFs: FileSystem): Plugin {
     return specifier.startsWith(".") || specifier.startsWith("/");
   }
 
-  async function resolveVirtualFile(specifier: string, importer?: string): Promise<string | null> {
+  async function resolveVirtualFile(
+    specifier: string,
+    importer?: string,
+  ): Promise<string | null> {
     if (!isVirtualSpecifier(specifier)) {
       return null;
     }
@@ -42,13 +45,16 @@ export function virtualFsPlugin(virtualFs: FileSystem): Plugin {
           return;
         }
 
-        const resolvedImport = await resolveVirtualFile(args.path, args.importer);
+        const resolvedImport = await resolveVirtualFile(
+          args.path,
+          args.importer,
+        );
         if (!resolvedImport) {
           if (!isVirtualSpecifier(args.path)) {
             return;
           }
           return {
-            errors: [{ text: `Virtual module not found: ${args.path}` }]
+            errors: [{ text: `Virtual module not found: ${args.path}` }],
           };
         }
         return { path: resolvedImport, namespace };
@@ -58,16 +64,16 @@ export function virtualFsPlugin(virtualFs: FileSystem): Plugin {
         const contents = await virtualFs.readFile(args.path);
         if (contents === undefined) {
           return {
-            errors: [{ text: `Virtual module not found: ${args.path}` }]
+            errors: [{ text: `Virtual module not found: ${args.path}` }],
           };
         }
         return {
           contents,
           loader: loaderFromFilePath(args.path),
-          resolveDir: path.dirname(args.path)
+          resolveDir: path.dirname(args.path),
         };
       });
-    }
+    },
   };
 }
 
@@ -99,6 +105,6 @@ function createVirtualCandidates(basePath: string): string[] {
     path.join(normalized, "index.ts"),
     path.join(normalized, "index.tsx"),
     path.join(normalized, "index.js"),
-    path.join(normalized, "index.jsx")
+    path.join(normalized, "index.jsx"),
   ];
 }
