@@ -64,6 +64,7 @@ describe("cmx", () => {
           },
           entries: [
             {
+              name: "entry",
               file: "entry.js",
               sourcemap: "entry.js.map",
             },
