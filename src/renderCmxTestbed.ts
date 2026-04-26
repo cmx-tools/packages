@@ -4,20 +4,39 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { rolldown } from "rolldown";
 import { cmx, type CmxArtifact } from "./cmx-bundler/index.js";
-import { renderCmxTree, type CmxNode } from "./cmx-tree-renderer/index.js";
+import {
+  CmxRenderError,
+  renderCmxTree,
+  type CmxNode,
+  type CmxRenderDiagnostic,
+} from "./cmx-tree-renderer/index.js";
 
 export type RenderCmxTestbedInput = {
   files: Record<string, string>;
   entry?: string;
 };
 
-export type RenderCmxTestbedResult = {
-  tree: CmxNode;
+export type RenderCmxTestbedArtifacts = {
   artifact: CmxArtifact;
   files: Record<string, string>;
   rootDir: string;
   outDir: string;
 };
+
+export type RenderCmxTestbedSuccessResult = RenderCmxTestbedArtifacts & {
+  result: "tree";
+  tree: CmxNode;
+  diagnostics: [];
+};
+
+export type RenderCmxTestbedErrorResult = RenderCmxTestbedArtifacts & {
+  result: "error";
+  diagnostics: CmxRenderDiagnostic[];
+};
+
+export type RenderCmxTestbedResult =
+  | RenderCmxTestbedSuccessResult
+  | RenderCmxTestbedErrorResult;
 
 export async function renderCmxTestbed(
   input: RenderCmxTestbedInput,
@@ -52,17 +71,31 @@ export async function renderCmxTestbed(
       throw new Error("CMX testbed artifact has no entry.");
     }
 
-    const tree = await renderCmxTree({
-      moduleUrl: pathToFileURL(path.join(outDir, artifactEntry.file)),
-    });
-
-    return {
-      tree,
+    const artifactResult = {
       artifact,
       files,
       rootDir,
       outDir,
     };
+
+    try {
+      const tree = await renderCmxTree({
+        moduleUrl: pathToFileURL(path.join(outDir, artifactEntry.file)),
+      });
+
+      return {
+        result: "tree",
+        tree,
+        diagnostics: [],
+        ...artifactResult,
+      };
+    } catch (error) {
+      return {
+        result: "error",
+        diagnostics: [toRenderDiagnostic(error)],
+        ...artifactResult,
+      };
+    }
   } finally {
     await bundle.close();
   }
@@ -118,6 +151,17 @@ async function writeRuntimePackage(outDir: string): Promise<void> {
     RUNTIME_SOURCE,
     "utf8",
   );
+}
+
+function toRenderDiagnostic(error: unknown): CmxRenderDiagnostic {
+  if (error instanceof CmxRenderError) {
+    return error.diagnostic;
+  }
+
+  return {
+    code: "render-error",
+    message: error instanceof Error ? error.message : "Unknown render error.",
+  };
 }
 
 const RUNTIME_SOURCE = String.raw`
