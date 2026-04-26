@@ -1,4 +1,5 @@
 import { isRuntimeNode, type RuntimeNode } from "./jsx.js";
+import type { CmxDiagnostic } from "../CmxDiagnostic.js";
 
 export type CmxFragmentNode = {
   type: "fragment";
@@ -51,13 +52,12 @@ export type RenderCmxTreeResult = {
   manifest: CmxManifest;
 };
 
-export type CmxRenderDiagnostic = {
+export type CmxRenderDiagnostic = CmxDiagnostic & {
   code:
     | "invalid-runtime-output"
     | "render-error"
     | "undefined-value"
     | "unsupported-value";
-  message: string;
 };
 
 export type SlotPath = Array<string | number>;
@@ -131,6 +131,7 @@ async function normalizeCmxTreeValue(
 
   if (resolvedValue === undefined) {
     throw new CmxRenderError({
+      severity: "error",
       code: "undefined-value",
       message: `${pathLabel} resolved to undefined`,
     });
@@ -158,6 +159,7 @@ async function normalizeCmxTreeValue(
 
   if (!isRuntimeNode(resolvedValue)) {
     throw new CmxRenderError({
+      severity: "error",
       code: "invalid-runtime-output",
       message: `${pathLabel} is not CMX runtime output`,
     });
@@ -431,6 +433,7 @@ function unsupportedValue(
   }
 
   throw new CmxRenderError({
+    severity: "error",
     code: "unsupported-value",
     message: `Unsupported ${domain} value at ${pathLabel}`,
   });

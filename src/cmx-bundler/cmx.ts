@@ -1,7 +1,9 @@
 import type { InputOptions, OutputBundle, OutputChunk, Plugin } from "rolldown";
+import { parseSync, Visitor } from "oxc-parser";
 
 const ARTIFACT_FILE_NAME = "cmx-artifact.json";
 const RUNTIME_IMPORT_SOURCE = "@cmx/runtime";
+const DYNAMIC_IMPORT_UNSUPPORTED = "dynamic-import-unsupported";
 
 export type CmxArtifactChunk = {
   file: string;
@@ -40,7 +42,10 @@ export function cmx(): Plugin {
     },
     resolveId(source, _importer, extraOptions) {
       if (extraOptions.kind === "dynamic-import") {
-        this.error("Dynamic imports are not supported in CMX artifacts.");
+        this.error({
+          code: DYNAMIC_IMPORT_UNSUPPORTED,
+          message: "Dynamic imports are not supported in CMX artifacts.",
+        });
       }
 
       if (source === jsxRuntimeModuleId || source === jsxDevRuntimeModuleId) {
@@ -51,6 +56,20 @@ export function cmx(): Plugin {
       }
 
       return null;
+    },
+    transform(source, id) {
+      const dynamicImport = findDynamicImport(source, id);
+      if (!dynamicImport) {
+        return null;
+      }
+
+      this.error(
+        {
+          code: DYNAMIC_IMPORT_UNSUPPORTED,
+          message: "Dynamic imports are not supported in CMX artifacts.",
+        },
+        dynamicImport.position,
+      );
     },
     generateBundle(_outputOptions, bundle) {
       const chunks = getOutputChunks(bundle);
@@ -72,6 +91,29 @@ export function cmx(): Plugin {
       });
     },
   };
+}
+
+function findDynamicImport(
+  source: string,
+  id: string,
+): { position: number } | undefined {
+  const parsed = parseSync(id, source, {
+    range: true,
+    sourceType: "module",
+  });
+  if (parsed.errors.length > 0) {
+    return undefined;
+  }
+
+  let position: number | undefined;
+  const visitor = new Visitor({
+    ImportExpression(node: { start: number }) {
+      position = node.start;
+    },
+  });
+  visitor.visit(parsed.program);
+
+  return position === undefined ? undefined : { position };
 }
 
 function withCmxJsxRuntime(inputOptions: InputOptions): InputOptions {
