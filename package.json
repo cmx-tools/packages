@@ -5,7 +5,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./cmx-bundler": "./src/cmx-bundler/index.ts"
+    "./cmx-bundler": "./src/cmx-bundler/index.ts",
+    "./cmx-tree-renderer": "./src/cmx-tree-renderer/index.ts",
+    "./cmx-tree-renderer/jsx-runtime": "./src/cmx-tree-renderer/jsx-runtime.ts"
   },
   "scripts": {
     "test": "vitest run",
