@@ -8,10 +8,14 @@ import { cmx, type CmxArtifact } from "./cmx-bundler/index.js";
 import type { CmxDiagnostic, CmxDiagnosticSource } from "./CmxDiagnostic.js";
 import {
   CmxRenderError,
+  renderCmxArtifact,
   renderCmxTree,
   type CmxNode,
   type CmxManifest,
   type CmxMeta,
+  type RenderCmxArtifactCompleteResult,
+  type RenderCmxArtifactErrorResult,
+  type RenderCmxArtifactPartialResult,
   type CmxRenderDiagnostic,
   type UnsupportedValuesPolicy,
 } from "./cmx-tree-renderer/index.js";
@@ -19,6 +23,7 @@ import {
 export type RenderCmxTestbedInput = {
   files: Record<string, string>;
   entry?: string;
+  entries?: string[];
   externals?: string[];
   unsupportedValues?: UnsupportedValuesPolicy;
 };
@@ -48,22 +53,41 @@ export type RenderCmxTestbedBuildErrorResult = {
   diagnostics: CmxDiagnostic[];
 };
 
+export type RenderCmxTestbedCompleteResult = RenderCmxTestbedArtifacts &
+  RenderCmxArtifactCompleteResult;
+
+export type RenderCmxTestbedPartialResult = RenderCmxTestbedArtifacts &
+  RenderCmxArtifactPartialResult;
+
+export type RenderCmxTestbedArtifactErrorResult = RenderCmxTestbedArtifacts &
+  RenderCmxArtifactErrorResult;
+
 export type RenderCmxTestbedResult =
   | RenderCmxTestbedSuccessResult
   | RenderCmxTestbedErrorResult
-  | RenderCmxTestbedBuildErrorResult;
+  | RenderCmxTestbedBuildErrorResult
+  | RenderCmxTestbedCompleteResult
+  | RenderCmxTestbedPartialResult
+  | RenderCmxTestbedArtifactErrorResult;
 
 export async function renderCmxTestbed(
   input: RenderCmxTestbedInput,
 ): Promise<RenderCmxTestbedResult> {
   const rootDir = await mkdtemp(path.join(os.tmpdir(), "cmx-testbed-"));
   const entry = input.entry ?? "entry.tsx";
-  const entryFile = path.join(rootDir, entry);
+  const entryFiles = input.entries
+    ? Object.fromEntries(
+        input.entries.map((entryPath) => [
+          entryNameFromPath(entryPath),
+          path.join(rootDir, entryPath),
+        ]),
+      )
+    : path.join(rootDir, entry);
   await writeSourceFiles(rootDir, input.files);
 
   const outDir = path.join(rootDir, "dist");
   const bundle = await rolldown({
-    input: entryFile,
+    input: entryFiles,
     plugins: [cmx({ externals: input.externals })],
   });
 
@@ -71,7 +95,7 @@ export async function renderCmxTestbed(
     const output = await bundle
       .write({
         dir: outDir,
-        entryFileNames: "entry.js",
+        entryFileNames: input.entries ? "[name].js" : "entry.js",
       })
       .catch((error: unknown) => {
         throw new CmxTestbedBuildError(toBuildDiagnostic(error));
@@ -96,6 +120,17 @@ export async function renderCmxTestbed(
       rootDir,
       outDir,
     };
+
+    if (input.entries) {
+      return {
+        ...(await renderCmxArtifact({
+          artifact,
+          outDir,
+          unsupportedValues: input.unsupportedValues,
+        })),
+        ...artifactResult,
+      };
+    }
 
     try {
       const tree = await renderCmxTree({
@@ -127,6 +162,10 @@ export async function renderCmxTestbed(
   } finally {
     await bundle.close();
   }
+}
+
+function entryNameFromPath(entryPath: string): string {
+  return path.basename(entryPath, path.extname(entryPath));
 }
 
 async function writeSourceFiles(

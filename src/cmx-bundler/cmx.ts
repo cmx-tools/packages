@@ -1,6 +1,7 @@
 import type { InputOptions, OutputBundle, OutputChunk, Plugin } from "rolldown";
 import type { CallExpression } from "oxc-parser";
 import { ImportNameKind, parseSync, Visitor } from "oxc-parser";
+import path from "node:path";
 
 const ARTIFACT_FILE_NAME = "cmx-artifact.json";
 const RUNTIME_IMPORT_SOURCE = "@cmx/runtime";
@@ -15,6 +16,7 @@ export type CmxArtifactChunk = {
 };
 
 export type CmxArtifactEntry = {
+  name: string;
   file: string;
   sourcemap: string;
 };
@@ -42,10 +44,12 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
   const jsxDevRuntimeModuleId = `${RUNTIME_IMPORT_SOURCE}/jsx-dev-runtime`;
   const externalPatterns = normalizeExternals(options.externals ?? []);
   const externalStubs = new Map<string, ExternalStub>();
+  let entryOrder = new Map<string, number>();
 
   return {
     name: "cmx",
     options(inputOptions) {
+      entryOrder = createEntryOrder(inputOptions.input);
       return withCmxJsxRuntime(inputOptions);
     },
     outputOptions(outputOptions) {
@@ -130,9 +134,20 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
         runtime: {
           importSource: RUNTIME_IMPORT_SOURCE,
         },
-        entries: artifactChunks
+        entries: chunks
           .filter((chunk) => chunk.isEntry)
-          .map(({ file, sourcemap }) => ({ file, sourcemap })),
+          .sort(
+            (a, b) =>
+              entrySortIndex(a, entryOrder) - entrySortIndex(b, entryOrder),
+          )
+          .map((chunk) => {
+            const artifactChunk = toArtifactChunk(chunk);
+            return {
+              name: chunk.name,
+              file: artifactChunk.file,
+              sourcemap: artifactChunk.sourcemap,
+            };
+          }),
         chunks: artifactChunks,
       };
 
@@ -583,4 +598,33 @@ function toArtifactChunk(chunk: OutputChunk): CmxArtifactChunk {
     sourcemap: chunk.sourcemapFileName,
     isEntry: chunk.isEntry,
   };
+}
+
+function createEntryOrder(input: InputOptions["input"]): Map<string, number> {
+  const entries =
+    typeof input === "string"
+      ? [input]
+      : Array.isArray(input)
+        ? input
+        : input
+          ? Object.values(input)
+          : [];
+
+  return new Map(
+    entries.map((entry, index) => [path.resolve(String(entry)), index]),
+  );
+}
+
+function entrySortIndex(
+  chunk: OutputChunk,
+  entryOrder: Map<string, number>,
+): number {
+  if (!chunk.facadeModuleId) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  return (
+    entryOrder.get(path.resolve(chunk.facadeModuleId)) ??
+    Number.MAX_SAFE_INTEGER
+  );
 }

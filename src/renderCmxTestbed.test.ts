@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   renderCmxTestbed,
+  type RenderCmxTestbedCompleteResult,
+  type RenderCmxTestbedPartialResult,
   type RenderCmxTestbedResult,
   type RenderCmxTestbedSuccessResult,
 } from "./renderCmxTestbed.js";
@@ -11,6 +13,26 @@ function expectTreeResult(
   expect(result.result).toBe("tree");
   if (result.result !== "tree") {
     throw new Error("expected tree result");
+  }
+  return result;
+}
+
+function expectCompleteResult(
+  result: RenderCmxTestbedResult,
+): RenderCmxTestbedCompleteResult {
+  expect(result.result).toBe("complete");
+  if (result.result !== "complete") {
+    throw new Error("expected complete result");
+  }
+  return result;
+}
+
+function expectPartialResult(
+  result: RenderCmxTestbedResult,
+): RenderCmxTestbedPartialResult {
+  expect(result.result).toBe("partial");
+  if (result.result !== "partial") {
+    throw new Error("expected partial result");
   }
   return result;
 }
@@ -235,6 +257,109 @@ describe("renderCmxTestbed", () => {
         "cmx-artifact.json": expect.stringContaining('"entries"'),
       },
     });
+  });
+
+  it("builds a code-split multi-entry artifact and renders entries with one shared graph", async () => {
+    const result = expectCompleteResult(
+      await renderCmxTestbed({
+        entries: ["home.tsx", "about.tsx"],
+        files: {
+          "home.tsx": [
+            'import { sharedLoadCount } from "./shared";',
+            "export default <main>Home {sharedLoadCount}</main>;",
+          ].join("\n"),
+          "about.tsx": [
+            'import { sharedLoadCount } from "./shared";',
+            "export default <main>About {sharedLoadCount}</main>;",
+          ].join("\n"),
+          "shared.tsx": [
+            "const state = globalThis as typeof globalThis & { __cmxSharedLoads?: number };",
+            "state.__cmxSharedLoads = (state.__cmxSharedLoads ?? 0) + 1;",
+            "export const sharedLoadCount = state.__cmxSharedLoads;",
+          ].join("\n"),
+        },
+      }),
+    );
+
+    expect(Object.keys(result.entries)).toEqual(["home", "about"]);
+    expect(result.entries.home.tree).toEqual({
+      type: "element",
+      tag: "main",
+      children: ["Home ", 1],
+    });
+    expect(result.entries.about.tree).toEqual({
+      type: "element",
+      tag: "main",
+      children: ["About ", 1],
+    });
+    expect(result.artifact.entries).toEqual([
+      {
+        name: "home",
+        file: "home.js",
+        sourcemap: "home.js.map",
+      },
+      {
+        name: "about",
+        file: "about.js",
+        sourcemap: "about.js.map",
+      },
+    ]);
+    expect(result.artifact.chunks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          file: expect.stringMatching(/^shared-/u),
+          sourcemap: expect.stringMatching(/^shared-.*\.js\.map$/u),
+          isEntry: false,
+        }),
+      ]),
+    );
+    for (const chunk of result.artifact.chunks) {
+      expect(result.files).toHaveProperty(chunk.file);
+      expect(result.files).toHaveProperty(chunk.sourcemap);
+    }
+  });
+
+  it("marks multi-entry rendering partial when one entry fails", async () => {
+    const result = expectPartialResult(
+      await renderCmxTestbed({
+        entries: ["home.tsx", "broken.tsx"],
+        files: {
+          "home.tsx": "export default <main>Home</main>;\n",
+          "broken.tsx": [
+            "export default function Broken() {",
+            "  throw new Error('entry exploded');",
+            "}",
+          ].join("\n"),
+        },
+      }),
+    );
+
+    expect(Object.keys(result.entries)).toEqual(["home", "broken"]);
+    expect(result.entries.home).toMatchObject({
+      result: "tree",
+      tree: {
+        type: "element",
+        tag: "main",
+        children: ["Home"],
+      },
+    });
+    expect(result.entries.broken).toEqual({
+      result: "error",
+      diagnostics: [
+        {
+          severity: "error",
+          code: "render-error",
+          message: "entry exploded",
+        },
+      ],
+    });
+    expect(result.diagnostics).toEqual([
+      {
+        severity: "error",
+        code: "render-error",
+        message: "entry exploded",
+      },
+    ]);
   });
 
   it("renders fragments through the artifact boundary", async () => {
