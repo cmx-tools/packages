@@ -1,9 +1,14 @@
+Read MISSION.md
+
 Github Repo is `Xiphe/content-management-jsx`
 DO use conventional commit message format
 ONLY commit when instructed
 
 NEVER write docs or code-comments for intermediate or iterative steps
 ANY docs/comments MUST cut to the point. NO fluff. AVOID parentheses
+
+NEVER parametrize interfaces for eventual future use.
+refactoring code cheap – maintaining interfaces expensive.
 
 ALWAYS single responsibility files. Multi exports ok. But clear domain
 COLOCATE tests with implementation
