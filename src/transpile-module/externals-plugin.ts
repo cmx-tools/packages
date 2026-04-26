@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import type { Plugin } from "esbuild";
+import { collectExternalImportBindingInfo } from "./external-import-bindings.js";
 import { ErrorCode } from "./diagnostics.js";
 
 type FileSystemLike = {
@@ -9,11 +10,6 @@ type FileSystemLike = {
 type ExternalsPluginOptions = {
   externals: string[];
   fs?: FileSystemLike;
-};
-
-type ImportBindings = {
-  hasDefault: boolean;
-  namedImports: Set<string>;
 };
 
 function isBareSpecifier(specifier: string): boolean {
@@ -48,20 +44,6 @@ function matchesExternal(canonicalId: string, externals: string[]): boolean {
   return false;
 }
 
-function escapeRegexLiteral(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-}
-
-/** `import "specifier"` / `import 'specifier'` (no `from` clause). */
-function hasSideEffectOnlyImport(source: string, specifier: string): boolean {
-  const escaped = escapeRegexLiteral(specifier);
-  const re = new RegExp(
-    String.raw`\bimport\s+(["'])` + escaped + String.raw`\1\s*(?:;|[\r\n]|$)`,
-    "mu",
-  );
-  return re.test(source);
-}
-
 async function readImporterSource(
   importer: string,
   virtualFs?: FileSystemLike,
@@ -72,83 +54,6 @@ async function readImporterSource(
   }
 
   return readFile(importer, "utf8");
-}
-
-function collectImportBindings(
-  source: string,
-  targetSpecifier: string,
-): ImportBindings {
-  const bindings: ImportBindings = {
-    hasDefault: false,
-    namedImports: new Set<string>(),
-  };
-
-  const importRegex = /import\s+([\s\S]*?)\s+from\s+(['"])([^'"]+)\2/gu;
-  for (const match of source.matchAll(importRegex)) {
-    const clause = match[1]?.trim();
-    const specifier = match[3];
-    if (!clause || specifier !== targetSpecifier) {
-      continue;
-    }
-
-    if (clause.startsWith("* as ")) {
-      throw new Error(
-        `[cmx:${ErrorCode.NAMESPACE_IMPORT_UNSUPPORTED}] Namespace imports are not supported for externals`,
-      );
-    }
-
-    if (clause.startsWith("{")) {
-      addNamedBindings(bindings, clause);
-      continue;
-    }
-
-    if (!clause.includes(",")) {
-      bindings.hasDefault = true;
-      continue;
-    }
-
-    const [defaultBinding, remainder] = clause.split(",", 2);
-    if (defaultBinding && defaultBinding.trim().length > 0) {
-      bindings.hasDefault = true;
-    }
-    if (remainder) {
-      addNamedBindings(bindings, remainder.trim());
-    }
-  }
-
-  return bindings;
-}
-
-function addNamedBindings(bindings: ImportBindings, rawClause: string): void {
-  const clause = rawClause.trim();
-  if (!clause.startsWith("{") || !clause.endsWith("}")) {
-    return;
-  }
-
-  const inner = clause.slice(1, -1).trim();
-  if (inner.length === 0) {
-    return;
-  }
-
-  for (const part of inner.split(",")) {
-    const segment = part.trim();
-    if (segment.length === 0) {
-      continue;
-    }
-
-    const [importedName] = segment.split(/\s+as\s+/u, 2);
-    if (!importedName) {
-      continue;
-    }
-
-    const normalized = importedName.trim();
-    if (normalized === "default") {
-      bindings.hasDefault = true;
-      continue;
-    }
-
-    bindings.namedImports.add(normalized);
-  }
 }
 
 async function resolveCanonicalModuleId(
@@ -272,9 +177,13 @@ export function externalsPlugin(options: ExternalsPluginOptions): Plugin {
         }
 
         const importerSource = await readImporterSource(importer, options.fs);
-        const bindings = collectImportBindings(importerSource, rawSpecifier);
+        const { bindings, hasSideEffectOnly } = collectExternalImportBindingInfo(
+          importerSource,
+          rawSpecifier,
+          importer,
+        );
 
-        if (hasSideEffectOnlyImport(importerSource, rawSpecifier)) {
+        if (hasSideEffectOnly) {
           throw new Error(
             `[cmx:${ErrorCode.SIDE_EFFECT_EXTERNAL_IMPORT_UNSUPPORTED}] Side-effect external imports are not supported; external modules are not executed at transpile time`,
           );

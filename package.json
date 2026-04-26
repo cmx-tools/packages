@@ -10,7 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "esbuild": "^0.28.0"
+    "esbuild": "^0.28.0",
+    "oxc-parser": "^0.127.0"
   },
   "devDependencies": {
     "@types/node": "^24.12.2",
