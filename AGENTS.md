@@ -1,9 +1,14 @@
 Github Repo is `Xiphe/content-management-jsx`
-ALWAYS use conventional commit message format.
-NEVER write docs for intermediate steps.
-ANY docs MUST cut to the point. NO fluff.
+DO use conventional commit message format
+ONLY commit when instructed
 
-Module structure
+NEVER write docs or code-comments for intermediate or iterative steps
+ANY docs/comments MUST cut to the point. NO fluff. AVOID parentheses
+
+ALWAYS single responsibility files. Multi exports ok. But clear domain
+COLOCATE tests with implementation
+file name === main export name
+File structure:
 
 ```
 {imports}
@@ -12,3 +17,9 @@ Module structure
 {exports/api}
 {internal/impl}
 ```
+
+FOLDERS are internal modules with index as API
+NEVER folders with less then 3 implementation files
+NEVER deep imports from internal modules
+ALWAYS feature/deep-module based architecture. Small interface, lots of implementation
+AVOID functional folders (`components` or `hooks`)
