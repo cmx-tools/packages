@@ -451,6 +451,50 @@ describe("renderCmxTestbed", () => {
     });
   });
 
+  it("flattens async component array output in child position", async () => {
+    const result = expectTreeResult(
+      await renderCmxTestbed({
+        files: {
+          "entry.tsx": [
+            "async function AsyncLeaf({ label }: { label: string }) {",
+            "  return <li>{label}</li>;",
+            "}",
+            "function SyncLeaf() {",
+            "  return <li>sync</li>;",
+            "}",
+            "async function AsyncGroup() {",
+            "  return [<AsyncLeaf label='a' />, [<SyncLeaf />, 'tail']];",
+            "}",
+            "export default <ul><AsyncGroup /><AsyncLeaf label='b' /></ul>;",
+          ].join("\n"),
+        },
+      }),
+    );
+
+    expect(result.tree).toEqual({
+      type: "element",
+      tag: "ul",
+      children: [
+        {
+          type: "element",
+          tag: "li",
+          children: ["a"],
+        },
+        {
+          type: "element",
+          tag: "li",
+          children: ["sync"],
+        },
+        "tail",
+        {
+          type: "element",
+          tag: "li",
+          children: ["b"],
+        },
+      ],
+    });
+  });
+
   it("maps explicit children props through the artifact boundary", async () => {
     const result = expectTreeResult(
       await renderCmxTestbed({

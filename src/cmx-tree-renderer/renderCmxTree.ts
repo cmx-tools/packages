@@ -347,11 +347,41 @@ async function normalizeChildren(
     return [];
   }
 
-  return Promise.all(
-    flattenChildren(children).map((child, index) =>
-      normalizeCmxTreeValue(child, `${pathLabel}[${index}]`, context),
-    ),
-  );
+  const normalized: CmxNode[] = [];
+  for (const child of flattenChildren(children)) {
+    normalized.push(
+      ...(await normalizeChildValue(
+        child,
+        `${pathLabel}[${normalized.length}]`,
+        context,
+      )),
+    );
+  }
+  return normalized;
+}
+
+async function normalizeChildValue(
+  value: unknown,
+  pathLabel: string,
+  context: RenderContext,
+): Promise<CmxNode[]> {
+  const resolvedValue = await value;
+
+  if (Array.isArray(resolvedValue)) {
+    const normalized: CmxNode[] = [];
+    for (const child of flattenChildren(resolvedValue)) {
+      normalized.push(
+        ...(await normalizeChildValue(
+          child,
+          `${pathLabel}[${normalized.length}]`,
+          context,
+        )),
+      );
+    }
+    return normalized;
+  }
+
+  return [await normalizeCmxTreeValue(resolvedValue, pathLabel, context)];
 }
 
 async function normalizeMeta(
