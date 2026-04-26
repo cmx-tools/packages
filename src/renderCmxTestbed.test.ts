@@ -451,6 +451,115 @@ describe("renderCmxTestbed", () => {
     });
   });
 
+  it("maps explicit children props through the artifact boundary", async () => {
+    const result = expectTreeResult(
+      await renderCmxTestbed({
+        externals: ["@theme/ui"],
+        files: {
+          "entry.tsx": [
+            'import { H1 } from "@theme/ui";',
+            "export default <>",
+            "  <p children='Intrinsic prop' />",
+            "  <p children='Ignored prop'>Intrinsic JSX</p>",
+            "  <H1 children='External prop' />",
+            "  <H1 children='Ignored prop'>External JSX</H1>",
+            "</>;",
+          ].join("\n"),
+        },
+      }),
+    );
+
+    expect(result.tree).toEqual({
+      type: "fragment",
+      children: [
+        {
+          type: "element",
+          tag: "p",
+          children: ["Intrinsic prop"],
+        },
+        {
+          type: "element",
+          tag: "p",
+          children: ["Intrinsic JSX"],
+        },
+        {
+          type: "component",
+          from: "@theme/ui",
+          import: "H1",
+          children: ["External prop"],
+        },
+        {
+          type: "component",
+          from: "@theme/ui",
+          import: "H1",
+          children: ["External JSX"],
+        },
+      ],
+    });
+  });
+
+  it("preserves local component children shape through the artifact boundary", async () => {
+    const result = expectTreeResult(
+      await renderCmxTestbed({
+        files: {
+          "entry.tsx": [
+            "function Shape({ children }: { children?: unknown }) {",
+            "  return <p>{Array.isArray(children) ? 'array' : 'scalar'}</p>;",
+            "}",
+            "export default <><Shape>One</Shape><Shape><span />Two</Shape></>;",
+          ].join("\n"),
+        },
+      }),
+    );
+
+    expect(result.tree).toEqual({
+      type: "fragment",
+      children: [
+        {
+          type: "element",
+          tag: "p",
+          children: ["scalar"],
+        },
+        {
+          type: "element",
+          tag: "p",
+          children: ["array"],
+        },
+      ],
+    });
+  });
+
+  it("preserves JSX text boundaries through the artifact boundary", async () => {
+    const result = expectTreeResult(
+      await renderCmxTestbed({
+        files: {
+          "entry.tsx": [
+            "export default <section>",
+            "  alpha",
+            "  {/* hidden note */}",
+            "  beta",
+            "  <p>hello{' '}world{''}!</p>",
+            "</section>;",
+          ].join("\n"),
+        },
+      }),
+    );
+
+    expect(result.tree).toEqual({
+      type: "element",
+      tag: "section",
+      children: [
+        "alpha",
+        "beta",
+        {
+          type: "element",
+          tag: "p",
+          children: ["hello", " ", "world", "", "!"],
+        },
+      ],
+    });
+  });
+
   it("normalizes props, slots, meta data, and rendered manifest through the artifact boundary", async () => {
     const result = expectTreeResult(
       await renderCmxTestbed({
