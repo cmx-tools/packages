@@ -62,9 +62,14 @@ describe("cmx-tree-renderer", () => {
         moduleUrl: new URL("./prepared-artifact.fixture.ts", import.meta.url),
       }),
     ).resolves.toEqual({
-      type: "element",
-      tag: "main",
-      children: ["Hello"],
+      tree: {
+        type: "element",
+        tag: "main",
+        children: ["Hello"],
+      },
+      manifest: {
+        externals: [],
+      },
     });
   });
 });

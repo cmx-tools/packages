@@ -8,12 +8,16 @@ import {
   CmxRenderError,
   renderCmxTree,
   type CmxNode,
+  type CmxManifest,
+  type CmxMeta,
   type CmxRenderDiagnostic,
+  type UnsupportedValuesPolicy,
 } from "./cmx-tree-renderer/index.js";
 
 export type RenderCmxTestbedInput = {
   files: Record<string, string>;
   entry?: string;
+  unsupportedValues?: UnsupportedValuesPolicy;
 };
 
 export type RenderCmxTestbedArtifacts = {
@@ -26,6 +30,8 @@ export type RenderCmxTestbedArtifacts = {
 export type RenderCmxTestbedSuccessResult = RenderCmxTestbedArtifacts & {
   result: "tree";
   tree: CmxNode;
+  meta?: CmxMeta;
+  manifest: CmxManifest;
   diagnostics: [];
 };
 
@@ -81,11 +87,12 @@ export async function renderCmxTestbed(
     try {
       const tree = await renderCmxTree({
         moduleUrl: pathToFileURL(path.join(outDir, artifactEntry.file)),
+        unsupportedValues: input.unsupportedValues,
       });
 
       return {
         result: "tree",
-        tree,
+        ...tree,
         diagnostics: [],
         ...artifactResult,
       };
