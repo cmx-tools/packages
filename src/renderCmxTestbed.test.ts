@@ -16,6 +16,72 @@ function expectTreeResult(
 }
 
 describe("renderCmxTestbed", () => {
+  it("maps runtime errors back to authored source through artifact sourcemaps", async () => {
+    await expect(
+      renderCmxTestbed({
+        files: {
+          "entry.tsx": [
+            "export default function Page() {",
+            "  throw new Error('render exploded');",
+            "}",
+          ].join("\n"),
+        },
+      }),
+    ).resolves.toMatchObject({
+      result: "error",
+      diagnostics: [
+        {
+          severity: "error",
+          code: "render-error",
+          message: "render exploded",
+          source: {
+            file: expect.stringMatching(/entry\.tsx$/u),
+            line: 2,
+            column: expect.any(Number),
+          },
+        },
+      ],
+      artifact: {
+        entries: [
+          {
+            file: "entry.js",
+            sourcemap: "entry.js.map",
+          },
+        ],
+      },
+    });
+  });
+
+  it("maps Layer 1 validation diagnostics to authored source without emitting an artifact", async () => {
+    const result = await renderCmxTestbed({
+      files: {
+        "entry.tsx": [
+          "export default async function Page() {",
+          "  await import('./other');",
+          "  return <main />;",
+          "}",
+        ].join("\n"),
+      },
+    });
+
+    expect(result).toMatchObject({
+      result: "error",
+      diagnostics: [
+        {
+          severity: "error",
+          code: "dynamic-import-unsupported",
+          message: "Dynamic imports are not supported in CMX artifacts.",
+          source: {
+            file: expect.stringMatching(/entry\.tsx$/u),
+            line: 2,
+            column: expect.any(Number),
+          },
+        },
+      ],
+    });
+    expect(result).not.toHaveProperty("artifact");
+  });
+
   it("builds a TSX source fixture through the artifact boundary and renders CMX", async () => {
     const result = expectTreeResult(
       await renderCmxTestbed({
