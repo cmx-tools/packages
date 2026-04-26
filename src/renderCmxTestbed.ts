@@ -19,6 +19,7 @@ import {
 export type RenderCmxTestbedInput = {
   files: Record<string, string>;
   entry?: string;
+  externals?: string[];
   unsupportedValues?: UnsupportedValuesPolicy;
 };
 
@@ -63,7 +64,7 @@ export async function renderCmxTestbed(
   const outDir = path.join(rootDir, "dist");
   const bundle = await rolldown({
     input: entryFile,
-    plugins: [cmx()],
+    plugins: [cmx({ externals: input.externals })],
   });
 
   try {

@@ -289,6 +289,59 @@ describe("renderCmxTestbed", () => {
     });
   });
 
+  it("renders configured external imports through importer-edge stubs", async () => {
+    const result = expectTreeResult(
+      await renderCmxTestbed({
+        externals: ["@theme/ui"],
+        files: {
+          "entry.tsx": [
+            'import HeroDefault, { Hero as PageHero, Unused } from "@theme/ui";',
+            'import { Teaser } from "./teaser";',
+            "export default <><HeroDefault /><PageHero /><Teaser /></>;",
+          ].join("\n"),
+          "teaser.tsx": [
+            'import { Card as TeaserCard } from "@theme/ui";',
+            "export function Teaser() {",
+            "  return <TeaserCard tone='compact' />;",
+            "}",
+          ].join("\n"),
+        },
+      }),
+    );
+
+    expect(result.tree).toEqual({
+      type: "fragment",
+      children: [
+        {
+          type: "component",
+          from: "@theme/ui",
+        },
+        {
+          type: "component",
+          from: "@theme/ui",
+          import: "Hero",
+        },
+        {
+          type: "component",
+          from: "@theme/ui",
+          import: "Card",
+          props: {
+            tone: "compact",
+          },
+        },
+      ],
+    });
+    expect(result.manifest).toEqual({
+      externals: [
+        {
+          from: "@theme/ui",
+          imports: ["Card", "Hero"],
+          default: true,
+        },
+      ],
+    });
+  });
+
   it("returns unsupported value diagnostics for props and meta data by default", async () => {
     await expect(
       renderCmxTestbed({
