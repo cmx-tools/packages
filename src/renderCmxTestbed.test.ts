@@ -141,6 +141,160 @@ describe("renderCmxTestbed", () => {
     });
   });
 
+  it("normalizes props, slots, meta data, and rendered manifest through the artifact boundary", async () => {
+    const result = expectTreeResult(
+      await renderCmxTestbed({
+        files: {
+          "entry.tsx": [
+            'import { __registerExternal } from "@cmx/runtime/jsx-runtime";',
+            'const Hero = __registerExternal({ from: "@theme/ui", import: "Hero" });',
+            'const Unused = __registerExternal({ from: "@theme/ui", import: "Unused" });',
+            "const action = <button>Act</button>;",
+            "const fake = { type: 'component', from: '@fake/ui', import: 'Fake' };",
+            "void Unused;",
+            "export const meta = { slug: 'home', preview: <span>Meta</span> };",
+            "export default <main",
+            "  id='home'",
+            "  missing={undefined}",
+            "  action={action}",
+            "  data={{ fake, items: [undefined, <Hero tone='featured' />] }}",
+            ">",
+            "  <Hero />",
+            "</main>;",
+          ].join("\n"),
+        },
+      }),
+    );
+
+    expect(result.tree).toEqual({
+      type: "element",
+      tag: "main",
+      props: {
+        id: "home",
+        action: {
+          type: "element",
+          tag: "button",
+          children: ["Act"],
+        },
+        data: {
+          fake: {
+            type: "component",
+            from: "@fake/ui",
+            import: "Fake",
+          },
+          items: [
+            {
+              type: "component",
+              from: "@theme/ui",
+              import: "Hero",
+              props: {
+                tone: "featured",
+              },
+            },
+          ],
+        },
+      },
+      slots: [["action"], ["data", "items", 0]],
+      children: [
+        {
+          type: "component",
+          from: "@theme/ui",
+          import: "Hero",
+        },
+      ],
+    });
+    expect(result.meta).toEqual({
+      data: {
+        slug: "home",
+        preview: {
+          type: "element",
+          tag: "span",
+          children: ["Meta"],
+        },
+      },
+    });
+    expect(result.manifest).toEqual({
+      externals: [
+        {
+          from: "@theme/ui",
+          imports: ["Hero"],
+        },
+      ],
+    });
+  });
+
+  it("returns unsupported value diagnostics for props and meta data by default", async () => {
+    await expect(
+      renderCmxTestbed({
+        files: {
+          "entry.tsx": "export default <button onClick={() => {}} />;\n",
+        },
+      }),
+    ).resolves.toMatchObject({
+      result: "error",
+      diagnostics: [
+        {
+          code: "unsupported-value",
+          message: "Unsupported prop value at default export.props.onClick",
+        },
+      ],
+    });
+
+    await expect(
+      renderCmxTestbed({
+        files: {
+          "entry.tsx": [
+            "export const meta = { slug: 'home', build: () => 'x' };",
+            "export default <main />;",
+          ].join("\n"),
+        },
+      }),
+    ).resolves.toMatchObject({
+      result: "error",
+      diagnostics: [
+        {
+          code: "unsupported-value",
+          message: "Unsupported meta value at meta.build",
+        },
+      ],
+    });
+  });
+
+  it("omits unsupported prop and meta data values when configured", async () => {
+    const result = expectTreeResult(
+      await renderCmxTestbed({
+        unsupportedValues: "omit",
+        files: {
+          "entry.tsx": [
+            "export const meta = { slug: 'home', build: () => 'x' };",
+            "export default <button",
+            "  onClick={() => {}}",
+            "  data={{ keep: 'ok', nested: { skip: () => {}, pass: 42 } }}",
+            "/>;",
+          ].join("\n"),
+        },
+      }),
+    );
+
+    expect(result.tree).toEqual({
+      type: "element",
+      tag: "button",
+      props: {
+        data: {
+          keep: "ok",
+          nested: {
+            pass: 42,
+          },
+        },
+      },
+    });
+    expect(result.meta).toEqual({
+      data: {
+        slug: "home",
+      },
+    });
+  });
+
   it("returns diagnostics for invalid root and child output", async () => {
     await expect(
       renderCmxTestbed({

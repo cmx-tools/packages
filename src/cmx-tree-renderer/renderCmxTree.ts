@@ -31,18 +31,52 @@ export type CmxNode =
   | CmxElementNode
   | CmxComponentNode;
 
+export type CmxMeta = {
+  data: unknown;
+};
+
+export type CmxManifestExternalRef = {
+  from: string;
+  imports?: string[];
+  default?: true;
+};
+
+export type CmxManifest = {
+  externals: CmxManifestExternalRef[];
+};
+
+export type RenderCmxTreeResult = {
+  tree: CmxNode;
+  meta?: CmxMeta;
+  manifest: CmxManifest;
+};
+
 export type CmxRenderDiagnostic = {
-  code: "invalid-runtime-output" | "render-error" | "undefined-value";
+  code:
+    | "invalid-runtime-output"
+    | "render-error"
+    | "undefined-value"
+    | "unsupported-value";
   message: string;
 };
 
 export type SlotPath = Array<string | number>;
+export type UnsupportedValuesPolicy = "error" | "omit";
 
 type KeepResult = { keep: true; value: unknown };
 type DropResult = { keep: false };
+type ExternalUsageRef = {
+  from: string;
+  import?: string;
+};
+type RenderContext = {
+  unsupportedValues: UnsupportedValuesPolicy;
+  usedExternalRefs: ExternalUsageRef[];
+};
 
 export type RenderCmxTreeInput = {
   moduleUrl: string | URL;
+  unsupportedValues?: UnsupportedValuesPolicy;
 };
 
 export class CmxRenderError extends Error {
@@ -57,7 +91,7 @@ export class CmxRenderError extends Error {
 
 export async function renderCmxTree(
   input: RenderCmxTreeInput,
-): Promise<CmxNode> {
+): Promise<RenderCmxTreeResult> {
   const artifactModule = (await import(
     /* @vite-ignore */ toModuleUrl(input.moduleUrl)
   )) as Record<string, unknown>;
@@ -69,16 +103,29 @@ export async function renderCmxTree(
   const exportedDefault = artifactModule.default;
   const root =
     typeof exportedDefault === "function" ? exportedDefault() : exportedDefault;
-  return normalizeCmxTree(root);
+  const context = createRenderContext(input);
+  const tree = await normalizeCmxTreeValue(root, "default export", context);
+  const meta = await normalizeMeta(artifactModule, context);
+
+  return {
+    tree,
+    ...(meta ? { meta } : {}),
+    manifest: createManifest(context.usedExternalRefs),
+  };
 }
 
 export async function normalizeCmxTree(value: unknown): Promise<CmxNode> {
-  return normalizeCmxTreeValue(value, "default export");
+  return normalizeCmxTreeValue(
+    value,
+    "default export",
+    createRenderContext({}),
+  );
 }
 
 async function normalizeCmxTreeValue(
   value: unknown,
   pathLabel: string,
+  context: RenderContext,
 ): Promise<CmxNode> {
   const resolvedValue = await value;
 
@@ -103,7 +150,7 @@ async function normalizeCmxTreeValue(
       type: "fragment",
       children: await Promise.all(
         flattenChildren(resolvedValue).map((child, index) =>
-          normalizeCmxTreeValue(child, `${pathLabel}[${index}]`),
+          normalizeCmxTreeValue(child, `${pathLabel}[${index}]`, context),
         ),
       ),
     };
@@ -116,17 +163,19 @@ async function normalizeCmxTreeValue(
     });
   }
 
-  return normalizeRuntimeNode(resolvedValue, pathLabel);
+  return normalizeRuntimeNode(resolvedValue, pathLabel, context);
 }
 
 async function normalizeRuntimeNode(
   node: RuntimeNode,
   pathLabel: string,
+  context: RenderContext,
 ): Promise<CmxNode> {
   if (node.kind === "fragment") {
     const children = await normalizeChildren(
       node.children,
       `${pathLabel}.children`,
+      context,
     );
     return children.length > 0
       ? { type: "fragment", children }
@@ -139,24 +188,34 @@ async function normalizeRuntimeNode(
       from: node.from ?? "",
       ...(node.import ? { import: node.import } : {}),
     };
-    return addNodeFields(output, node, pathLabel);
+    context.usedExternalRefs.push({
+      from: output.from,
+      import: output.import,
+    });
+    return addNodeFields(output, node, pathLabel, context);
   }
 
   const output: CmxElementNode = {
     type: "element",
     tag: node.tag ?? "",
   };
-  return addNodeFields(output, node, pathLabel);
+  return addNodeFields(output, node, pathLabel, context);
 }
 
 async function addNodeFields<Node extends CmxElementNode | CmxComponentNode>(
   output: Node,
   runtimeNode: RuntimeNode,
   pathLabel: string,
+  context: RenderContext,
 ): Promise<Node> {
   if (runtimeNode.props && Object.keys(runtimeNode.props).length > 0) {
     const slots: SlotPath[] = [];
-    const props = await normalizeProps(runtimeNode.props, slots);
+    const props = await normalizeProps(
+      runtimeNode.props,
+      slots,
+      `${pathLabel}.props`,
+      context,
+    );
     if (props) {
       output.props = props;
     }
@@ -168,6 +227,7 @@ async function addNodeFields<Node extends CmxElementNode | CmxComponentNode>(
   const children = await normalizeChildren(
     runtimeNode.children,
     `${pathLabel}.children`,
+    context,
   );
   if (children.length > 0) {
     output.children = children;
@@ -179,11 +239,19 @@ async function addNodeFields<Node extends CmxElementNode | CmxComponentNode>(
 async function normalizeProps(
   props: Record<string, unknown>,
   slots: SlotPath[],
+  pathLabel: string,
+  context: RenderContext,
 ): Promise<Record<string, unknown> | undefined> {
   const normalized: Record<string, unknown> = {};
 
   for (const [key, propValue] of Object.entries(props)) {
-    const result = await normalizePropValue(propValue, [key], slots);
+    const result = await normalizePropValue(
+      propValue,
+      `${pathLabel}.${key}`,
+      [key],
+      slots,
+      context,
+    );
     if (result.keep) {
       normalized[key] = result.value;
     }
@@ -194,8 +262,10 @@ async function normalizeProps(
 
 async function normalizePropValue(
   value: unknown,
+  pathLabel: string,
   path: SlotPath,
   slots: SlotPath[],
+  context: RenderContext,
 ): Promise<KeepResult | DropResult> {
   const resolvedValue = await value;
 
@@ -217,8 +287,10 @@ async function normalizePropValue(
     for (let index = 0; index < resolvedValue.length; index += 1) {
       const result = await normalizePropValue(
         resolvedValue[index],
+        `${pathLabel}[${index}]`,
         [...path, normalized.length],
         slots,
+        context,
       );
       if (result.keep) {
         normalized.push(result.value);
@@ -231,17 +303,23 @@ async function normalizePropValue(
     slots.push(path);
     return {
       keep: true,
-      value: await normalizeRuntimeNode(resolvedValue, "prop"),
+      value: await normalizeRuntimeNode(resolvedValue, pathLabel, context),
     };
   }
 
   if (!isPlainObject(resolvedValue)) {
-    throw new Error("CMX tree renderer received unsupported prop data.");
+    return unsupportedValue("prop", pathLabel, context);
   }
 
   const normalized: Record<string, unknown> = {};
   for (const [key, nestedValue] of Object.entries(resolvedValue)) {
-    const result = await normalizePropValue(nestedValue, [...path, key], slots);
+    const result = await normalizePropValue(
+      nestedValue,
+      `${pathLabel}.${key}`,
+      [...path, key],
+      slots,
+      context,
+    );
     if (result.keep) {
       normalized[key] = result.value;
     }
@@ -253,6 +331,7 @@ async function normalizePropValue(
 async function normalizeChildren(
   children: unknown[] | undefined,
   pathLabel: string,
+  context: RenderContext,
 ): Promise<CmxNode[]> {
   if (!children || children.length === 0) {
     return [];
@@ -260,9 +339,150 @@ async function normalizeChildren(
 
   return Promise.all(
     flattenChildren(children).map((child, index) =>
-      normalizeCmxTreeValue(child, `${pathLabel}[${index}]`),
+      normalizeCmxTreeValue(child, `${pathLabel}[${index}]`, context),
     ),
   );
+}
+
+async function normalizeMeta(
+  module: Record<string, unknown>,
+  context: RenderContext,
+): Promise<CmxMeta | undefined> {
+  if (!Object.prototype.hasOwnProperty.call(module, "meta")) {
+    return undefined;
+  }
+
+  const result = await normalizeMetaValue(module.meta, "meta", context);
+  if (!result.keep) {
+    return undefined;
+  }
+
+  return { data: result.value };
+}
+
+async function normalizeMetaValue(
+  value: unknown,
+  pathLabel: string,
+  context: RenderContext,
+): Promise<KeepResult | DropResult> {
+  const resolvedValue = await value;
+
+  if (resolvedValue === undefined) {
+    return unsupportedValue("meta", pathLabel, context);
+  }
+
+  if (
+    resolvedValue === null ||
+    typeof resolvedValue === "string" ||
+    typeof resolvedValue === "number" ||
+    typeof resolvedValue === "boolean"
+  ) {
+    return { keep: true, value: resolvedValue };
+  }
+
+  if (Array.isArray(resolvedValue)) {
+    const normalized: unknown[] = [];
+    for (let index = 0; index < resolvedValue.length; index += 1) {
+      const result = await normalizeMetaValue(
+        resolvedValue[index],
+        `${pathLabel}[${index}]`,
+        context,
+      );
+      if (result.keep) {
+        normalized.push(result.value);
+      }
+    }
+    return { keep: true, value: normalized };
+  }
+
+  if (isRuntimeNode(resolvedValue)) {
+    return {
+      keep: true,
+      value: await normalizeRuntimeNode(resolvedValue, pathLabel, context),
+    };
+  }
+
+  if (!isPlainObject(resolvedValue)) {
+    return unsupportedValue("meta", pathLabel, context);
+  }
+
+  const normalized: Record<string, unknown> = {};
+  for (const [key, nestedValue] of Object.entries(resolvedValue)) {
+    const result = await normalizeMetaValue(
+      nestedValue,
+      `${pathLabel}.${key}`,
+      context,
+    );
+    if (result.keep) {
+      normalized[key] = result.value;
+    }
+  }
+
+  return { keep: true, value: normalized };
+}
+
+function unsupportedValue(
+  domain: "meta" | "prop",
+  pathLabel: string,
+  context: RenderContext,
+): DropResult {
+  if (context.unsupportedValues === "omit") {
+    return { keep: false };
+  }
+
+  throw new CmxRenderError({
+    code: "unsupported-value",
+    message: `Unsupported ${domain} value at ${pathLabel}`,
+  });
+}
+
+function createRenderContext(options: {
+  unsupportedValues?: UnsupportedValuesPolicy;
+}): RenderContext {
+  return {
+    unsupportedValues: options.unsupportedValues ?? "error",
+    usedExternalRefs: [],
+  };
+}
+
+function createManifest(usedRefs: ExternalUsageRef[]): CmxManifest {
+  const mergedByModule = new Map<
+    string,
+    { hasDefault: boolean; imports: Set<string> }
+  >();
+
+  for (const ref of usedRefs) {
+    const current = mergedByModule.get(ref.from) ?? {
+      hasDefault: false,
+      imports: new Set<string>(),
+    };
+
+    if (ref.import === undefined) {
+      current.hasDefault = true;
+    } else {
+      current.imports.add(ref.import);
+    }
+
+    mergedByModule.set(ref.from, current);
+  }
+
+  return {
+    externals: [...mergedByModule.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([from, entry]) => {
+        const manifestEntry: CmxManifestExternalRef = { from };
+        const imports = [...entry.imports].sort((left, right) =>
+          left.localeCompare(right),
+        );
+        if (imports.length > 0) {
+          manifestEntry.imports = imports;
+        }
+        if (entry.hasDefault) {
+          manifestEntry.default = true;
+        }
+        return manifestEntry;
+      }),
+  };
 }
 
 function flattenChildren(children: unknown[]): unknown[] {
