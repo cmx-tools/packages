@@ -1,5 +1,10 @@
 import type { InputOptions, OutputBundle, OutputChunk, Plugin } from "rolldown";
-import type { CallExpression } from "oxc-parser";
+import type {
+  CallExpression,
+  Program,
+  StaticImport,
+  VariableDeclarator,
+} from "oxc-parser";
 import { ImportNameKind, parseSync, Visitor } from "oxc-parser";
 import path from "node:path";
 
@@ -19,6 +24,16 @@ export type CmxArtifactEntry = {
   name: string;
   file: string;
   sourcemap: string;
+  meta?: CmxArtifactEntryMeta;
+};
+
+export type CmxArtifactEntryMeta = {
+  type?: CmxArtifactMetaTypeRef;
+};
+
+export type CmxArtifactMetaTypeRef = {
+  from: string;
+  import?: string;
 };
 
 export type CmxArtifact = {
@@ -39,11 +54,27 @@ type ExternalStub = {
   namedImports: Set<string>;
 };
 
+type TypeAnnotatedMetaBinding = {
+  type: "Identifier";
+  name: "meta";
+  typeAnnotation?: {
+    typeAnnotation?: {
+      type: string;
+      typeArguments?: unknown;
+      typeName?: {
+        type: string;
+        name?: string;
+      };
+    };
+  };
+};
+
 export function cmx(options: CmxPluginOptions = {}): Plugin {
   const jsxRuntimeModuleId = `${RUNTIME_IMPORT_SOURCE}/jsx-runtime`;
   const jsxDevRuntimeModuleId = `${RUNTIME_IMPORT_SOURCE}/jsx-dev-runtime`;
   const externalPatterns = normalizeExternals(options.externals ?? []);
   const externalStubs = new Map<string, ExternalStub>();
+  const metaTypesByModuleId = new Map<string, CmxArtifactMetaTypeRef>();
   let entryOrder = new Map<string, number>();
 
   return {
@@ -94,6 +125,13 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
       return createExternalStubSource(stub);
     },
     transform(source, id) {
+      const metaType = extractMetaType(source, id);
+      if (metaType) {
+        metaTypesByModuleId.set(path.resolve(id), metaType);
+      } else {
+        metaTypesByModuleId.delete(path.resolve(id));
+      }
+
       const dynamicImport = findDynamicImport(source, id);
       if (dynamicImport) {
         this.error(
@@ -142,10 +180,14 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
           )
           .map((chunk) => {
             const artifactChunk = toArtifactChunk(chunk);
+            const metaType = chunk.facadeModuleId
+              ? metaTypesByModuleId.get(path.resolve(chunk.facadeModuleId))
+              : undefined;
             return {
               name: chunk.name,
               file: artifactChunk.file,
               sourcemap: artifactChunk.sourcemap,
+              ...(metaType ? { meta: { type: metaType } } : {}),
             };
           }),
         chunks: artifactChunks,
@@ -158,6 +200,119 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
       });
     },
   };
+}
+
+function extractMetaType(
+  source: string,
+  id: string,
+): CmxArtifactMetaTypeRef | undefined {
+  const parsed = parseSync(id, source, {
+    range: true,
+    sourceType: "module",
+  });
+  if (parsed.errors.length > 0) {
+    return undefined;
+  }
+
+  const metaTypeName = exportedMetaTypeName(parsed.program);
+  if (!metaTypeName) {
+    return undefined;
+  }
+
+  return importedTypeBindings(parsed.module.staticImports).get(metaTypeName);
+}
+
+function importedTypeBindings(
+  staticImports: StaticImport[],
+): Map<string, CmxArtifactMetaTypeRef> {
+  const bindings = new Map<string, CmxArtifactMetaTypeRef>();
+  for (const staticImport of staticImports) {
+    if (!isExternalTypeSource(staticImport.moduleRequest.value)) {
+      continue;
+    }
+
+    for (const entry of staticImport.entries) {
+      if (!entry.isType) {
+        continue;
+      }
+
+      if (entry.importName.kind === ImportNameKind.Default) {
+        bindings.set(entry.localName.value, {
+          from: staticImport.moduleRequest.value,
+        });
+        continue;
+      }
+
+      if (entry.importName.kind === ImportNameKind.Name) {
+        const importName = entry.importName.name;
+        if (!importName || importName === "default") {
+          continue;
+        }
+        bindings.set(entry.localName.value, {
+          from: staticImport.moduleRequest.value,
+          import: importName,
+        });
+      }
+    }
+  }
+  return bindings;
+}
+
+function isExternalTypeSource(source: string): boolean {
+  return !source.startsWith(".") && !path.isAbsolute(source);
+}
+
+function exportedMetaTypeName(program: Program): string | undefined {
+  for (const statement of program.body) {
+    if (
+      statement.type !== "ExportNamedDeclaration" ||
+      !statement.declaration ||
+      statement.declaration.type !== "VariableDeclaration"
+    ) {
+      continue;
+    }
+
+    for (const declaration of statement.declaration.declarations) {
+      const typeName = metaVariableTypeName(declaration);
+      if (typeName) {
+        return typeName;
+      }
+    }
+  }
+  return undefined;
+}
+
+function metaVariableTypeName(
+  declaration: VariableDeclarator,
+): string | undefined {
+  const binding: unknown = declaration.id;
+  if (!isTypeAnnotatedMetaBinding(binding)) {
+    return undefined;
+  }
+
+  const typeAnnotation = binding.typeAnnotation?.typeAnnotation;
+  if (
+    !typeAnnotation ||
+    typeAnnotation.type !== "TSTypeReference" ||
+    typeAnnotation.typeArguments ||
+    !typeAnnotation.typeName ||
+    typeAnnotation.typeName.type !== "Identifier"
+  ) {
+    return undefined;
+  }
+
+  return typeAnnotation.typeName.name;
+}
+
+function isTypeAnnotatedMetaBinding(
+  value: unknown,
+): value is TypeAnnotatedMetaBinding {
+  return (
+    isRecord(value) &&
+    value.type === "Identifier" &&
+    value.name === "meta" &&
+    (value.typeAnnotation === undefined || isRecord(value.typeAnnotation))
+  );
 }
 
 function findDynamicImport(
@@ -627,4 +782,8 @@ function entrySortIndex(
     entryOrder.get(path.resolve(chunk.facadeModuleId)) ??
     Number.MAX_SAFE_INTEGER
   );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
