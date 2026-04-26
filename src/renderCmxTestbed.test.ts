@@ -82,6 +82,125 @@ describe("renderCmxTestbed", () => {
     expect(result).not.toHaveProperty("artifact");
   });
 
+  it("rejects namespace imports from configured externals without emitting an artifact", async () => {
+    const result = await renderCmxTestbed({
+      externals: ["@theme/ui"],
+      files: {
+        "entry.tsx": [
+          'import * as UI from "@theme/ui";',
+          "export default <UI.H1 />;",
+        ].join("\n"),
+      },
+    });
+
+    expect(result).toMatchObject({
+      result: "error",
+      diagnostics: [
+        {
+          severity: "error",
+          code: "external-namespace-import-unsupported",
+          message:
+            "Namespace imports from configured externals are not supported.",
+          source: {
+            file: expect.stringMatching(/entry\.tsx$/u),
+            line: 1,
+            column: expect.any(Number),
+          },
+        },
+      ],
+    });
+    expect(result).not.toHaveProperty("artifact");
+  });
+
+  it("rejects side-effect-only imports from configured externals without emitting an artifact", async () => {
+    const result = await renderCmxTestbed({
+      externals: ["@theme/ui"],
+      files: {
+        "entry.tsx": ['import "@theme/ui";', "export default <main />;"].join(
+          "\n",
+        ),
+      },
+    });
+
+    expect(result).toMatchObject({
+      result: "error",
+      diagnostics: [
+        {
+          severity: "error",
+          code: "external-side-effect-import-unsupported",
+          message:
+            "Side-effect-only imports from configured externals are not supported.",
+          source: {
+            file: expect.stringMatching(/entry\.tsx$/u),
+            line: 1,
+            column: expect.any(Number),
+          },
+        },
+      ],
+    });
+    expect(result).not.toHaveProperty("artifact");
+  });
+
+  it("rejects external component function calls without emitting an artifact", async () => {
+    const result = await renderCmxTestbed({
+      externals: ["@theme/ui"],
+      files: {
+        "entry.tsx": [
+          'import { H1 } from "@theme/ui";',
+          'export default H1({ children: "Hello" });',
+        ].join("\n"),
+      },
+    });
+
+    expect(result).toMatchObject({
+      result: "error",
+      diagnostics: [
+        {
+          severity: "error",
+          code: "external-component-call-unsupported",
+          message:
+            "Configured external imports must be rendered as JSX components.",
+          source: {
+            file: expect.stringMatching(/entry\.tsx$/u),
+            line: 2,
+            column: expect.any(Number),
+          },
+        },
+      ],
+    });
+    expect(result).not.toHaveProperty("artifact");
+  });
+
+  it("rejects configured external imports used as runtime values without emitting an artifact", async () => {
+    const result = await renderCmxTestbed({
+      externals: ["@theme/ui"],
+      files: {
+        "entry.tsx": [
+          'import { themeName } from "@theme/ui";',
+          "export default <p>{themeName}</p>;",
+        ].join("\n"),
+      },
+    });
+
+    expect(result).toMatchObject({
+      result: "error",
+      diagnostics: [
+        {
+          severity: "error",
+          code: "external-runtime-value-unsupported",
+          message:
+            "Configured external imports cannot be used as runtime values.",
+          source: {
+            file: expect.stringMatching(/entry\.tsx$/u),
+            line: 2,
+            column: expect.any(Number),
+          },
+        },
+      ],
+    });
+    expect(result).not.toHaveProperty("artifact");
+  });
+
   it("builds a TSX source fixture through the artifact boundary and renders CMX", async () => {
     const result = expectTreeResult(
       await renderCmxTestbed({

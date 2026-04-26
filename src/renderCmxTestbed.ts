@@ -214,6 +214,11 @@ function toBuildDiagnostic(error: unknown): CmxDiagnostic {
     typeof errorRecord.message === "string"
       ? errorRecord.message
       : "CMX artifact build failed.";
+  const cmxPluginDiagnostic = cmxPluginDiagnosticFromBuildMessage(rawMessage);
+  if (cmxPluginDiagnostic) {
+    return cmxPluginDiagnostic;
+  }
+
   const dynamicImportSource = dynamicImportSourceFromBuildMessage(rawMessage);
   if (dynamicImportSource) {
     return {
@@ -245,6 +250,71 @@ function toBuildDiagnostic(error: unknown): CmxDiagnostic {
     message: rawMessage,
     ...(source ? { source } : {}),
   };
+}
+
+function cmxPluginDiagnosticFromBuildMessage(
+  message: string,
+): CmxDiagnostic | undefined {
+  const source = cmxPluginSourceFromBuildMessage(message);
+  if (!source) {
+    return undefined;
+  }
+
+  if (
+    message.includes(
+      "Namespace imports from configured externals are not supported.",
+    )
+  ) {
+    return {
+      severity: "error",
+      code: "external-namespace-import-unsupported",
+      message: "Namespace imports from configured externals are not supported.",
+      source,
+    };
+  }
+
+  if (
+    message.includes(
+      "Side-effect-only imports from configured externals are not supported.",
+    )
+  ) {
+    return {
+      severity: "error",
+      code: "external-side-effect-import-unsupported",
+      message:
+        "Side-effect-only imports from configured externals are not supported.",
+      source,
+    };
+  }
+
+  if (
+    message.includes(
+      "Configured external imports must be rendered as JSX components.",
+    )
+  ) {
+    return {
+      severity: "error",
+      code: "external-component-call-unsupported",
+      message:
+        "Configured external imports must be rendered as JSX components.",
+      source,
+    };
+  }
+
+  if (
+    message.includes(
+      "Configured external imports cannot be used as runtime values.",
+    )
+  ) {
+    return {
+      severity: "error",
+      code: "external-runtime-value-unsupported",
+      message: "Configured external imports cannot be used as runtime values.",
+      source,
+    };
+  }
+
+  return undefined;
 }
 
 function sourceFromRuntimeError(
@@ -325,6 +395,12 @@ function dynamicImportSourceFromBuildMessage(
     return undefined;
   }
 
+  return cmxPluginSourceFromBuildMessage(message);
+}
+
+function cmxPluginSourceFromBuildMessage(
+  message: string,
+): CmxDiagnosticSource | undefined {
   const match = /\[plugin cmx\]\s+(.+):(\d+):(\d+)/u.exec(message);
   if (!match?.[1] || !match[2] || !match[3]) {
     return undefined;
