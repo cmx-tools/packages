@@ -76,6 +76,7 @@ export async function renderCmxArtifact(
       try {
         const rendered = await renderCmxTree({
           moduleUrl: pathToFileURL(path.join(input.outDir, entry.file)),
+          metaType: entry.meta?.type,
           unsupportedValues: input.unsupportedValues,
         });
         return [entry.name, { result: "tree", ...rendered }] as const;

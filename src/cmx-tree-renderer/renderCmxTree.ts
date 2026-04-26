@@ -33,7 +33,13 @@ export type CmxNode =
   | CmxComponentNode;
 
 export type CmxMeta = {
+  type?: CmxMetaTypeRef;
   data: unknown;
+};
+
+export type CmxMetaTypeRef = {
+  from: string;
+  import?: string;
 };
 
 export type CmxManifestExternalRef = {
@@ -72,11 +78,13 @@ type ExternalUsageRef = {
 type RenderContext = {
   unsupportedValues: UnsupportedValuesPolicy;
   usedExternalRefs: ExternalUsageRef[];
+  metaType?: CmxMetaTypeRef;
 };
 
 export type RenderCmxTreeInput = {
   moduleUrl: string | URL;
   unsupportedValues?: UnsupportedValuesPolicy;
+  metaType?: CmxMetaTypeRef;
 };
 
 export class CmxRenderError extends Error {
@@ -359,7 +367,10 @@ async function normalizeMeta(
     return undefined;
   }
 
-  return { data: result.value };
+  return {
+    ...(context.metaType ? { type: context.metaType } : {}),
+    data: result.value,
+  };
 }
 
 async function normalizeMetaValue(
@@ -441,10 +452,12 @@ function unsupportedValue(
 
 function createRenderContext(options: {
   unsupportedValues?: UnsupportedValuesPolicy;
+  metaType?: CmxMetaTypeRef;
 }): RenderContext {
   return {
     unsupportedValues: options.unsupportedValues ?? "error",
     usedExternalRefs: [],
+    ...(options.metaType ? { metaType: options.metaType } : {}),
   };
 }
 

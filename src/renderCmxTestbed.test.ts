@@ -533,6 +533,117 @@ describe("renderCmxTestbed", () => {
     });
   });
 
+  it("attaches named imported meta type refs from artifact metadata", async () => {
+    const result = expectTreeResult(
+      await renderCmxTestbed({
+        files: {
+          "entry.tsx": [
+            'import type { PageMeta } from "@theme/content";',
+            "export const meta: PageMeta = { title: 'Hello' };",
+            "export default <main>Hello</main>;",
+          ].join("\n"),
+        },
+      }),
+    );
+
+    expect(result.meta).toEqual({
+      type: {
+        from: "@theme/content",
+        import: "PageMeta",
+      },
+      data: {
+        title: "Hello",
+      },
+    });
+    expect(result.artifact.entries[0]).toMatchObject({
+      meta: {
+        type: {
+          from: "@theme/content",
+          import: "PageMeta",
+        },
+      },
+    });
+    expect(result.manifest).toEqual({
+      externals: [],
+    });
+  });
+
+  it("attaches default imported meta type refs from artifact metadata", async () => {
+    const result = expectTreeResult(
+      await renderCmxTestbed({
+        files: {
+          "entry.tsx": [
+            'import type PageMeta from "@theme/content";',
+            "export const meta: PageMeta = { title: 'Hello' };",
+            "export default <main>Hello</main>;",
+          ].join("\n"),
+        },
+      }),
+    );
+
+    expect(result.meta).toEqual({
+      type: {
+        from: "@theme/content",
+      },
+      data: {
+        title: "Hello",
+      },
+    });
+    expect(result.artifact.entries[0]).toMatchObject({
+      meta: {
+        type: {
+          from: "@theme/content",
+        },
+      },
+    });
+    expect(result.manifest).toEqual({
+      externals: [],
+    });
+  });
+
+  it("ignores complex meta type expressions", async () => {
+    const result = expectTreeResult(
+      await renderCmxTestbed({
+        files: {
+          "entry.tsx": [
+            'import type { PageMeta } from "@theme/content";',
+            "export const meta: PageMeta<{ title: string }> = { title: 'Hello' };",
+            "export default <main>Hello</main>;",
+          ].join("\n"),
+        },
+      }),
+    );
+
+    expect(result.meta).toEqual({
+      data: {
+        title: "Hello",
+      },
+    });
+    expect(result.artifact.entries[0]).not.toHaveProperty("meta");
+  });
+
+  it("ignores local imported meta type refs", async () => {
+    const result = expectTreeResult(
+      await renderCmxTestbed({
+        files: {
+          "entry.tsx": [
+            'import type { PageMeta } from "./meta";',
+            "export const meta: PageMeta = { title: 'Hello' };",
+            "export default <main>Hello</main>;",
+          ].join("\n"),
+          "meta.ts": "export type PageMeta = { title: string };\n",
+        },
+      }),
+    );
+
+    expect(result.meta).toEqual({
+      data: {
+        title: "Hello",
+      },
+    });
+    expect(result.artifact.entries[0]).not.toHaveProperty("meta");
+  });
+
   it("renders configured external imports through importer-edge stubs", async () => {
     const result = expectTreeResult(
       await renderCmxTestbed({

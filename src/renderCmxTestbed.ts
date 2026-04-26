@@ -135,6 +135,7 @@ export async function renderCmxTestbed(
     try {
       const tree = await renderCmxTree({
         moduleUrl: pathToFileURL(path.join(outDir, artifactEntry.file)),
+        metaType: artifactEntry.meta?.type,
         unsupportedValues: input.unsupportedValues,
       });
 
