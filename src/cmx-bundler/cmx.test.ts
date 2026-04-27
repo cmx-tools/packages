@@ -107,4 +107,90 @@ describe("cmx", () => {
       }
     });
   });
+
+  it("allows local bindings that shadow configured external imports", async () => {
+    await withTempDir(async (tempDir) => {
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        [
+          'import { H1 } from "@theme/ui";',
+          "function renderLocal(H1: () => string) {",
+          "  return H1();",
+          "}",
+          "export default <main>{renderLocal(() => 'Hello')}</main>;",
+        ].join("\n"),
+      );
+      const bundle = await rolldown({
+        input: entryFile,
+        plugins: [cmx({ externals: ["@theme/ui"] })],
+      });
+
+      try {
+        await expect(
+          bundle.generate({ format: "esm", sourcemap: true }),
+        ).resolves.toBeDefined();
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("allows configured external imports in type-only references", async () => {
+    await withTempDir(async (tempDir) => {
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        [
+          'import { Button } from "@theme/ui";',
+          "type Props = { button: typeof Button };",
+          "export const meta: { props?: Props } = {};",
+          "export default <Button />;",
+        ].join("\n"),
+      );
+      const bundle = await rolldown({
+        input: entryFile,
+        plugins: [cmx({ externals: ["@theme/ui"] })],
+      });
+
+      try {
+        await expect(
+          bundle.generate({ format: "esm", sourcemap: true }),
+        ).resolves.toBeDefined();
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("rejects configured external imports used as runtime values", async () => {
+    await withTempDir(async (tempDir) => {
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        [
+          'import { themeName } from "@theme/ui";',
+          "export default <main>{themeName}</main>;",
+        ].join("\n"),
+      );
+      const bundle = await rolldown({
+        input: entryFile,
+        plugins: [cmx({ externals: ["@theme/ui"] })],
+      });
+
+      try {
+        await expect(
+          bundle.generate({ format: "esm", sourcemap: true }),
+        ).rejects.toMatchObject({
+          errors: [
+            {
+              pluginCode: "external-runtime-value-unsupported",
+            },
+          ],
+        });
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
 });
