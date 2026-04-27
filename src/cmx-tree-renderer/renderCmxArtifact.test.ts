@@ -281,6 +281,58 @@ describe("renderCmxArtifact", () => {
     });
   });
 
+  it("returns a fatal error result when every prebuilt entry fails", async () => {
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-artifact-"));
+    await writeFile(
+      path.join(outDir, "home.js"),
+      `throw new Error("home exploded");\n`,
+      "utf8",
+    );
+    await writeFile(
+      path.join(outDir, "about.js"),
+      `throw new Error("about exploded");\n`,
+      "utf8",
+    );
+
+    await expect(
+      renderCmxArtifact({
+        artifact: {
+          runtime: {
+            importSource: "@cmx/runtime",
+          },
+          entries: [
+            {
+              name: "home",
+              file: "home.js",
+              sourcemap: "home.js.map",
+            },
+            {
+              name: "about",
+              file: "about.js",
+              sourcemap: "about.js.map",
+            },
+          ],
+          chunks: [],
+        },
+        outDir,
+      }),
+    ).resolves.toEqual({
+      result: "error",
+      diagnostics: [
+        {
+          severity: "error",
+          code: "render-error",
+          message: "home exploded",
+        },
+        {
+          severity: "error",
+          code: "render-error",
+          message: "about exploded",
+        },
+      ],
+    });
+  });
+
   it("maps runtime errors through chunk sourcemaps", async () => {
     const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-artifact-"));
     await writeFile(
