@@ -1,0 +1,17 @@
+# Sophie-Rae configuration
+# https://github.com/ExaptationGmbH/sophie-rae
+
+pullRequest:
+  # Set to true for a default checklist, or provide a list of custom items.
+  verificationChecklist: false
+  # verificationChecklist:
+  #   - All CI checks pass
+  #   - Changes are within declared scope
+  #   - Review for correctness and style
+
+# List additional files to include as context during issue assessment.
+# Sophie-Rae will read these files and include their contents when
+# evaluating issues, giving the AI better understanding of your project.
+# contextFiles:
+#   - docs/architecture.md
+#   - CONTRIBUTING.md
