@@ -11,6 +11,8 @@ import {
   type UnsupportedValuesPolicy,
 } from "./renderCmxTree.js";
 
+const RUNTIME_IMPORT_SOURCE = "@cmx/runtime";
+
 export type RenderCmxArtifactEntry = {
   result: "tree";
   tree: CmxNode;
@@ -58,6 +60,19 @@ export type RenderCmxArtifactInput = {
 export async function renderCmxArtifact(
   input: RenderCmxArtifactInput,
 ): Promise<RenderCmxArtifactResult> {
+  if (input.artifact.runtime.importSource !== RUNTIME_IMPORT_SOURCE) {
+    return {
+      result: "error",
+      diagnostics: [
+        {
+          severity: "error",
+          code: "runtime-import-source-mismatch",
+          message: `CMX artifact targets runtime import source "${input.artifact.runtime.importSource}", but this executor expects "${RUNTIME_IMPORT_SOURCE}".`,
+        },
+      ],
+    };
+  }
+
   if (input.artifact.entries.length === 0) {
     return {
       result: "error",

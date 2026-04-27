@@ -62,6 +62,7 @@ export type CmxRenderDiagnostic = CmxDiagnostic & {
   code:
     | "invalid-runtime-output"
     | "render-error"
+    | "runtime-import-source-mismatch"
     | "undefined-value"
     | "unsupported-value";
 };
