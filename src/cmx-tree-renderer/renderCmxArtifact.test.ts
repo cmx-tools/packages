@@ -1,6 +1,7 @@
 import { mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { transform } from "esbuild";
 import { describe, expect, it } from "vitest";
 import { renderCmxArtifact } from "content-management-jsx/cmx-tree-renderer";
 
@@ -106,4 +107,258 @@ describe("renderCmxArtifact", () => {
       diagnostics: [],
     });
   });
+
+  it("maps render errors through entry sourcemaps", async () => {
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-artifact-"));
+    await writeCompiledEntry(
+      outDir,
+      "entry.js",
+      "../entry.tsx",
+      [
+        "export default function Page() {",
+        "  throw new Error('render exploded');",
+        "}",
+      ].join("\n"),
+    );
+
+    await expect(
+      renderCmxArtifact({
+        artifact: {
+          runtime: {
+            importSource: "@cmx/runtime",
+          },
+          entries: [
+            {
+              name: "entry",
+              file: "entry.js",
+              sourcemap: "entry.js.map",
+            },
+          ],
+          chunks: [],
+        },
+        outDir,
+      }),
+    ).resolves.toMatchObject({
+      result: "error",
+      diagnostics: [
+        {
+          severity: "error",
+          code: "render-error",
+          message: "render exploded",
+          source: {
+            file: expect.stringMatching(/entry\.tsx$/u),
+            line: 2,
+            column: expect.any(Number),
+          },
+        },
+      ],
+    });
+  });
+
+  it("maps import errors through entry sourcemaps", async () => {
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-artifact-"));
+    await writeCompiledEntry(
+      outDir,
+      "entry.js",
+      "../entry.tsx",
+      [
+        "const value = 'import exploded';",
+        "throw new Error(value);",
+        "export default 'unreachable';",
+      ].join("\n"),
+    );
+
+    await expect(
+      renderCmxArtifact({
+        artifact: {
+          runtime: {
+            importSource: "@cmx/runtime",
+          },
+          entries: [
+            {
+              name: "entry",
+              file: "entry.js",
+              sourcemap: "entry.js.map",
+            },
+          ],
+          chunks: [],
+        },
+        outDir,
+      }),
+    ).resolves.toMatchObject({
+      result: "error",
+      diagnostics: [
+        {
+          severity: "error",
+          code: "render-error",
+          message: "import exploded",
+          source: {
+            file: expect.stringMatching(/entry\.tsx$/u),
+            line: 2,
+            column: expect.any(Number),
+          },
+        },
+      ],
+    });
+  });
+
+  it("preserves mapped diagnostics on partial multi-entry results", async () => {
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-artifact-"));
+    await writeCompiledEntry(
+      outDir,
+      "home.js",
+      "../home.tsx",
+      "export default 'Home';",
+    );
+    await writeCompiledEntry(
+      outDir,
+      "broken.js",
+      "../broken.tsx",
+      [
+        "export default function Broken() {",
+        "  throw new Error('entry exploded');",
+        "}",
+      ].join("\n"),
+    );
+
+    const result = await renderCmxArtifact({
+      artifact: {
+        runtime: {
+          importSource: "@cmx/runtime",
+        },
+        entries: [
+          {
+            name: "home",
+            file: "home.js",
+            sourcemap: "home.js.map",
+          },
+          {
+            name: "broken",
+            file: "broken.js",
+            sourcemap: "broken.js.map",
+          },
+        ],
+        chunks: [],
+      },
+      outDir,
+    });
+
+    expect(result).toMatchObject({
+      result: "partial",
+      entries: {
+        home: {
+          result: "tree",
+          tree: "Home",
+        },
+        broken: {
+          result: "error",
+          diagnostics: [
+            {
+              severity: "error",
+              code: "render-error",
+              message: "entry exploded",
+              source: {
+                file: expect.stringMatching(/broken\.tsx$/u),
+                line: 2,
+                column: expect.any(Number),
+              },
+            },
+          ],
+        },
+      },
+      diagnostics: [
+        {
+          severity: "error",
+          code: "render-error",
+          message: "entry exploded",
+          source: {
+            file: expect.stringMatching(/broken\.tsx$/u),
+            line: 2,
+            column: expect.any(Number),
+          },
+        },
+      ],
+    });
+  });
+
+  it("maps runtime errors through chunk sourcemaps", async () => {
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-artifact-"));
+    await writeFile(
+      path.join(outDir, "entry.js"),
+      `import "./shared.js";\nexport default "unreachable";\n`,
+      "utf8",
+    );
+    await writeFile(
+      path.join(outDir, "entry.js.map"),
+      JSON.stringify({
+        version: 3,
+        sources: ["../entry.tsx"],
+        mappings: "",
+      }),
+      "utf8",
+    );
+    await writeCompiledEntry(
+      outDir,
+      "shared.js",
+      "../shared.tsx",
+      ["const value = 'shared exploded';", "throw new Error(value);"].join(
+        "\n",
+      ),
+    );
+
+    await expect(
+      renderCmxArtifact({
+        artifact: {
+          runtime: {
+            importSource: "@cmx/runtime",
+          },
+          entries: [
+            {
+              name: "entry",
+              file: "entry.js",
+              sourcemap: "entry.js.map",
+            },
+          ],
+          chunks: [
+            {
+              file: "shared.js",
+              sourcemap: "shared.js.map",
+              isEntry: false,
+            },
+          ],
+        },
+        outDir,
+      }),
+    ).resolves.toMatchObject({
+      result: "error",
+      diagnostics: [
+        {
+          severity: "error",
+          code: "render-error",
+          message: "shared exploded",
+          source: {
+            file: expect.stringMatching(/shared\.tsx$/u),
+            line: 2,
+            column: expect.any(Number),
+          },
+        },
+      ],
+    });
+  });
 });
+
+async function writeCompiledEntry(
+  outDir: string,
+  fileName: string,
+  sourcefile: string,
+  source: string,
+): Promise<void> {
+  const compiled = await transform(source, {
+    format: "esm",
+    loader: "tsx",
+    sourcemap: "external",
+    sourcefile,
+  });
+  await writeFile(path.join(outDir, fileName), compiled.code, "utf8");
+  await writeFile(path.join(outDir, `${fileName}.map`), compiled.map, "utf8");
+}

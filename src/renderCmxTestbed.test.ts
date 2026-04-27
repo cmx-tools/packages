@@ -350,6 +350,11 @@ describe("renderCmxTestbed", () => {
           severity: "error",
           code: "render-error",
           message: "entry exploded",
+          source: {
+            file: expect.stringMatching(/broken\.tsx$/u),
+            line: 2,
+            column: expect.any(Number),
+          },
         },
       ],
     });
@@ -358,6 +363,11 @@ describe("renderCmxTestbed", () => {
         severity: "error",
         code: "render-error",
         message: "entry exploded",
+        source: {
+          file: expect.stringMatching(/broken\.tsx$/u),
+          line: 2,
+          column: expect.any(Number),
+        },
       },
     ]);
   });

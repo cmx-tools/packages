@@ -1,15 +1,11 @@
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
-import { originalPositionFor, TraceMap } from "@jridgewell/trace-mapping";
 import { rolldown } from "rolldown";
 import { cmx, type CmxArtifact } from "./cmx-bundler/index.js";
 import type { CmxDiagnostic, CmxDiagnosticSource } from "./CmxDiagnostic.js";
 import {
-  CmxRenderError,
   renderCmxArtifact,
-  renderCmxTree,
   type CmxNode,
   type CmxManifest,
   type CmxMeta,
@@ -121,37 +117,36 @@ export async function renderCmxTestbed(
       outDir,
     };
 
+    const renderedArtifact = await renderCmxArtifact({
+      artifact,
+      outDir,
+      unsupportedValues: input.unsupportedValues,
+    });
+
     if (input.entries) {
       return {
-        ...(await renderCmxArtifact({
-          artifact,
-          outDir,
-          unsupportedValues: input.unsupportedValues,
-        })),
+        ...renderedArtifact,
         ...artifactResult,
       };
     }
 
-    try {
-      const tree = await renderCmxTree({
-        moduleUrl: pathToFileURL(path.join(outDir, artifactEntry.file)),
-        metaType: artifactEntry.meta?.type,
-        unsupportedValues: input.unsupportedValues,
-      });
-
+    if (renderedArtifact.result === "complete") {
+      const renderedEntry = renderedArtifact.entries[artifactEntry.name];
       return {
         result: "tree",
-        ...tree,
+        tree: renderedEntry.tree,
+        ...(renderedEntry.meta ? { meta: renderedEntry.meta } : {}),
+        manifest: renderedEntry.manifest,
         diagnostics: [],
         ...artifactResult,
       };
-    } catch (error) {
-      return {
-        result: "error",
-        diagnostics: [toRenderDiagnostic(error, artifactEntry, artifactResult)],
-        ...artifactResult,
-      };
     }
+
+    return {
+      result: "error",
+      diagnostics: renderedArtifact.diagnostics,
+      ...artifactResult,
+    };
   } catch (error) {
     if (error instanceof CmxTestbedBuildError) {
       return {
@@ -219,23 +214,6 @@ async function writeRuntimePackage(outDir: string): Promise<void> {
     RUNTIME_SOURCE,
     "utf8",
   );
-}
-
-function toRenderDiagnostic(
-  error: unknown,
-  entry: { file: string; sourcemap: string },
-  artifacts: RenderCmxTestbedArtifacts,
-): CmxRenderDiagnostic {
-  if (error instanceof CmxRenderError) {
-    return error.diagnostic;
-  }
-
-  return {
-    severity: "error",
-    code: "render-error",
-    message: error instanceof Error ? error.message : "Unknown render error.",
-    ...sourceFromRuntimeError(error, entry, artifacts),
-  };
 }
 
 class CmxTestbedBuildError extends Error {
@@ -357,75 +335,6 @@ function cmxPluginDiagnosticFromBuildMessage(
   return undefined;
 }
 
-function sourceFromRuntimeError(
-  error: unknown,
-  entry: { file: string; sourcemap: string },
-  artifacts: RenderCmxTestbedArtifacts,
-): { source: CmxDiagnosticSource } | Record<string, never> {
-  if (!(error instanceof Error) || !error.stack) {
-    return {};
-  }
-
-  const authoredLocation = authoredLocationFromStack(
-    error.stack,
-    artifacts.rootDir,
-  );
-  if (authoredLocation) {
-    return { source: authoredLocation };
-  }
-
-  const generatedLocation = generatedLocationFromStack(error.stack, entry.file);
-  if (!generatedLocation) {
-    return {};
-  }
-
-  const sourcemapSource = artifacts.files[entry.sourcemap];
-  if (!sourcemapSource) {
-    return {};
-  }
-
-  const original = originalPositionFor(
-    new TraceMap(
-      JSON.parse(sourcemapSource) as ConstructorParameters<typeof TraceMap>[0],
-    ),
-    {
-      line: generatedLocation.line,
-      column: generatedLocation.column,
-    },
-  );
-  if (!original.source || original.line === null || original.column === null) {
-    return {};
-  }
-
-  return {
-    source: {
-      file: path.resolve(artifacts.outDir, original.source),
-      line: original.line,
-      column: original.column,
-    },
-  };
-}
-
-function authoredLocationFromStack(
-  stack: string,
-  rootDir: string,
-): CmxDiagnosticSource | undefined {
-  const escapedRootDir = escapeRegExp(rootDir);
-  const match = new RegExp(
-    `(?:file://)?(${escapedRootDir}[^\\s()]*\\.tsx):(\\d+):(\\d+)`,
-    "u",
-  ).exec(stack);
-  if (!match?.[1] || !match[2] || !match[3]) {
-    return undefined;
-  }
-
-  return {
-    file: match[1],
-    line: Number(match[2]),
-    column: Number(match[3]) - 1,
-  };
-}
-
 function dynamicImportSourceFromBuildMessage(
   message: string,
 ): CmxDiagnosticSource | undefined {
@@ -451,30 +360,6 @@ function cmxPluginSourceFromBuildMessage(
     line: Number(match[2]),
     column: Number(match[3]),
   };
-}
-
-function generatedLocationFromStack(
-  stack: string,
-  fileName: string,
-): { line: number; column: number } | undefined {
-  const escapedFileName = escapeRegExp(fileName);
-  const fileLocationPattern = new RegExp(
-    `(?:file://)?[^\\s()]*${escapedFileName}:(\\d+):(\\d+)`,
-    "u",
-  );
-  const match = fileLocationPattern.exec(stack);
-  if (!match?.[1] || !match[2]) {
-    return undefined;
-  }
-
-  return {
-    line: Number(match[1]),
-    column: Number(match[2]) - 1,
-  };
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
