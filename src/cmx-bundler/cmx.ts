@@ -7,6 +7,9 @@ import { findUnsupportedExternalImport } from "./findUnsupportedExternalImport.j
 const ARTIFACT_FILE_NAME = "cmx-artifact.json";
 const RUNTIME_IMPORT_SOURCE = "@cmx/runtime";
 const DYNAMIC_IMPORT_UNSUPPORTED = "dynamic-import-unsupported";
+const META_TYPE_UNSUPPORTED = "meta-type-unsupported";
+const META_TYPE_UNSUPPORTED_MESSAGE =
+  "CMX meta.type could not be extracted. Use a simple type-only import from an external package for exported meta annotations.";
 const EXTERNAL_STUB_PREFIX = "cmx-external:";
 const VIRTUAL_EXTERNAL_STUB_PREFIX = `\0${EXTERNAL_STUB_PREFIX}`;
 
@@ -42,6 +45,7 @@ export type CmxArtifact = {
 
 export type CmxPluginOptions = {
   externals?: string[];
+  onUnresolvedMetaType?: "warn" | "error";
 };
 
 type ExternalStub = {
@@ -56,10 +60,12 @@ type TypeAnnotatedMetaBinding = {
   typeAnnotation?: {
     typeAnnotation?: {
       type: string;
+      start: number;
       typeArguments?: unknown;
       typeName?: {
         type: string;
         name?: string;
+        start: number;
       };
     };
   };
@@ -122,10 +128,21 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
     },
     transform(source, id) {
       const metaType = extractMetaType(source, id);
-      if (metaType) {
-        metaTypesByModuleId.set(path.resolve(id), metaType);
+      if (metaType.result === "resolved") {
+        metaTypesByModuleId.set(path.resolve(id), metaType.ref);
       } else {
         metaTypesByModuleId.delete(path.resolve(id));
+      }
+      if (metaType.result === "unsupported") {
+        const log = {
+          code: META_TYPE_UNSUPPORTED,
+          message: META_TYPE_UNSUPPORTED_MESSAGE,
+        };
+        if (options.onUnresolvedMetaType === "error") {
+          this.error(log, metaType.position);
+        } else {
+          this.warn(log, metaType.position);
+        }
       }
 
       const dynamicImport = findDynamicImport(source, id);
@@ -198,24 +215,26 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
   };
 }
 
-function extractMetaType(
-  source: string,
-  id: string,
-): CmxArtifactMetaTypeRef | undefined {
+function extractMetaType(source: string, id: string): MetaTypeExtraction {
   const parsed = parseSync(id, source, {
     range: true,
     sourceType: "module",
   });
   if (parsed.errors.length > 0) {
-    return undefined;
+    return { result: "none" };
   }
 
-  const metaTypeName = exportedMetaTypeName(parsed.program);
-  if (!metaTypeName) {
-    return undefined;
+  const exportedMetaType = exportedMetaTypeName(parsed.program);
+  if (exportedMetaType.result !== "resolved") {
+    return exportedMetaType;
   }
 
-  return importedTypeBindings(parsed.module.staticImports).get(metaTypeName);
+  const metaType = importedTypeBindings(parsed.module.staticImports).get(
+    exportedMetaType.name,
+  );
+  return metaType
+    ? { result: "resolved", ref: metaType }
+    : { result: "unsupported", position: exportedMetaType.position };
 }
 
 function importedTypeBindings(
@@ -258,7 +277,34 @@ function isExternalTypeSource(source: string): boolean {
   return !source.startsWith(".") && !path.isAbsolute(source);
 }
 
-function exportedMetaTypeName(program: Program): string | undefined {
+type MetaTypeExtraction =
+  | {
+      result: "none";
+    }
+  | {
+      result: "resolved";
+      ref: CmxArtifactMetaTypeRef;
+    }
+  | {
+      result: "unsupported";
+      position: number;
+    };
+
+type MetaTypeNameExtraction =
+  | {
+      result: "none";
+    }
+  | {
+      result: "resolved";
+      name: string;
+      position: number;
+    }
+  | {
+      result: "unsupported";
+      position: number;
+    };
+
+function exportedMetaTypeName(program: Program): MetaTypeNameExtraction {
   for (const statement of program.body) {
     if (
       statement.type !== "ExportNamedDeclaration" ||
@@ -270,34 +316,42 @@ function exportedMetaTypeName(program: Program): string | undefined {
 
     for (const declaration of statement.declaration.declarations) {
       const typeName = metaVariableTypeName(declaration);
-      if (typeName) {
+      if (typeName.result !== "none") {
         return typeName;
       }
     }
   }
-  return undefined;
+  return { result: "none" };
 }
 
 function metaVariableTypeName(
   declaration: VariableDeclarator,
-): string | undefined {
+): MetaTypeNameExtraction {
   const binding: unknown = declaration.id;
   if (!isTypeAnnotatedMetaBinding(binding)) {
-    return undefined;
+    return { result: "none" };
   }
 
   const typeAnnotation = binding.typeAnnotation?.typeAnnotation;
+  if (!typeAnnotation) {
+    return { result: "none" };
+  }
+
   if (
-    !typeAnnotation ||
     typeAnnotation.type !== "TSTypeReference" ||
     typeAnnotation.typeArguments ||
     !typeAnnotation.typeName ||
-    typeAnnotation.typeName.type !== "Identifier"
+    typeAnnotation.typeName.type !== "Identifier" ||
+    typeof typeAnnotation.typeName.name !== "string"
   ) {
-    return undefined;
+    return { result: "unsupported", position: typeAnnotation.start };
   }
 
-  return typeAnnotation.typeName.name;
+  return {
+    result: "resolved",
+    name: typeAnnotation.typeName.name,
+    position: typeAnnotation.typeName.start,
+  };
 }
 
 function isTypeAnnotatedMetaBinding(

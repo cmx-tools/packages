@@ -5,6 +5,16 @@ import { rolldown } from "rolldown";
 import { describe, expect, it } from "vitest";
 import { cmx, type CmxArtifact } from "./cmx.js";
 
+type CmxWarning = {
+  pluginCode?: unknown;
+  message: string;
+  loc?: {
+    file?: string;
+    line: number;
+    column: number;
+  };
+};
+
 async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundler-"));
   await run(tempDir);
@@ -361,6 +371,210 @@ describe("cmx", () => {
         const artifact = await readArtifact(outDir);
         expect(artifact.entries[1]).not.toHaveProperty("meta");
         expect(artifact.entries[2]).not.toHaveProperty("meta");
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("warns for exported meta annotations that cannot become metadata", async () => {
+    await withTempDir(async (tempDir) => {
+      const unresolvedFile = await writeFixture(
+        tempDir,
+        "unresolved.tsx",
+        [
+          "export const meta: PageMeta = { title: 'Missing' };",
+          "export default <main>Missing</main>;",
+        ].join("\n"),
+      );
+      const localAliasFile = await writeFixture(
+        tempDir,
+        "local-alias.tsx",
+        [
+          "type PageMeta = { title: string };",
+          "export const meta: PageMeta = { title: 'Local' };",
+          "export default <main>Local</main>;",
+        ].join("\n"),
+      );
+      const namespaceFile = await writeFixture(
+        tempDir,
+        "namespace.tsx",
+        [
+          'import type * as Theme from "@theme/content";',
+          "export const meta: Theme.PageMeta = { title: 'Namespace' };",
+          "export default <main>Namespace</main>;",
+        ].join("\n"),
+      );
+      const genericFile = await writeFixture(
+        tempDir,
+        "generic.tsx",
+        [
+          'import type { PageMeta } from "@theme/content";',
+          "export const meta: PageMeta<{ title: string }> = { title: 'Generic' };",
+          "export default <main>Generic</main>;",
+        ].join("\n"),
+      );
+      const localSourceFile = await writeFixture(
+        tempDir,
+        "local-source.tsx",
+        [
+          'import type { PageMeta } from "./types";',
+          "export const meta: PageMeta = { title: 'Local source' };",
+          "export default <main>Local source</main>;",
+        ].join("\n"),
+      );
+      await writeFixture(
+        tempDir,
+        "types.ts",
+        "export type PageMeta = { title: string };\n",
+      );
+      const warnings: CmxWarning[] = [];
+      const outDir = path.join(tempDir, "dist");
+      const bundle = await rolldown({
+        input: {
+          unresolved: unresolvedFile,
+          localAlias: localAliasFile,
+          namespace: namespaceFile,
+          generic: genericFile,
+          localSource: localSourceFile,
+        },
+        onwarn(warning) {
+          warnings.push(warning);
+        },
+        plugins: [cmx()],
+      });
+
+      try {
+        await bundle.write({
+          dir: outDir,
+          entryFileNames: "[name].js",
+        });
+
+        expect(warnings).toHaveLength(5);
+        expect(warnings).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              pluginCode: "meta-type-unsupported",
+              message:
+                "CMX meta.type could not be extracted. Use a simple type-only import from an external package for exported meta annotations.",
+              loc: {
+                file: unresolvedFile,
+                line: 1,
+                column: 19,
+              },
+            }),
+            expect.objectContaining({
+              pluginCode: "meta-type-unsupported",
+              loc: {
+                file: localAliasFile,
+                line: 2,
+                column: 19,
+              },
+            }),
+            expect.objectContaining({
+              pluginCode: "meta-type-unsupported",
+              loc: {
+                file: namespaceFile,
+                line: 2,
+                column: 19,
+              },
+            }),
+            expect.objectContaining({
+              pluginCode: "meta-type-unsupported",
+              loc: {
+                file: genericFile,
+                line: 2,
+                column: 19,
+              },
+            }),
+            expect.objectContaining({
+              pluginCode: "meta-type-unsupported",
+              loc: {
+                file: localSourceFile,
+                line: 2,
+                column: 19,
+              },
+            }),
+          ]),
+        );
+        const artifact = await readArtifact(outDir);
+        for (const entry of artifact.entries) {
+          expect(entry).not.toHaveProperty("meta");
+        }
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("does not warn when exported meta has no type annotation", async () => {
+    await withTempDir(async (tempDir) => {
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        [
+          "export const meta = { title: 'Hello' };",
+          "export default <main>Hello</main>;",
+        ].join("\n"),
+      );
+      const warnings: CmxWarning[] = [];
+      const bundle = await rolldown({
+        input: entryFile,
+        onwarn(warning) {
+          warnings.push(warning);
+        },
+        plugins: [cmx()],
+      });
+
+      try {
+        await expect(
+          bundle.generate({ format: "esm", sourcemap: true }),
+        ).resolves.toBeDefined();
+        expect(warnings).toEqual([]);
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("fails for unsupported exported meta annotations in strict mode", async () => {
+    await withTempDir(async (tempDir) => {
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        [
+          "type PageMeta = { title: string };",
+          "export const meta: PageMeta = { title: 'Local' };",
+          "export default <main>Local</main>;",
+        ].join("\n"),
+      );
+      const outDir = path.join(tempDir, "dist");
+      const bundle = await rolldown({
+        input: entryFile,
+        plugins: [cmx({ onUnresolvedMetaType: "error" })],
+      });
+
+      try {
+        await expect(
+          bundle.write({
+            dir: outDir,
+            entryFileNames: "entry.js",
+          }),
+        ).rejects.toMatchObject({
+          errors: [
+            {
+              pluginCode: "meta-type-unsupported",
+              loc: {
+                file: entryFile,
+                line: 2,
+                column: 19,
+              },
+            },
+          ],
+        });
+        await expect(
+          readFile(path.join(outDir, "cmx-artifact.json"), "utf8"),
+        ).rejects.toMatchObject({ code: "ENOENT" });
       } finally {
         await bundle.close();
       }
