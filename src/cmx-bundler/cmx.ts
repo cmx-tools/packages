@@ -136,7 +136,10 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
       } else {
         metaTypesByModuleId.delete(path.resolve(id));
       }
-      if (metaType.result === "unsupported" && unsupportedMetaTypes === "error") {
+      if (
+        metaType.result === "unsupported" &&
+        unsupportedMetaTypes === "error"
+      ) {
         this.error(
           {
             code: META_TYPE_UNSUPPORTED,

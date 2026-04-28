@@ -10,12 +10,14 @@
     "./cmx-tree-renderer/jsx-runtime": "./src/cmx-tree-renderer/jsx-runtime.ts"
   },
   "scripts": {
+    "pretest": "corepack pnpm --filter cmx-runtime build",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && corepack pnpm --filter cmx-runtime typecheck",
     "fmt": "prettier --write ."
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",
+    "cmx-runtime": "workspace:*",
     "esbuild": "^0.28.0",
     "oxc-parser": "^0.127.0"
   },
