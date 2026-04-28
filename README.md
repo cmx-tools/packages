@@ -1,5 +1,7 @@
 # content-management-jsx
 
+JSX content compiles to CMX through a **bundler plugin** (artifact emission) and a **tree renderer** (artifact execution). There is no package root export; import subpaths explicitly.
+
 ## Quick start
 
 ```sh
@@ -7,59 +9,12 @@ npm install
 npm test
 ```
 
-## `transpileModule`
+## Package exports
 
-Use `transpileModule` to turn a TSX content module into a CMX tree.
+| Subpath                                                | Role                                                                                                     |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `content-management-jsx/cmx-bundler`                   | Rolldown/Rollup-compatible `cmx()` plugin; emits ESM chunks, sourcemaps, and `cmx-bundle.json` metadata. |
+| `content-management-jsx/cmx-tree-renderer`             | Executes emitted artifacts with an external CMX JSX runtime; normalizes to plain CMX trees.              |
+| `content-management-jsx/cmx-tree-renderer/jsx-runtime` | JSX runtime entry expected by compiled artifacts (`importSource` in bundle metadata).                    |
 
-```ts
-import path from "node:path";
-import { transpileModule } from "content-management-jsx";
-
-const result = await transpileModule({
-  entryFile: path.resolve("content/home.tsx"),
-  externals: ["@theme/ui", "@cms/blocks/**"],
-});
-
-if (result.result === "error") {
-  console.error(result.diagnostics);
-  process.exitCode = 1;
-} else {
-  console.log(result.tree);
-  console.log(result.meta);
-  console.log(result.manifest);
-}
-```
-
-The entry module must have a default export. The default export may be JSX,
-a CMX-compatible primitive, an array, or a function returning one of those
-values.
-
-```tsx
-import { Hero } from "@theme/ui";
-
-export const meta = {
-  slug: "home",
-};
-
-export default function Page() {
-  return (
-    <main>
-      <Hero title="Home" />
-    </main>
-  );
-}
-```
-
-### Options
-
-- `entryFile`: absolute path to the TSX module.
-- `fs`: optional virtual file system with `readFile(filePath)`.
-- `externals`: module specifiers or glob patterns kept as CMX component refs.
-- `unsupportedValues`: `"error"` by default; use `"omit"` to drop unsupported
-  prop or meta values.
-
-### Result
-
-Success returns `{ result: "tree", tree, meta?, manifest, diagnostics }`.
-
-Errors return `{ result: "error", diagnostics }`.
+Integration tests use `renderCmxTestbed` in `src/renderCmxTestbed.ts` (Rolldown + `cmx` + `renderCmxBundle`) as end-to-end smoke.
