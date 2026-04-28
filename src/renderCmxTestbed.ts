@@ -2,7 +2,11 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { rolldown } from "rolldown";
-import { cmx, type CmxBundle } from "./cmx-bundler/index.js";
+import {
+  cmx,
+  type CmxBundle,
+  type UnsupportedMetaTypesPolicy,
+} from "./cmx-bundler/index.js";
 import type { CmxDiagnostic, CmxDiagnosticSource } from "./CmxDiagnostic.js";
 import {
   renderCmxBundle,
@@ -21,6 +25,7 @@ export type RenderCmxTestbedInput = {
   entry?: string;
   entries?: string[];
   externals?: string[];
+  unsupportedMetaTypes?: UnsupportedMetaTypesPolicy;
   unsupportedValues?: UnsupportedValuesPolicy;
 };
 
@@ -84,7 +89,12 @@ export async function renderCmxTestbed(
   const outDir = path.join(rootDir, "dist");
   const build = await rolldown({
     input: entryFiles,
-    plugins: [cmx({ externals: input.externals })],
+    plugins: [
+      cmx({
+        externals: input.externals,
+        unsupportedMetaTypes: input.unsupportedMetaTypes,
+      }),
+    ],
   });
 
   try {
@@ -326,6 +336,20 @@ function cmxPluginDiagnosticFromBuildMessage(
       severity: "error",
       code: "external-runtime-value-unsupported",
       message: "Configured external imports cannot be used as runtime values.",
+      source,
+    };
+  }
+
+  if (
+    message.includes(
+      "CMX meta.type could not be extracted. Use a simple type-only import from an external package for exported meta annotations.",
+    )
+  ) {
+    return {
+      severity: "error",
+      code: "meta-type-unsupported",
+      message:
+        "CMX meta.type could not be extracted. Use a simple type-only import from an external package for exported meta annotations.",
       source,
     };
   }

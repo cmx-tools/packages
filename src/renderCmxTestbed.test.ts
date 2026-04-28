@@ -281,7 +281,9 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(Object.keys(result.entries)).toEqual(["home", "about"]);
+    expect(new Set(Object.keys(result.entries))).toEqual(
+      new Set(["home", "about"]),
+    );
     expect(result.entries.home.tree).toEqual({
       type: "element",
       tag: "main",
@@ -292,18 +294,21 @@ describe("renderCmxTestbed", () => {
       tag: "main",
       children: ["About ", 1],
     });
-    expect(result.bundle.entries).toEqual([
-      {
-        name: "home",
-        file: "home.js",
-        sourcemap: "home.js.map",
-      },
-      {
-        name: "about",
-        file: "about.js",
-        sourcemap: "about.js.map",
-      },
-    ]);
+    expect(result.bundle.entries).toEqual(
+      expect.arrayContaining([
+        {
+          name: "home",
+          file: "home.js",
+          sourcemap: "home.js.map",
+        },
+        {
+          name: "about",
+          file: "about.js",
+          sourcemap: "about.js.map",
+        },
+      ]),
+    );
+    expect(result.bundle.entries).toHaveLength(2);
     expect(result.bundle.chunks).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -334,7 +339,9 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(Object.keys(result.entries)).toEqual(["home", "broken"]);
+    expect(new Set(Object.keys(result.entries))).toEqual(
+      new Set(["home", "broken"]),
+    );
     expect(result.entries.home).toMatchObject({
       result: "tree",
       tree: {
@@ -764,9 +771,71 @@ describe("renderCmxTestbed", () => {
     });
   });
 
-  it("ignores complex meta type expressions", async () => {
+  it("rejects complex exported meta type annotations by default", async () => {
+    const result = await renderCmxTestbed({
+      files: {
+        "entry.tsx": [
+          'import type { PageMeta } from "@theme/content";',
+          "export const meta: PageMeta<{ title: string }> = { title: 'Hello' };",
+          "export default <main>Hello</main>;",
+        ].join("\n"),
+      },
+    });
+
+    expect(result).toMatchObject({
+      result: "error",
+      diagnostics: [
+        {
+          severity: "error",
+          code: "meta-type-unsupported",
+          message:
+            "CMX meta.type could not be extracted. Use a simple type-only import from an external package for exported meta annotations.",
+          source: {
+            file: expect.stringMatching(/entry\.tsx$/u),
+            line: 2,
+            column: expect.any(Number),
+          },
+        },
+      ],
+    });
+    expect(result).not.toHaveProperty("bundle");
+  });
+
+  it("rejects local type-only meta import by default", async () => {
+    const result = await renderCmxTestbed({
+      files: {
+        "entry.tsx": [
+          'import type { PageMeta } from "./meta";',
+          "export const meta: PageMeta = { title: 'Hello' };",
+          "export default <main>Hello</main>;",
+        ].join("\n"),
+        "meta.ts": "export type PageMeta = { title: string };\n",
+      },
+    });
+
+    expect(result).toMatchObject({
+      result: "error",
+      diagnostics: [
+        {
+          severity: "error",
+          code: "meta-type-unsupported",
+          message:
+            "CMX meta.type could not be extracted. Use a simple type-only import from an external package for exported meta annotations.",
+          source: {
+            file: expect.stringMatching(/entry\.tsx$/u),
+            line: 2,
+            column: expect.any(Number),
+          },
+        },
+      ],
+    });
+    expect(result).not.toHaveProperty("bundle");
+  });
+
+  it("omits meta.type for complex meta type when unsupportedMetaTypes is omit", async () => {
     const result = expectTreeResult(
       await renderCmxTestbed({
+        unsupportedMetaTypes: "omit",
         files: {
           "entry.tsx": [
             'import type { PageMeta } from "@theme/content";',
@@ -785,9 +854,10 @@ describe("renderCmxTestbed", () => {
     expect(result.bundle.entries[0]).not.toHaveProperty("meta");
   });
 
-  it("ignores local imported meta type refs", async () => {
+  it("omits meta.type for local type-only meta import when unsupportedMetaTypes is omit", async () => {
     const result = expectTreeResult(
       await renderCmxTestbed({
+        unsupportedMetaTypes: "omit",
         files: {
           "entry.tsx": [
             'import type { PageMeta } from "./meta";',

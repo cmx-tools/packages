@@ -43,9 +43,11 @@ export type CmxBundle = {
   chunks: CmxBundleChunk[];
 };
 
+export type UnsupportedMetaTypesPolicy = "error" | "omit";
+
 export type CmxPluginOptions = {
   externals?: string[];
-  onUnresolvedMetaType?: "warn" | "error";
+  unsupportedMetaTypes?: UnsupportedMetaTypesPolicy;
 };
 
 type ExternalStub = {
@@ -75,6 +77,7 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
   const jsxRuntimeModuleId = `${RUNTIME_IMPORT_SOURCE}/jsx-runtime`;
   const jsxDevRuntimeModuleId = `${RUNTIME_IMPORT_SOURCE}/jsx-dev-runtime`;
   const externalPatterns = normalizeExternals(options.externals ?? []);
+  const unsupportedMetaTypes = options.unsupportedMetaTypes ?? "error";
   const externalStubs = new Map<string, ExternalStub>();
   const metaTypesByModuleId = new Map<string, CmxBundleMetaTypeRef>();
   let entryOrder = new Map<string, number>();
@@ -133,16 +136,14 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
       } else {
         metaTypesByModuleId.delete(path.resolve(id));
       }
-      if (metaType.result === "unsupported") {
-        const log = {
-          code: META_TYPE_UNSUPPORTED,
-          message: META_TYPE_UNSUPPORTED_MESSAGE,
-        };
-        if (options.onUnresolvedMetaType === "error") {
-          this.error(log, metaType.position);
-        } else {
-          this.warn(log, metaType.position);
-        }
+      if (metaType.result === "unsupported" && unsupportedMetaTypes === "error") {
+        this.error(
+          {
+            code: META_TYPE_UNSUPPORTED,
+            message: META_TYPE_UNSUPPORTED_MESSAGE,
+          },
+          metaType.position,
+        );
       }
 
       const dynamicImport = findDynamicImport(source, id);
