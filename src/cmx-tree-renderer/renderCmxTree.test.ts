@@ -56,10 +56,10 @@ describe("cmx-tree-renderer", () => {
     });
   });
 
-  it("executes a hand-written prepared artifact", async () => {
+  it("executes a hand-written prepared bundle", async () => {
     await expect(
       renderCmxTree({
-        moduleUrl: new URL("./prepared-artifact.fixture.ts", import.meta.url),
+        moduleUrl: new URL("./prepared-bundle.fixture.ts", import.meta.url),
       }),
     ).resolves.toEqual({
       tree: {

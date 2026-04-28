@@ -4,7 +4,7 @@ import { ImportNameKind, parseSync, Visitor } from "oxc-parser";
 import path from "node:path";
 import { findUnsupportedExternalImport } from "./findUnsupportedExternalImport.js";
 
-const ARTIFACT_FILE_NAME = "cmx-artifact.json";
+const BUNDLE_FILE_NAME = "cmx-bundle.json";
 const RUNTIME_IMPORT_SOURCE = "@cmx/runtime";
 const DYNAMIC_IMPORT_UNSUPPORTED = "dynamic-import-unsupported";
 const META_TYPE_UNSUPPORTED = "meta-type-unsupported";
@@ -13,34 +13,34 @@ const META_TYPE_UNSUPPORTED_MESSAGE =
 const EXTERNAL_STUB_PREFIX = "cmx-external:";
 const VIRTUAL_EXTERNAL_STUB_PREFIX = `\0${EXTERNAL_STUB_PREFIX}`;
 
-export type CmxArtifactChunk = {
+export type CmxBundleChunk = {
   file: string;
   sourcemap: string;
   isEntry: boolean;
 };
 
-export type CmxArtifactEntry = {
+export type CmxBundleEntry = {
   name: string;
   file: string;
   sourcemap: string;
-  meta?: CmxArtifactEntryMeta;
+  meta?: CmxBundleEntryMeta;
 };
 
-export type CmxArtifactEntryMeta = {
-  type?: CmxArtifactMetaTypeRef;
+export type CmxBundleEntryMeta = {
+  type?: CmxBundleMetaTypeRef;
 };
 
-export type CmxArtifactMetaTypeRef = {
+export type CmxBundleMetaTypeRef = {
   from: string;
   import?: string;
 };
 
-export type CmxArtifact = {
+export type CmxBundle = {
   runtime: {
     importSource: string;
   };
-  entries: CmxArtifactEntry[];
-  chunks: CmxArtifactChunk[];
+  entries: CmxBundleEntry[];
+  chunks: CmxBundleChunk[];
 };
 
 export type CmxPluginOptions = {
@@ -76,7 +76,7 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
   const jsxDevRuntimeModuleId = `${RUNTIME_IMPORT_SOURCE}/jsx-dev-runtime`;
   const externalPatterns = normalizeExternals(options.externals ?? []);
   const externalStubs = new Map<string, ExternalStub>();
-  const metaTypesByModuleId = new Map<string, CmxArtifactMetaTypeRef>();
+  const metaTypesByModuleId = new Map<string, CmxBundleMetaTypeRef>();
   let entryOrder = new Map<string, number>();
 
   return {
@@ -96,7 +96,7 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
       if (extraOptions.kind === "dynamic-import") {
         this.error({
           code: DYNAMIC_IMPORT_UNSUPPORTED,
-          message: "Dynamic imports are not supported in CMX artifacts.",
+          message: "Dynamic imports are not supported in CMX bundles.",
         });
       }
 
@@ -150,7 +150,7 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
         this.error(
           {
             code: DYNAMIC_IMPORT_UNSUPPORTED,
-            message: "Dynamic imports are not supported in CMX artifacts.",
+            message: "Dynamic imports are not supported in CMX bundles.",
           },
           dynamicImport.position,
         );
@@ -178,10 +178,10 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
         externalStubs,
       );
     },
-    generateBundle(_outputOptions, bundle) {
-      const chunks = getOutputChunks(bundle);
-      const artifactChunks = chunks.map(toArtifactChunk);
-      const artifact: CmxArtifact = {
+    generateBundle(_outputOptions, outputBundle) {
+      const chunks = getOutputChunks(outputBundle);
+      const bundleChunks = chunks.map(toBundleChunk);
+      const cmxBundle: CmxBundle = {
         runtime: {
           importSource: RUNTIME_IMPORT_SOURCE,
         },
@@ -192,24 +192,24 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
               entrySortIndex(a, entryOrder) - entrySortIndex(b, entryOrder),
           )
           .map((chunk) => {
-            const artifactChunk = toArtifactChunk(chunk);
+            const bundleChunk = toBundleChunk(chunk);
             const metaType = chunk.facadeModuleId
               ? metaTypesByModuleId.get(path.resolve(chunk.facadeModuleId))
               : undefined;
             return {
               name: chunk.name,
-              file: artifactChunk.file,
-              sourcemap: artifactChunk.sourcemap,
+              file: bundleChunk.file,
+              sourcemap: bundleChunk.sourcemap,
               ...(metaType ? { meta: { type: metaType } } : {}),
             };
           }),
-        chunks: artifactChunks,
+        chunks: bundleChunks,
       };
 
       this.emitFile({
         type: "asset",
-        fileName: ARTIFACT_FILE_NAME,
-        source: `${JSON.stringify(artifact, null, 2)}\n`,
+        fileName: BUNDLE_FILE_NAME,
+        source: `${JSON.stringify(cmxBundle, null, 2)}\n`,
       });
     },
   };
@@ -239,8 +239,8 @@ function extractMetaType(source: string, id: string): MetaTypeExtraction {
 
 function importedTypeBindings(
   staticImports: StaticImport[],
-): Map<string, CmxArtifactMetaTypeRef> {
-  const bindings = new Map<string, CmxArtifactMetaTypeRef>();
+): Map<string, CmxBundleMetaTypeRef> {
+  const bindings = new Map<string, CmxBundleMetaTypeRef>();
   for (const staticImport of staticImports) {
     if (!isExternalTypeSource(staticImport.moduleRequest.value)) {
       continue;
@@ -283,7 +283,7 @@ type MetaTypeExtraction =
     }
   | {
       result: "resolved";
-      ref: CmxArtifactMetaTypeRef;
+      ref: CmxBundleMetaTypeRef;
     }
   | {
       result: "unsupported";
@@ -603,7 +603,7 @@ function getOutputChunks(bundle: OutputBundle): OutputChunk[] {
     .sort((a, b) => a.fileName.localeCompare(b.fileName));
 }
 
-function toArtifactChunk(chunk: OutputChunk): CmxArtifactChunk {
+function toBundleChunk(chunk: OutputChunk): CmxBundleChunk {
   if (!chunk.sourcemapFileName) {
     throw new Error(`Missing sourcemap for emitted chunk ${chunk.fileName}.`);
   }

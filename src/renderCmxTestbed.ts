@@ -2,16 +2,16 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { rolldown } from "rolldown";
-import { cmx, type CmxArtifact } from "./cmx-bundler/index.js";
+import { cmx, type CmxBundle } from "./cmx-bundler/index.js";
 import type { CmxDiagnostic, CmxDiagnosticSource } from "./CmxDiagnostic.js";
 import {
-  renderCmxArtifact,
+  renderCmxBundle,
   type CmxNode,
   type CmxManifest,
   type CmxMeta,
-  type RenderCmxArtifactCompleteResult,
-  type RenderCmxArtifactErrorResult,
-  type RenderCmxArtifactPartialResult,
+  type RenderCmxBundleCompleteResult,
+  type RenderCmxBundleErrorResult,
+  type RenderCmxBundlePartialResult,
   type CmxRenderDiagnostic,
   type UnsupportedValuesPolicy,
 } from "./cmx-tree-renderer/index.js";
@@ -24,14 +24,14 @@ export type RenderCmxTestbedInput = {
   unsupportedValues?: UnsupportedValuesPolicy;
 };
 
-export type RenderCmxTestbedArtifacts = {
-  artifact: CmxArtifact;
+export type RenderCmxTestbedBundles = {
+  bundle: CmxBundle;
   files: Record<string, string>;
   rootDir: string;
   outDir: string;
 };
 
-export type RenderCmxTestbedSuccessResult = RenderCmxTestbedArtifacts & {
+export type RenderCmxTestbedSuccessResult = RenderCmxTestbedBundles & {
   result: "tree";
   tree: CmxNode;
   meta?: CmxMeta;
@@ -39,7 +39,7 @@ export type RenderCmxTestbedSuccessResult = RenderCmxTestbedArtifacts & {
   diagnostics: [];
 };
 
-export type RenderCmxTestbedErrorResult = RenderCmxTestbedArtifacts & {
+export type RenderCmxTestbedErrorResult = RenderCmxTestbedBundles & {
   result: "error";
   diagnostics: CmxRenderDiagnostic[];
 };
@@ -49,14 +49,14 @@ export type RenderCmxTestbedBuildErrorResult = {
   diagnostics: CmxDiagnostic[];
 };
 
-export type RenderCmxTestbedCompleteResult = RenderCmxTestbedArtifacts &
-  RenderCmxArtifactCompleteResult;
+export type RenderCmxTestbedCompleteResult = RenderCmxTestbedBundles &
+  RenderCmxBundleCompleteResult;
 
-export type RenderCmxTestbedPartialResult = RenderCmxTestbedArtifacts &
-  RenderCmxArtifactPartialResult;
+export type RenderCmxTestbedPartialResult = RenderCmxTestbedBundles &
+  RenderCmxBundlePartialResult;
 
-export type RenderCmxTestbedArtifactErrorResult = RenderCmxTestbedArtifacts &
-  RenderCmxArtifactErrorResult;
+export type RenderCmxTestbedBundleErrorResult = RenderCmxTestbedBundles &
+  RenderCmxBundleErrorResult;
 
 export type RenderCmxTestbedResult =
   | RenderCmxTestbedSuccessResult
@@ -64,7 +64,7 @@ export type RenderCmxTestbedResult =
   | RenderCmxTestbedBuildErrorResult
   | RenderCmxTestbedCompleteResult
   | RenderCmxTestbedPartialResult
-  | RenderCmxTestbedArtifactErrorResult;
+  | RenderCmxTestbedBundleErrorResult;
 
 export async function renderCmxTestbed(
   input: RenderCmxTestbedInput,
@@ -82,13 +82,13 @@ export async function renderCmxTestbed(
   await writeSourceFiles(rootDir, input.files);
 
   const outDir = path.join(rootDir, "dist");
-  const bundle = await rolldown({
+  const build = await rolldown({
     input: entryFiles,
     plugins: [cmx({ externals: input.externals })],
   });
 
   try {
-    const output = await bundle
+    const output = await build
       .write({
         dir: outDir,
         entryFileNames: input.entries ? "[name].js" : "entry.js",
@@ -102,50 +102,48 @@ export async function renderCmxTestbed(
     await writeRuntimePackage(outDir);
 
     const files = await readOutputFiles(outDir, emittedFileNames);
-    const artifact = JSON.parse(
-      files["cmx-artifact.json"] ?? "",
-    ) as CmxArtifact;
-    const artifactEntry = artifact.entries[0];
-    if (!artifactEntry) {
-      throw new Error("CMX testbed artifact has no entry.");
+    const bundle = JSON.parse(files["cmx-bundle.json"] ?? "") as CmxBundle;
+    const bundleEntry = bundle.entries[0];
+    if (!bundleEntry) {
+      throw new Error("CMX testbed bundle has no entry.");
     }
 
-    const artifactResult = {
-      artifact,
+    const bundleResult = {
+      bundle,
       files,
       rootDir,
       outDir,
     };
 
-    const renderedArtifact = await renderCmxArtifact({
-      artifact,
+    const renderedBundle = await renderCmxBundle({
+      bundle,
       outDir,
       unsupportedValues: input.unsupportedValues,
     });
 
     if (input.entries) {
       return {
-        ...renderedArtifact,
-        ...artifactResult,
+        ...renderedBundle,
+        ...bundleResult,
       };
     }
 
-    if (renderedArtifact.result === "complete") {
-      const renderedEntry = renderedArtifact.entries[artifactEntry.name];
+    if (renderedBundle.result === "complete") {
+      const renderedEntry = renderedBundle.entries[bundleEntry.name];
       return {
         result: "tree",
         tree: renderedEntry.tree,
         ...(renderedEntry.meta ? { meta: renderedEntry.meta } : {}),
         manifest: renderedEntry.manifest,
         diagnostics: [],
-        ...artifactResult,
+        ...bundleResult,
       };
     }
 
     return {
       result: "error",
-      diagnostics: renderedArtifact.diagnostics,
-      ...artifactResult,
+      diagnostics: renderedBundle.diagnostics,
+      ...bundleResult,
     };
   } catch (error) {
     if (error instanceof CmxTestbedBuildError) {
@@ -156,7 +154,7 @@ export async function renderCmxTestbed(
     }
     throw error;
   } finally {
-    await bundle.close();
+    await build.close();
   }
 }
 
@@ -231,7 +229,7 @@ function toBuildDiagnostic(error: unknown): CmxDiagnostic {
   const rawMessage =
     typeof errorRecord.message === "string"
       ? errorRecord.message
-      : "CMX artifact build failed.";
+      : "CMX bundle build failed.";
   const cmxPluginDiagnostic = cmxPluginDiagnosticFromBuildMessage(rawMessage);
   if (cmxPluginDiagnostic) {
     return cmxPluginDiagnostic;
@@ -242,7 +240,7 @@ function toBuildDiagnostic(error: unknown): CmxDiagnostic {
     return {
       severity: "error",
       code: "dynamic-import-unsupported",
-      message: "Dynamic imports are not supported in CMX artifacts.",
+      message: "Dynamic imports are not supported in CMX bundles.",
       source: dynamicImportSource,
     };
   }
@@ -338,9 +336,7 @@ function cmxPluginDiagnosticFromBuildMessage(
 function dynamicImportSourceFromBuildMessage(
   message: string,
 ): CmxDiagnosticSource | undefined {
-  if (
-    !message.includes("Dynamic imports are not supported in CMX artifacts.")
-  ) {
+  if (!message.includes("Dynamic imports are not supported in CMX bundles.")) {
     return undefined;
   }
 
