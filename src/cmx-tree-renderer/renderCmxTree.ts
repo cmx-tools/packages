@@ -1,4 +1,4 @@
-import { isRuntimeNode, type RuntimeNode } from "./jsx.js";
+import { isRuntimeNode, type RuntimeNode } from "cmx-runtime/jsx-runtime";
 import type { CmxDiagnostic } from "../CmxDiagnostic.js";
 
 export type CmxFragmentNode = {

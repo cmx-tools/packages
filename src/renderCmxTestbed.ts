@@ -199,13 +199,13 @@ async function readOutputFiles(
 }
 
 async function writeRuntimePackage(outDir: string): Promise<void> {
-  const packageDir = path.join(outDir, "node_modules", "@cmx", "runtime");
+  const packageDir = path.join(outDir, "node_modules", "cmx-runtime");
   await mkdir(packageDir, { recursive: true });
   await writeFile(
     path.join(packageDir, "package.json"),
     `${JSON.stringify(
       {
-        name: "@cmx/runtime",
+        name: "cmx-runtime",
         type: "module",
         exports: {
           "./jsx-runtime": "./jsx-runtime.js",

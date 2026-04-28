@@ -18,7 +18,7 @@ import {
   type UnsupportedValuesPolicy,
 } from "./renderCmxTree.js";
 
-const RUNTIME_IMPORT_SOURCE = "@cmx/runtime";
+const RUNTIME_IMPORT_SOURCE = "cmx-runtime";
 
 export type RenderCmxBundleEntry = {
   result: "tree";

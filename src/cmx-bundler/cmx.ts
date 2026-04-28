@@ -5,7 +5,7 @@ import path from "node:path";
 import { findUnsupportedExternalImport } from "./findUnsupportedExternalImport.js";
 
 const BUNDLE_FILE_NAME = "cmx-bundle.json";
-const RUNTIME_IMPORT_SOURCE = "@cmx/runtime";
+const RUNTIME_IMPORT_SOURCE = "cmx-runtime";
 const DYNAMIC_IMPORT_UNSUPPORTED = "dynamic-import-unsupported";
 const META_TYPE_UNSUPPORTED = "meta-type-unsupported";
 const META_TYPE_UNSUPPORTED_MESSAGE =

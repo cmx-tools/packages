@@ -1,3 +1,3 @@
-import { jsx } from "content-management-jsx/cmx-tree-renderer/jsx-runtime";
+import { jsx } from "cmx-runtime/jsx-runtime";
 
 export default jsx("main", { children: "Hello" });
