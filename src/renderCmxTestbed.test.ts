@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   renderCmxTestbed,
@@ -257,6 +259,62 @@ describe("renderCmxTestbed", () => {
         "cmx-bundle.json": expect.stringContaining('"entries"'),
       },
     });
+  });
+
+  it("materializes the workspace cmx-runtime package beside tmp output", async () => {
+    const result = expectTreeResult(
+      await renderCmxTestbed({
+        files: {
+          "entry.tsx": "export default <main>Hello</main>;\n",
+        },
+      }),
+    );
+
+    const materializedRuntimePackage = JSON.parse(
+      await readFile(
+        path.join(result.outDir, "node_modules", "cmx-runtime", "package.json"),
+        "utf8",
+      ),
+    ) as unknown;
+
+    expect(materializedRuntimePackage).toMatchObject({
+      name: "cmx-runtime",
+      type: "module",
+      exports: {
+        "./jsx-runtime": {
+          import: "./dist/jsx-runtime.js",
+          types: "./dist/jsx-runtime.d.ts",
+        },
+        "./jsx-dev-runtime": {
+          import: "./dist/jsx-dev-runtime.js",
+          types: "./dist/jsx-dev-runtime.d.ts",
+        },
+      },
+    });
+    await expect(
+      readFile(
+        path.join(
+          result.outDir,
+          "node_modules",
+          "cmx-runtime",
+          "dist",
+          "jsx-runtime.js",
+        ),
+        "utf8",
+      ),
+    ).resolves.toContain("createRuntimeNode");
+    await expect(
+      readFile(
+        path.join(
+          result.outDir,
+          "node_modules",
+          "cmx-runtime",
+          "dist",
+          "jsx-dev-runtime.js",
+        ),
+        "utf8",
+      ),
+    ).resolves.toContain("./jsx-runtime.js");
   });
 
   it("builds a code-split multi-entry bundle and renders entries with one shared graph", async () => {

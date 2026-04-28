@@ -1,6 +1,14 @@
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import {
+  cp,
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { rolldown } from "rolldown";
 import {
   cmx,
@@ -199,29 +207,29 @@ async function readOutputFiles(
 }
 
 async function writeRuntimePackage(outDir: string): Promise<void> {
+  const runtimePackageDir = resolveRuntimePackageDir();
   const packageDir = path.join(outDir, "node_modules", "cmx-runtime");
   await mkdir(packageDir, { recursive: true });
-  await writeFile(
+  await copyFile(
+    path.join(runtimePackageDir, "package.json"),
     path.join(packageDir, "package.json"),
-    `${JSON.stringify(
-      {
-        name: "cmx-runtime",
-        type: "module",
-        exports: {
-          "./jsx-runtime": "./jsx-runtime.js",
-          "./jsx-dev-runtime": "./jsx-runtime.js",
-        },
-      },
-      null,
-      2,
-    )}\n`,
-    "utf8",
   );
-  await writeFile(
-    path.join(packageDir, "jsx-runtime.js"),
-    RUNTIME_SOURCE,
-    "utf8",
+  await cp(
+    path.join(runtimePackageDir, "dist"),
+    path.join(packageDir, "dist"),
+    {
+      recursive: true,
+    },
   );
+}
+
+function resolveRuntimePackageDir(): string {
+  const runtimeEntryUrl = import.meta.resolve("cmx-runtime/jsx-runtime");
+  if (!runtimeEntryUrl.startsWith("file:")) {
+    throw new Error("CMX testbed runtime must resolve to a file URL.");
+  }
+
+  return path.dirname(path.dirname(fileURLToPath(runtimeEntryUrl)));
 }
 
 class CmxTestbedBuildError extends Error {
@@ -385,82 +393,3 @@ function cmxPluginSourceFromBuildMessage(
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
-
-const RUNTIME_SOURCE = String.raw`
-const RUNTIME_NODE_MARKER_KEY = Symbol.for("cmx.runtime-node-marker");
-const externalRefs = new WeakMap();
-
-export const Fragment = Symbol.for("cmx.fragment");
-
-export function __registerExternal(ref) {
-  function ExternalReference() {
-    throw new Error("External component must be used as JSX.");
-  }
-
-  Object.defineProperty(ExternalReference, "__cmxExternalRef", {
-    value: true,
-  });
-  externalRefs.set(ExternalReference, ref);
-  return ExternalReference;
-}
-
-export function jsx(type, props) {
-  return createRuntimeNode(type, props);
-}
-
-export function jsxs(type, props) {
-  return createRuntimeNode(type, props);
-}
-
-function createRuntimeNode(type, props) {
-  const inputProps = props ?? {};
-  const hasChildren = Object.prototype.hasOwnProperty.call(inputProps, "children");
-  const rawChildren = hasChildren ? inputProps.children : undefined;
-  const children = hasChildren
-    ? Array.isArray(rawChildren)
-      ? rawChildren
-      : [rawChildren]
-    : [];
-  const { children: _ignoredChildren, ...rest } = inputProps;
-
-  if (type === Fragment) {
-    return markRuntimeNode({ kind: "fragment", children });
-  }
-
-  if (typeof type === "string") {
-    return markRuntimeNode({
-      kind: "element",
-      tag: type,
-      ...(Object.keys(rest).length > 0 ? { props: rest } : {}),
-      ...(children.length > 0 ? { children } : {}),
-    });
-  }
-
-  if (typeof type === "function") {
-    const externalRef = externalRefs.get(type);
-    if (externalRef) {
-      return markRuntimeNode({
-        kind: "component",
-        from: externalRef.from,
-        import: externalRef.import ?? externalRef.importName,
-        ...(Object.keys(rest).length > 0 ? { props: rest } : {}),
-        ...(children.length > 0 ? { children } : {}),
-      });
-    }
-
-    return type(hasChildren ? { ...rest, children: rawChildren } : rest);
-  }
-
-  throw new Error("Unsupported JSX element type.");
-}
-
-function markRuntimeNode(node) {
-  Object.defineProperty(node, RUNTIME_NODE_MARKER_KEY, {
-    configurable: false,
-    enumerable: false,
-    writable: false,
-    value: true,
-  });
-  return node;
-}
-`.trimStart();
