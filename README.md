@@ -11,10 +11,10 @@ pnpm test
 
 ## Package exports
 
-| Subpath                                                | Role                                                                                                     |
-| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| `content-management-jsx/cmx-bundler`                   | Rolldown/Rollup-compatible `cmx()` plugin; emits ESM chunks, sourcemaps, and `cmx-bundle.json` metadata. |
-| `content-management-jsx/cmx-tree-renderer`             | Executes emitted artifacts with an external CMX JSX runtime; normalizes to plain CMX trees.              |
-| `content-management-jsx/cmx-tree-renderer/jsx-runtime` | JSX runtime entry expected by compiled artifacts (`importSource` in bundle metadata).                    |
+| Subpath                                    | Role                                                                                                     |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `content-management-jsx/cmx-bundler`       | Rolldown/Rollup-compatible `cmx()` plugin; emits ESM chunks, sourcemaps, and `cmx-bundle.json` metadata. |
+| `content-management-jsx/cmx-tree-renderer` | Executes emitted artifacts with an external CMX JSX runtime; normalizes to plain CMX trees.              |
+| `cmx-runtime/jsx-runtime`                  | JSX runtime entry expected by compiled artifacts.                                                        |
 
 Integration tests use `renderCmxTestbed` in `src/renderCmxTestbed.ts` (Rolldown + `cmx` + `renderCmxBundle`) as end-to-end smoke.

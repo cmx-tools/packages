@@ -6,8 +6,7 @@
   "type": "module",
   "exports": {
     "./cmx-bundler": "./src/cmx-bundler/index.ts",
-    "./cmx-tree-renderer": "./src/cmx-tree-renderer/index.ts",
-    "./cmx-tree-renderer/jsx-runtime": "./src/cmx-tree-renderer/jsx-runtime.ts"
+    "./cmx-tree-renderer": "./src/cmx-tree-renderer/index.ts"
   },
   "scripts": {
     "pretest": "corepack pnpm --filter cmx-runtime build",

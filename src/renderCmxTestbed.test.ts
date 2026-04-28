@@ -242,7 +242,7 @@ describe("renderCmxTestbed", () => {
       diagnostics: [],
       bundle: {
         runtime: {
-          importSource: "@cmx/runtime",
+          importSource: "cmx-runtime",
         },
         entries: [
           {
@@ -252,7 +252,7 @@ describe("renderCmxTestbed", () => {
         ],
       },
       files: {
-        "entry.js": expect.stringContaining('from "@cmx/runtime/jsx-runtime"'),
+        "entry.js": expect.stringContaining('from "cmx-runtime/jsx-runtime"'),
         "entry.js.map": expect.stringContaining("entry.tsx"),
         "cmx-bundle.json": expect.stringContaining('"entries"'),
       },
@@ -626,7 +626,7 @@ describe("renderCmxTestbed", () => {
       await renderCmxTestbed({
         files: {
           "entry.tsx": [
-            'import { __registerExternal } from "@cmx/runtime/jsx-runtime";',
+            'import { __registerExternal } from "cmx-runtime/jsx-runtime";',
             'const Hero = __registerExternal({ from: "@theme/ui", import: "Hero" });',
             'const Unused = __registerExternal({ from: "@theme/ui", import: "Unused" });',
             "const action = <button>Act</button>;",

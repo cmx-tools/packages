@@ -59,14 +59,14 @@ describe("cmx", () => {
         ).resolves.toContain("entry.tsx");
         await expect(
           readFile(path.join(outDir, "entry.js"), "utf8"),
-        ).resolves.toContain('from "@cmx/runtime/jsx-runtime"');
+        ).resolves.toContain('from "cmx-runtime/jsx-runtime"');
         await expect(
           readFile(path.join(outDir, "cmx-bundle.json"), "utf8").then(
             (source) => JSON.parse(source) as unknown,
           ),
         ).resolves.toEqual({
           runtime: {
-            importSource: "@cmx/runtime",
+            importSource: "cmx-runtime",
           },
           entries: [
             {
@@ -159,7 +159,7 @@ describe("cmx", () => {
 
         const cmxBundle = await readBundle(outDir);
         expect(cmxBundle.runtime).toEqual({
-          importSource: "@cmx/runtime",
+          importSource: "cmx-runtime",
         });
         expect(cmxBundle.entries).toHaveLength(2);
         expect(cmxBundle.entries).toEqual(

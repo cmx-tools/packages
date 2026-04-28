@@ -11,7 +11,7 @@ describe("renderCmxBundle", () => {
       renderCmxBundle({
         bundle: {
           runtime: {
-            importSource: "@cmx/runtime",
+            importSource: "cmx-runtime",
           },
           entries: [],
           chunks: [],
@@ -62,7 +62,7 @@ describe("renderCmxBundle", () => {
           severity: "error",
           code: "runtime-import-source-mismatch",
           message:
-            'CMX bundle targets runtime import source "other-runtime", but this executor expects "@cmx/runtime".',
+            'CMX bundle targets runtime import source "other-runtime", but this executor expects "cmx-runtime".',
         },
       ],
     });
@@ -80,7 +80,7 @@ describe("renderCmxBundle", () => {
       renderCmxBundle({
         bundle: {
           runtime: {
-            importSource: "@cmx/runtime",
+            importSource: "cmx-runtime",
           },
           entries: [
             {
@@ -125,7 +125,7 @@ describe("renderCmxBundle", () => {
       renderCmxBundle({
         bundle: {
           runtime: {
-            importSource: "@cmx/runtime",
+            importSource: "cmx-runtime",
           },
           entries: [
             {
@@ -172,7 +172,7 @@ describe("renderCmxBundle", () => {
       renderCmxBundle({
         bundle: {
           runtime: {
-            importSource: "@cmx/runtime",
+            importSource: "cmx-runtime",
           },
           entries: [
             {
@@ -224,7 +224,7 @@ describe("renderCmxBundle", () => {
     const result = await renderCmxBundle({
       bundle: {
         runtime: {
-          importSource: "@cmx/runtime",
+          importSource: "cmx-runtime",
         },
         entries: [
           {
@@ -298,7 +298,7 @@ describe("renderCmxBundle", () => {
       renderCmxBundle({
         bundle: {
           runtime: {
-            importSource: "@cmx/runtime",
+            importSource: "cmx-runtime",
           },
           entries: [
             {
@@ -362,7 +362,7 @@ describe("renderCmxBundle", () => {
       renderCmxBundle({
         bundle: {
           runtime: {
-            importSource: "@cmx/runtime",
+            importSource: "cmx-runtime",
           },
           entries: [
             {
