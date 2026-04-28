@@ -5,8 +5,8 @@ JSX content compiles to CMX through a **bundler plugin** (artifact emission) and
 ## Quick start
 
 ```sh
-npm install
-npm test
+pnpm install
+pnpm test
 ```
 
 ## Package exports
