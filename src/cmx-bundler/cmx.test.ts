@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { rolldown } from "rolldown";
 import { describe, expect, it } from "vitest";
-import { cmx, type CmxArtifact } from "./cmx.js";
+import { cmx, type CmxBundle } from "./cmx.js";
 
 type CmxWarning = {
   pluginCode?: unknown;
@@ -31,14 +31,14 @@ async function writeFixture(
   return absolutePath;
 }
 
-async function readArtifact(outDir: string): Promise<CmxArtifact> {
+async function readBundle(outDir: string): Promise<CmxBundle> {
   return JSON.parse(
-    await readFile(path.join(outDir, "cmx-artifact.json"), "utf8"),
-  ) as CmxArtifact;
+    await readFile(path.join(outDir, "cmx-bundle.json"), "utf8"),
+  ) as CmxBundle;
 }
 
 describe("cmx", () => {
-  it("emits ESM, external sourcemap, and minimal CMX artifact for TSX entry", async () => {
+  it("emits ESM, external sourcemap, and minimal CMX bundle for TSX entry", async () => {
     await withTempDir(async (tempDir) => {
       const entryFile = await writeFixture(
         tempDir,
@@ -60,7 +60,7 @@ describe("cmx", () => {
         const outputFiles = output.output.map((item) => item.fileName).sort();
 
         expect(outputFiles).toEqual([
-          "cmx-artifact.json",
+          "cmx-bundle.json",
           "entry.js",
           "entry.js.map",
         ]);
@@ -71,7 +71,7 @@ describe("cmx", () => {
           readFile(path.join(outDir, "entry.js"), "utf8"),
         ).resolves.toContain('from "@cmx/runtime/jsx-runtime"');
         await expect(
-          readFile(path.join(outDir, "cmx-artifact.json"), "utf8").then(
+          readFile(path.join(outDir, "cmx-bundle.json"), "utf8").then(
             (source) => JSON.parse(source) as unknown,
           ),
         ).resolves.toEqual({
@@ -99,7 +99,7 @@ describe("cmx", () => {
     });
   });
 
-  it("does not execute content while emitting the artifact", async () => {
+  it("does not execute content while emitting the bundle", async () => {
     await withTempDir(async (tempDir) => {
       const entryFile = await writeFixture(
         tempDir,
@@ -124,7 +124,7 @@ describe("cmx", () => {
     });
   });
 
-  it("emits a multi-entry artifact with code-split chunk metadata", async () => {
+  it("emits a multi-entry bundle with code-split chunk metadata", async () => {
     await withTempDir(async (tempDir) => {
       const homeFile = await writeFixture(
         tempDir,
@@ -167,11 +167,11 @@ describe("cmx", () => {
           chunkFileNames: "[name]-[hash].js",
         });
 
-        const artifact = await readArtifact(outDir);
-        expect(artifact.runtime).toEqual({
+        const cmxBundle = await readBundle(outDir);
+        expect(cmxBundle.runtime).toEqual({
           importSource: "@cmx/runtime",
         });
-        expect(artifact.entries).toEqual([
+        expect(cmxBundle.entries).toEqual([
           {
             name: "home",
             file: "home.js",
@@ -183,7 +183,7 @@ describe("cmx", () => {
             sourcemap: "about.js.map",
           },
         ]);
-        expect(artifact.chunks).toEqual(
+        expect(cmxBundle.chunks).toEqual(
           expect.arrayContaining([
             {
               file: "home.js",
@@ -202,7 +202,7 @@ describe("cmx", () => {
             },
           ]),
         );
-        for (const chunk of artifact.chunks) {
+        for (const chunk of cmxBundle.chunks) {
           await expect(
             readFile(path.join(outDir, chunk.file), "utf8"),
           ).resolves.toBeDefined();
@@ -216,7 +216,7 @@ describe("cmx", () => {
     });
   });
 
-  it("rejects dynamic imports during artifact emission", async () => {
+  it("rejects dynamic imports during bundle emission", async () => {
     await withTempDir(async (tempDir) => {
       const entryFile = await writeFixture(
         tempDir,
@@ -272,8 +272,8 @@ describe("cmx", () => {
           entryFileNames: "entry.js",
         });
 
-        const artifact = await readArtifact(outDir);
-        expect(artifact.entries).toEqual([
+        const cmxBundle = await readBundle(outDir);
+        expect(cmxBundle.entries).toEqual([
           {
             name: "entry",
             file: "entry.js",
@@ -349,7 +349,7 @@ describe("cmx", () => {
           entryFileNames: "[name].js",
         });
 
-        await expect(readArtifact(outDir)).resolves.toMatchObject({
+        await expect(readBundle(outDir)).resolves.toMatchObject({
           entries: [
             {
               name: "entry",
@@ -368,9 +368,9 @@ describe("cmx", () => {
             },
           ],
         });
-        const artifact = await readArtifact(outDir);
-        expect(artifact.entries[1]).not.toHaveProperty("meta");
-        expect(artifact.entries[2]).not.toHaveProperty("meta");
+        const cmxBundle = await readBundle(outDir);
+        expect(cmxBundle.entries[1]).not.toHaveProperty("meta");
+        expect(cmxBundle.entries[2]).not.toHaveProperty("meta");
       } finally {
         await bundle.close();
       }
@@ -497,8 +497,8 @@ describe("cmx", () => {
             }),
           ]),
         );
-        const artifact = await readArtifact(outDir);
-        for (const entry of artifact.entries) {
+        const cmxBundle = await readBundle(outDir);
+        for (const entry of cmxBundle.entries) {
           expect(entry).not.toHaveProperty("meta");
         }
       } finally {
@@ -573,7 +573,7 @@ describe("cmx", () => {
           ],
         });
         await expect(
-          readFile(path.join(outDir, "cmx-artifact.json"), "utf8"),
+          readFile(path.join(outDir, "cmx-bundle.json"), "utf8"),
         ).rejects.toMatchObject({ code: "ENOENT" });
       } finally {
         await bundle.close();

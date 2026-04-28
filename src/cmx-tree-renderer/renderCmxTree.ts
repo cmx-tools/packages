@@ -101,20 +101,20 @@ export class CmxRenderError extends Error {
 export async function renderCmxTree(
   input: RenderCmxTreeInput,
 ): Promise<RenderCmxTreeResult> {
-  const artifactModule = (await import(
+  const bundleModule = (await import(
     /* @vite-ignore */ toModuleUrl(input.moduleUrl)
   )) as Record<string, unknown>;
 
-  if (!Object.prototype.hasOwnProperty.call(artifactModule, "default")) {
-    throw new Error("CMX artifact module has no default export.");
+  if (!Object.prototype.hasOwnProperty.call(bundleModule, "default")) {
+    throw new Error("CMX bundle module has no default export.");
   }
 
-  const exportedDefault = artifactModule.default;
+  const exportedDefault = bundleModule.default;
   const root =
     typeof exportedDefault === "function" ? exportedDefault() : exportedDefault;
   const context = createRenderContext(input);
   const tree = await normalizeCmxTreeValue(root, "default export", context);
-  const meta = await normalizeMeta(artifactModule, context);
+  const meta = await normalizeMeta(bundleModule, context);
 
   return {
     tree,

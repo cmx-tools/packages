@@ -38,7 +38,7 @@ function expectPartialResult(
 }
 
 describe("renderCmxTestbed", () => {
-  it("maps runtime errors back to authored source through artifact sourcemaps", async () => {
+  it("maps runtime errors back to authored source through bundle sourcemaps", async () => {
     await expect(
       renderCmxTestbed({
         files: {
@@ -63,7 +63,7 @@ describe("renderCmxTestbed", () => {
           },
         },
       ],
-      artifact: {
+      bundle: {
         entries: [
           {
             file: "entry.js",
@@ -74,7 +74,7 @@ describe("renderCmxTestbed", () => {
     });
   });
 
-  it("maps bundler validation diagnostics to authored source without emitting an artifact", async () => {
+  it("maps bundler validation diagnostics to authored source without emitting a bundle", async () => {
     const result = await renderCmxTestbed({
       files: {
         "entry.tsx": [
@@ -92,7 +92,7 @@ describe("renderCmxTestbed", () => {
         {
           severity: "error",
           code: "dynamic-import-unsupported",
-          message: "Dynamic imports are not supported in CMX artifacts.",
+          message: "Dynamic imports are not supported in CMX bundles.",
           source: {
             file: expect.stringMatching(/entry\.tsx$/u),
             line: 2,
@@ -101,10 +101,10 @@ describe("renderCmxTestbed", () => {
         },
       ],
     });
-    expect(result).not.toHaveProperty("artifact");
+    expect(result).not.toHaveProperty("bundle");
   });
 
-  it("rejects namespace imports from configured externals without emitting an artifact", async () => {
+  it("rejects namespace imports from configured externals without emitting a bundle", async () => {
     const result = await renderCmxTestbed({
       externals: ["@theme/ui"],
       files: {
@@ -131,10 +131,10 @@ describe("renderCmxTestbed", () => {
         },
       ],
     });
-    expect(result).not.toHaveProperty("artifact");
+    expect(result).not.toHaveProperty("bundle");
   });
 
-  it("rejects side-effect-only imports from configured externals without emitting an artifact", async () => {
+  it("rejects side-effect-only imports from configured externals without emitting a bundle", async () => {
     const result = await renderCmxTestbed({
       externals: ["@theme/ui"],
       files: {
@@ -160,10 +160,10 @@ describe("renderCmxTestbed", () => {
         },
       ],
     });
-    expect(result).not.toHaveProperty("artifact");
+    expect(result).not.toHaveProperty("bundle");
   });
 
-  it("rejects external component function calls without emitting an artifact", async () => {
+  it("rejects external component function calls without emitting a bundle", async () => {
     const result = await renderCmxTestbed({
       externals: ["@theme/ui"],
       files: {
@@ -190,10 +190,10 @@ describe("renderCmxTestbed", () => {
         },
       ],
     });
-    expect(result).not.toHaveProperty("artifact");
+    expect(result).not.toHaveProperty("bundle");
   });
 
-  it("rejects configured external imports used as runtime values without emitting an artifact", async () => {
+  it("rejects configured external imports used as runtime values without emitting a bundle", async () => {
     const result = await renderCmxTestbed({
       externals: ["@theme/ui"],
       files: {
@@ -220,10 +220,10 @@ describe("renderCmxTestbed", () => {
         },
       ],
     });
-    expect(result).not.toHaveProperty("artifact");
+    expect(result).not.toHaveProperty("bundle");
   });
 
-  it("builds a TSX source fixture through the artifact boundary and renders CMX", async () => {
+  it("builds a TSX source fixture through the bundle boundary and renders CMX", async () => {
     const result = expectTreeResult(
       await renderCmxTestbed({
         files: {
@@ -240,7 +240,7 @@ describe("renderCmxTestbed", () => {
         children: ["Hello"],
       },
       diagnostics: [],
-      artifact: {
+      bundle: {
         runtime: {
           importSource: "@cmx/runtime",
         },
@@ -254,12 +254,12 @@ describe("renderCmxTestbed", () => {
       files: {
         "entry.js": expect.stringContaining('from "@cmx/runtime/jsx-runtime"'),
         "entry.js.map": expect.stringContaining("entry.tsx"),
-        "cmx-artifact.json": expect.stringContaining('"entries"'),
+        "cmx-bundle.json": expect.stringContaining('"entries"'),
       },
     });
   });
 
-  it("builds a code-split multi-entry artifact and renders entries with one shared graph", async () => {
+  it("builds a code-split multi-entry bundle and renders entries with one shared graph", async () => {
     const result = expectCompleteResult(
       await renderCmxTestbed({
         entries: ["home.tsx", "about.tsx"],
@@ -292,7 +292,7 @@ describe("renderCmxTestbed", () => {
       tag: "main",
       children: ["About ", 1],
     });
-    expect(result.artifact.entries).toEqual([
+    expect(result.bundle.entries).toEqual([
       {
         name: "home",
         file: "home.js",
@@ -304,7 +304,7 @@ describe("renderCmxTestbed", () => {
         sourcemap: "about.js.map",
       },
     ]);
-    expect(result.artifact.chunks).toEqual(
+    expect(result.bundle.chunks).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           file: expect.stringMatching(/^shared-/u),
@@ -313,7 +313,7 @@ describe("renderCmxTestbed", () => {
         }),
       ]),
     );
-    for (const chunk of result.artifact.chunks) {
+    for (const chunk of result.bundle.chunks) {
       expect(result.files).toHaveProperty(chunk.file);
       expect(result.files).toHaveProperty(chunk.sourcemap);
     }
@@ -372,7 +372,7 @@ describe("renderCmxTestbed", () => {
     ]);
   });
 
-  it("renders fragments through the artifact boundary", async () => {
+  it("renders fragments through the bundle boundary", async () => {
     const result = expectTreeResult(
       await renderCmxTestbed({
         files: {
@@ -398,7 +398,7 @@ describe("renderCmxTestbed", () => {
     });
   });
 
-  it("renders primitive roots through the artifact boundary", async () => {
+  it("renders primitive roots through the bundle boundary", async () => {
     const sources = {
       "null.tsx": "export default null;\n",
       "boolean.tsx": "export default true;\n",
@@ -423,7 +423,7 @@ describe("renderCmxTestbed", () => {
     ).resolves.toEqual([null, true, "hello", 42]);
   });
 
-  it("renders root arrays and nested child arrays through the artifact boundary", async () => {
+  it("renders root arrays and nested child arrays through the bundle boundary", async () => {
     const result = expectTreeResult(
       await renderCmxTestbed({
         files: {
@@ -505,7 +505,7 @@ describe("renderCmxTestbed", () => {
     });
   });
 
-  it("maps explicit children props through the artifact boundary", async () => {
+  it("maps explicit children props through the bundle boundary", async () => {
     const result = expectTreeResult(
       await renderCmxTestbed({
         externals: ["@theme/ui"],
@@ -552,7 +552,7 @@ describe("renderCmxTestbed", () => {
     });
   });
 
-  it("preserves local component children shape through the artifact boundary", async () => {
+  it("preserves local component children shape through the bundle boundary", async () => {
     const result = expectTreeResult(
       await renderCmxTestbed({
         files: {
@@ -583,7 +583,7 @@ describe("renderCmxTestbed", () => {
     });
   });
 
-  it("preserves JSX text boundaries through the artifact boundary", async () => {
+  it("preserves JSX text boundaries through the bundle boundary", async () => {
     const result = expectTreeResult(
       await renderCmxTestbed({
         files: {
@@ -614,7 +614,7 @@ describe("renderCmxTestbed", () => {
     });
   });
 
-  it("normalizes props, slots, meta data, and rendered manifest through the artifact boundary", async () => {
+  it("normalizes props, slots, meta data, and rendered manifest through the bundle boundary", async () => {
     const result = expectTreeResult(
       await renderCmxTestbed({
         files: {
@@ -696,7 +696,7 @@ describe("renderCmxTestbed", () => {
     });
   });
 
-  it("attaches named imported meta type refs from artifact metadata", async () => {
+  it("attaches named imported meta type refs from bundle metadata", async () => {
     const result = expectTreeResult(
       await renderCmxTestbed({
         files: {
@@ -718,7 +718,7 @@ describe("renderCmxTestbed", () => {
         title: "Hello",
       },
     });
-    expect(result.artifact.entries[0]).toMatchObject({
+    expect(result.bundle.entries[0]).toMatchObject({
       meta: {
         type: {
           from: "@theme/content",
@@ -731,7 +731,7 @@ describe("renderCmxTestbed", () => {
     });
   });
 
-  it("attaches default imported meta type refs from artifact metadata", async () => {
+  it("attaches default imported meta type refs from bundle metadata", async () => {
     const result = expectTreeResult(
       await renderCmxTestbed({
         files: {
@@ -752,7 +752,7 @@ describe("renderCmxTestbed", () => {
         title: "Hello",
       },
     });
-    expect(result.artifact.entries[0]).toMatchObject({
+    expect(result.bundle.entries[0]).toMatchObject({
       meta: {
         type: {
           from: "@theme/content",
@@ -782,7 +782,7 @@ describe("renderCmxTestbed", () => {
         title: "Hello",
       },
     });
-    expect(result.artifact.entries[0]).not.toHaveProperty("meta");
+    expect(result.bundle.entries[0]).not.toHaveProperty("meta");
   });
 
   it("ignores local imported meta type refs", async () => {
@@ -804,7 +804,7 @@ describe("renderCmxTestbed", () => {
         title: "Hello",
       },
     });
-    expect(result.artifact.entries[0]).not.toHaveProperty("meta");
+    expect(result.bundle.entries[0]).not.toHaveProperty("meta");
   });
 
   it("renders configured external imports through importer-edge stubs", async () => {

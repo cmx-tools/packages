@@ -1,3 +1,3 @@
 export * from "./renderCmxTree.js";
-export * from "./renderCmxArtifact.js";
+export * from "./renderCmxBundle.js";
 export { Fragment, __registerExternal, jsx, jsxs } from "./jsx.js";

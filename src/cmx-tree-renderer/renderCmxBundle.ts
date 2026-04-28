@@ -3,9 +3,9 @@ import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { originalPositionFor, TraceMap } from "@jridgewell/trace-mapping";
 import type {
-  CmxArtifact,
-  CmxArtifactChunk,
-  CmxArtifactEntry,
+  CmxBundle,
+  CmxBundleChunk,
+  CmxBundleEntry,
 } from "../cmx-bundler/index.js";
 import type { CmxDiagnosticSource } from "../CmxDiagnostic.js";
 import {
@@ -20,81 +20,81 @@ import {
 
 const RUNTIME_IMPORT_SOURCE = "@cmx/runtime";
 
-export type RenderCmxArtifactEntry = {
+export type RenderCmxBundleEntry = {
   result: "tree";
   tree: CmxNode;
   meta?: CmxMeta;
   manifest: CmxManifest;
 };
 
-export type RenderCmxArtifactEntryError = {
+export type RenderCmxBundleEntryError = {
   result: "error";
   diagnostics: CmxRenderDiagnostic[];
 };
 
-export type RenderCmxArtifactEntryResult =
-  | RenderCmxArtifactEntry
-  | RenderCmxArtifactEntryError;
+export type RenderCmxBundleEntryResult =
+  | RenderCmxBundleEntry
+  | RenderCmxBundleEntryError;
 
-export type RenderCmxArtifactCompleteResult = {
+export type RenderCmxBundleCompleteResult = {
   result: "complete";
-  entries: Record<string, RenderCmxArtifactEntry>;
+  entries: Record<string, RenderCmxBundleEntry>;
   diagnostics: [];
 };
 
-export type RenderCmxArtifactPartialResult = {
+export type RenderCmxBundlePartialResult = {
   result: "partial";
-  entries: Record<string, RenderCmxArtifactEntryResult>;
+  entries: Record<string, RenderCmxBundleEntryResult>;
   diagnostics: CmxRenderDiagnostic[];
 };
 
-export type RenderCmxArtifactErrorResult = {
+export type RenderCmxBundleErrorResult = {
   result: "error";
   diagnostics: CmxRenderDiagnostic[];
 };
 
-export type RenderCmxArtifactResult =
-  | RenderCmxArtifactCompleteResult
-  | RenderCmxArtifactPartialResult
-  | RenderCmxArtifactErrorResult;
+export type RenderCmxBundleResult =
+  | RenderCmxBundleCompleteResult
+  | RenderCmxBundlePartialResult
+  | RenderCmxBundleErrorResult;
 
-export type RenderCmxArtifactInput = {
-  artifact: CmxArtifact;
+export type RenderCmxBundleInput = {
+  bundle: CmxBundle;
   outDir: string;
   unsupportedValues?: UnsupportedValuesPolicy;
 };
 
-export async function renderCmxArtifact(
-  input: RenderCmxArtifactInput,
-): Promise<RenderCmxArtifactResult> {
-  if (input.artifact.runtime.importSource !== RUNTIME_IMPORT_SOURCE) {
+export async function renderCmxBundle(
+  input: RenderCmxBundleInput,
+): Promise<RenderCmxBundleResult> {
+  if (input.bundle.runtime.importSource !== RUNTIME_IMPORT_SOURCE) {
     return {
       result: "error",
       diagnostics: [
         {
           severity: "error",
           code: "runtime-import-source-mismatch",
-          message: `CMX artifact targets runtime import source "${input.artifact.runtime.importSource}", but this executor expects "${RUNTIME_IMPORT_SOURCE}".`,
+          message: `CMX bundle targets runtime import source "${input.bundle.runtime.importSource}", but this executor expects "${RUNTIME_IMPORT_SOURCE}".`,
         },
       ],
     };
   }
 
-  if (input.artifact.entries.length === 0) {
+  if (input.bundle.entries.length === 0) {
     return {
       result: "error",
       diagnostics: [
         {
           severity: "error",
           code: "render-error",
-          message: "CMX artifact has no entries.",
+          message: "CMX bundle has no entries.",
         },
       ],
     };
   }
 
   const renderedEntries = await Promise.all(
-    input.artifact.entries.map(async (entry) => {
+    input.bundle.entries.map(async (entry) => {
       try {
         const rendered = await renderCmxTree({
           moduleUrl: pathToFileURL(path.join(input.outDir, entry.file)),
@@ -116,7 +116,7 @@ export async function renderCmxArtifact(
 
   const entries = Object.fromEntries(renderedEntries) as Record<
     string,
-    RenderCmxArtifactEntryResult
+    RenderCmxBundleEntryResult
   >;
   const diagnostics = renderedEntries.flatMap(([, entry]) =>
     entry.result === "error" ? entry.diagnostics : [],
@@ -125,7 +125,7 @@ export async function renderCmxArtifact(
   if (diagnostics.length === 0) {
     return {
       result: "complete",
-      entries: entries as Record<string, RenderCmxArtifactEntry>,
+      entries: entries as Record<string, RenderCmxBundleEntry>,
       diagnostics: [],
     };
   }
@@ -146,7 +146,7 @@ export async function renderCmxArtifact(
 
 async function toRenderDiagnostic(
   error: unknown,
-  input: RenderCmxArtifactInput,
+  input: RenderCmxBundleInput,
 ): Promise<CmxRenderDiagnostic> {
   if (error instanceof CmxRenderError) {
     return error.diagnostic;
@@ -162,13 +162,13 @@ async function toRenderDiagnostic(
 
 async function sourceFromRuntimeError(
   error: unknown,
-  input: RenderCmxArtifactInput,
+  input: RenderCmxBundleInput,
 ): Promise<{ source: CmxDiagnosticSource } | Record<string, never>> {
   if (!(error instanceof Error) || !error.stack) {
     return {};
   }
 
-  for (const emittedFile of artifactFiles(input.artifact)) {
+  for (const emittedFile of bundleFiles(input.bundle)) {
     const generatedLocation = generatedLocationFromStack(
       error.stack,
       emittedFile.file,
@@ -212,14 +212,14 @@ function authoredLocationFromStack(
   };
 }
 
-function artifactFiles(
-  artifact: CmxArtifact,
-): Array<CmxArtifactEntry | CmxArtifactChunk> {
-  const files = new Map<string, CmxArtifactEntry | CmxArtifactChunk>();
-  for (const entry of artifact.entries) {
+function bundleFiles(
+  bundle: CmxBundle,
+): Array<CmxBundleEntry | CmxBundleChunk> {
+  const files = new Map<string, CmxBundleEntry | CmxBundleChunk>();
+  for (const entry of bundle.entries) {
     files.set(entry.file, entry);
   }
-  for (const chunk of artifact.chunks) {
+  for (const chunk of bundle.chunks) {
     files.set(chunk.file, chunk);
   }
   return [...files.values()];

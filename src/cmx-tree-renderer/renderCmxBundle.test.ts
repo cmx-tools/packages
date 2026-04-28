@@ -3,13 +3,13 @@ import os from "node:os";
 import path from "node:path";
 import { transform } from "esbuild";
 import { describe, expect, it } from "vitest";
-import { renderCmxArtifact } from "content-management-jsx/cmx-tree-renderer";
+import { renderCmxBundle } from "content-management-jsx/cmx-tree-renderer";
 
-describe("renderCmxArtifact", () => {
-  it("returns an error result for an artifact with no entries", async () => {
+describe("renderCmxBundle", () => {
+  it("returns an error result for a bundle with no entries", async () => {
     await expect(
-      renderCmxArtifact({
-        artifact: {
+      renderCmxBundle({
+        bundle: {
           runtime: {
             importSource: "@cmx/runtime",
           },
@@ -24,14 +24,14 @@ describe("renderCmxArtifact", () => {
         {
           severity: "error",
           code: "render-error",
-          message: "CMX artifact has no entries.",
+          message: "CMX bundle has no entries.",
         },
       ],
     });
   });
 
   it("returns a top-level error before importing entries when runtime import source mismatches", async () => {
-    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-artifact-"));
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
     await writeFile(
       path.join(outDir, "entry.js"),
       `throw new Error("entry was imported");\n`,
@@ -39,8 +39,8 @@ describe("renderCmxArtifact", () => {
     );
 
     await expect(
-      renderCmxArtifact({
-        artifact: {
+      renderCmxBundle({
+        bundle: {
           runtime: {
             importSource: "other-runtime",
           },
@@ -62,14 +62,14 @@ describe("renderCmxArtifact", () => {
           severity: "error",
           code: "runtime-import-source-mismatch",
           message:
-            'CMX artifact targets runtime import source "other-runtime", but this executor expects "@cmx/runtime".',
+            'CMX bundle targets runtime import source "other-runtime", but this executor expects "@cmx/runtime".',
         },
       ],
     });
   });
 
   it("renders entries when runtime import source matches", async () => {
-    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-artifact-"));
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
     await writeFile(
       path.join(outDir, "entry.js"),
       `export default "rendered";\n`,
@@ -77,8 +77,8 @@ describe("renderCmxArtifact", () => {
     );
 
     await expect(
-      renderCmxArtifact({
-        artifact: {
+      renderCmxBundle({
+        bundle: {
           runtime: {
             importSource: "@cmx/runtime",
           },
@@ -109,7 +109,7 @@ describe("renderCmxArtifact", () => {
   });
 
   it("maps render errors through entry sourcemaps", async () => {
-    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-artifact-"));
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
     await writeCompiledEntry(
       outDir,
       "entry.js",
@@ -122,8 +122,8 @@ describe("renderCmxArtifact", () => {
     );
 
     await expect(
-      renderCmxArtifact({
-        artifact: {
+      renderCmxBundle({
+        bundle: {
           runtime: {
             importSource: "@cmx/runtime",
           },
@@ -156,7 +156,7 @@ describe("renderCmxArtifact", () => {
   });
 
   it("maps import errors through entry sourcemaps", async () => {
-    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-artifact-"));
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
     await writeCompiledEntry(
       outDir,
       "entry.js",
@@ -169,8 +169,8 @@ describe("renderCmxArtifact", () => {
     );
 
     await expect(
-      renderCmxArtifact({
-        artifact: {
+      renderCmxBundle({
+        bundle: {
           runtime: {
             importSource: "@cmx/runtime",
           },
@@ -203,7 +203,7 @@ describe("renderCmxArtifact", () => {
   });
 
   it("preserves mapped diagnostics on partial multi-entry results", async () => {
-    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-artifact-"));
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
     await writeCompiledEntry(
       outDir,
       "home.js",
@@ -221,8 +221,8 @@ describe("renderCmxArtifact", () => {
       ].join("\n"),
     );
 
-    const result = await renderCmxArtifact({
-      artifact: {
+    const result = await renderCmxBundle({
+      bundle: {
         runtime: {
           importSource: "@cmx/runtime",
         },
@@ -282,7 +282,7 @@ describe("renderCmxArtifact", () => {
   });
 
   it("returns a fatal error result when every prebuilt entry fails", async () => {
-    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-artifact-"));
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
     await writeFile(
       path.join(outDir, "home.js"),
       `throw new Error("home exploded");\n`,
@@ -295,8 +295,8 @@ describe("renderCmxArtifact", () => {
     );
 
     await expect(
-      renderCmxArtifact({
-        artifact: {
+      renderCmxBundle({
+        bundle: {
           runtime: {
             importSource: "@cmx/runtime",
           },
@@ -334,7 +334,7 @@ describe("renderCmxArtifact", () => {
   });
 
   it("maps runtime errors through chunk sourcemaps", async () => {
-    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-artifact-"));
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
     await writeFile(
       path.join(outDir, "entry.js"),
       `import "./shared.js";\nexport default "unreachable";\n`,
@@ -359,8 +359,8 @@ describe("renderCmxArtifact", () => {
     );
 
     await expect(
-      renderCmxArtifact({
-        artifact: {
+      renderCmxBundle({
+        bundle: {
           runtime: {
             importSource: "@cmx/runtime",
           },
