@@ -10,6 +10,9 @@ importers:
       "@jridgewell/trace-mapping":
         specifier: ^0.3.31
         version: 0.3.31
+      cmx-runtime:
+        specifier: workspace:*
+        version: link:packages/cmx-runtime
       esbuild:
         specifier: ^0.28.0
         version: 0.28.0
@@ -32,6 +35,8 @@ importers:
       vitest:
         specifier: ^4.1.5
         version: 4.1.5(@types/node@24.12.2)(vite@8.0.10(@types/node@24.12.2)(esbuild@0.28.0))
+
+  packages/cmx-runtime: {}
 
 packages:
   "@emnapi/core@1.10.0":
