@@ -74,7 +74,7 @@ describe("renderCmxTestbed", () => {
     });
   });
 
-  it("maps Layer 1 validation diagnostics to authored source without emitting an artifact", async () => {
+  it("maps bundler validation diagnostics to authored source without emitting an artifact", async () => {
     const result = await renderCmxTestbed({
       files: {
         "entry.tsx": [
