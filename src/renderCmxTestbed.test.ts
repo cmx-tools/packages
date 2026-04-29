@@ -40,7 +40,7 @@ function expectPartialResult(
 }
 
 describe("renderCmxTestbed", () => {
-  it("maps runtime errors back to authored source through bundle sourcemaps", async () => {
+  it("omits source for runtime errors without generated bundle frames", async () => {
     await expect(
       renderCmxTestbed({
         files: {
@@ -58,11 +58,6 @@ describe("renderCmxTestbed", () => {
           severity: "error",
           code: "render-error",
           message: "render exploded",
-          source: {
-            file: expect.stringMatching(/entry\.tsx$/u),
-            line: 2,
-            column: expect.any(Number),
-          },
         },
       ],
       bundle: {
@@ -415,11 +410,6 @@ describe("renderCmxTestbed", () => {
           severity: "error",
           code: "render-error",
           message: "entry exploded",
-          source: {
-            file: expect.stringMatching(/broken\.tsx$/u),
-            line: 2,
-            column: expect.any(Number),
-          },
         },
       ],
     });
@@ -428,11 +418,6 @@ describe("renderCmxTestbed", () => {
         severity: "error",
         code: "render-error",
         message: "entry exploded",
-        source: {
-          file: expect.stringMatching(/broken\.tsx$/u),
-          line: 2,
-          column: expect.any(Number),
-        },
       },
     ]);
   });

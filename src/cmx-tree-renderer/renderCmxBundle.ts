@@ -187,29 +187,7 @@ async function sourceFromRuntimeError(
     }
   }
 
-  const authoredLocation = authoredLocationFromStack(error.stack);
-  if (authoredLocation) {
-    return { source: authoredLocation };
-  }
-
   return {};
-}
-
-function authoredLocationFromStack(
-  stack: string,
-): CmxDiagnosticSource | undefined {
-  const match = /(?:file:\/\/)?([^\s()]+\.(?:tsx|jsx)):(\d+):(\d+)/u.exec(
-    stack,
-  );
-  if (!match?.[1] || !match[2] || !match[3]) {
-    return undefined;
-  }
-
-  return {
-    file: match[1],
-    line: Number(match[2]),
-    column: Number(match[3]) - 1,
-  };
 }
 
 function bundleFiles(
