@@ -11,10 +11,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { rolldown } from "rolldown";
 import {
-  cmx,
+  CMX_BUNDLE_FILE_NAME,
+  parseCmxBundleJson,
   type CmxBundle,
-  type UnsupportedMetaTypesPolicy,
-} from "./cmx-bundler/index.js";
+} from "./cmx-bundle.js";
+import { cmx, type UnsupportedMetaTypesPolicy } from "./cmx-bundler/index.js";
 import type { CmxDiagnostic, CmxDiagnosticSource } from "./CmxDiagnostic.js";
 import {
   renderCmxBundle,
@@ -120,7 +121,7 @@ export async function renderCmxTestbed(
     await writeRuntimePackage(outDir);
 
     const files = await readOutputFiles(outDir, emittedFileNames);
-    const bundle = JSON.parse(files["cmx-bundle.json"] ?? "") as CmxBundle;
+    const bundle = parseCmxBundleJson(files[CMX_BUNDLE_FILE_NAME] ?? "");
     const bundleEntry = bundle.entries[0];
     if (!bundleEntry) {
       throw new Error("CMX testbed bundle has no entry.");

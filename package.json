@@ -5,6 +5,7 @@
   "packageManager": "pnpm@10.33.2",
   "type": "module",
   "exports": {
+    "./cmx-bundle": "./src/cmx-bundle.ts",
     "./cmx-bundler": "./src/cmx-bundler/index.ts",
     "./cmx-tree-renderer": "./src/cmx-tree-renderer/index.ts"
   },

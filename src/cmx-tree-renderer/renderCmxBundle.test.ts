@@ -10,6 +10,7 @@ describe("renderCmxBundle", () => {
     await expect(
       renderCmxBundle({
         bundle: {
+          version: 1,
           runtime: {
             importSource: "cmx-runtime",
           },
@@ -41,6 +42,7 @@ describe("renderCmxBundle", () => {
     await expect(
       renderCmxBundle({
         bundle: {
+          version: 1,
           runtime: {
             importSource: "other-runtime",
           },
@@ -79,6 +81,7 @@ describe("renderCmxBundle", () => {
     await expect(
       renderCmxBundle({
         bundle: {
+          version: 1,
           runtime: {
             importSource: "cmx-runtime",
           },
@@ -124,6 +127,7 @@ describe("renderCmxBundle", () => {
     await expect(
       renderCmxBundle({
         bundle: {
+          version: 1,
           runtime: {
             importSource: "cmx-runtime",
           },
@@ -171,6 +175,7 @@ describe("renderCmxBundle", () => {
     await expect(
       renderCmxBundle({
         bundle: {
+          version: 1,
           runtime: {
             importSource: "cmx-runtime",
           },
@@ -223,6 +228,7 @@ describe("renderCmxBundle", () => {
 
     const result = await renderCmxBundle({
       bundle: {
+        version: 1,
         runtime: {
           importSource: "cmx-runtime",
         },
@@ -297,6 +303,7 @@ describe("renderCmxBundle", () => {
     await expect(
       renderCmxBundle({
         bundle: {
+          version: 1,
           runtime: {
             importSource: "cmx-runtime",
           },
@@ -361,6 +368,7 @@ describe("renderCmxBundle", () => {
     await expect(
       renderCmxBundle({
         bundle: {
+          version: 1,
           runtime: {
             importSource: "cmx-runtime",
           },

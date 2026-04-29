@@ -3,7 +3,12 @@ import os from "node:os";
 import path from "node:path";
 import { rolldown } from "rolldown";
 import { describe, expect, it } from "vitest";
-import { cmx, type CmxBundle } from "./cmx.js";
+import {
+  CMX_BUNDLE_FILE_NAME,
+  parseCmxBundleJson,
+  type CmxBundle,
+} from "../cmx-bundle.js";
+import { cmx } from "./cmx.js";
 
 async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundler-"));
@@ -22,9 +27,9 @@ async function writeFixture(
 }
 
 async function readBundle(outDir: string): Promise<CmxBundle> {
-  return JSON.parse(
-    await readFile(path.join(outDir, "cmx-bundle.json"), "utf8"),
-  ) as CmxBundle;
+  return parseCmxBundleJson(
+    await readFile(path.join(outDir, CMX_BUNDLE_FILE_NAME), "utf8"),
+  );
 }
 
 describe("cmx", () => {
@@ -50,7 +55,7 @@ describe("cmx", () => {
         const outputFiles = output.output.map((item) => item.fileName).sort();
 
         expect(outputFiles).toEqual([
-          "cmx-bundle.json",
+          CMX_BUNDLE_FILE_NAME,
           "entry.js",
           "entry.js.map",
         ]);
@@ -65,6 +70,7 @@ describe("cmx", () => {
             (source) => JSON.parse(source) as unknown,
           ),
         ).resolves.toEqual({
+          version: 1,
           runtime: {
             importSource: "cmx-runtime",
           },
