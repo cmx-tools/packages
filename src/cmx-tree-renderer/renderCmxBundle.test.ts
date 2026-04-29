@@ -1,6 +1,7 @@
 import { mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { transform } from "esbuild";
 import { describe, expect, it } from "vitest";
 import { renderCmxBundle } from "content-management-jsx/cmx-tree-renderer";
@@ -31,11 +32,18 @@ describe("renderCmxBundle", () => {
     });
   });
 
-  it("returns a top-level error before importing entries when runtime import source mismatches", async () => {
+  it("loads the runtime protocol from the bundle import source", async () => {
     const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
     await writeFile(
       path.join(outDir, "entry.js"),
-      `throw new Error("entry was imported");\n`,
+      `export default { kind: "element", tag: "main" };\n`,
+      "utf8",
+    );
+    await writeFile(
+      path.join(outDir, "runtime.js"),
+      `export function isRuntimeNode(value) {
+        return value && value.kind === "element";
+      }\n`,
       "utf8",
     );
 
@@ -44,7 +52,52 @@ describe("renderCmxBundle", () => {
         bundle: {
           version: 1,
           runtime: {
-            importSource: "other-runtime",
+            importSource: pathToFileURL(path.join(outDir, "runtime.js")).href,
+          },
+          entries: [
+            {
+              name: "entry",
+              file: "entry.js",
+              sourcemap: "entry.js.map",
+            },
+          ],
+          chunks: [],
+        },
+        outDir,
+      }),
+    ).resolves.toEqual({
+      result: "complete",
+      entries: {
+        entry: {
+          result: "tree",
+          tree: {
+            type: "element",
+            tag: "main",
+          },
+          manifest: {
+            externals: [],
+          },
+        },
+      },
+      diagnostics: [],
+    });
+  });
+
+  it("returns a top-level error when the runtime protocol cannot be loaded", async () => {
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
+    await writeFile(
+      path.join(outDir, "entry.js"),
+      `throw new Error("entry was imported");\n`,
+      "utf8",
+    );
+    const importSource = pathToFileURL(path.join(outDir, "missing.js")).href;
+
+    await expect(
+      renderCmxBundle({
+        bundle: {
+          version: 1,
+          runtime: {
+            importSource,
           },
           entries: [
             {
@@ -62,9 +115,48 @@ describe("renderCmxBundle", () => {
       diagnostics: [
         {
           severity: "error",
-          code: "runtime-import-source-mismatch",
-          message:
-            'CMX bundle targets runtime import source "other-runtime", but this executor expects "cmx-runtime".',
+          code: "runtime-protocol-unavailable",
+          message: `CMX runtime protocol could not be loaded from "${importSource}".`,
+        },
+      ],
+    });
+  });
+
+  it("returns a top-level error when the runtime protocol is invalid", async () => {
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
+    await writeFile(
+      path.join(outDir, "entry.js"),
+      `throw new Error("entry was imported");\n`,
+      "utf8",
+    );
+    await writeFile(path.join(outDir, "runtime.js"), `export {};\n`, "utf8");
+    const importSource = pathToFileURL(path.join(outDir, "runtime.js")).href;
+
+    await expect(
+      renderCmxBundle({
+        bundle: {
+          version: 1,
+          runtime: {
+            importSource,
+          },
+          entries: [
+            {
+              name: "entry",
+              file: "entry.js",
+              sourcemap: "entry.js.map",
+            },
+          ],
+          chunks: [],
+        },
+        outDir,
+      }),
+    ).resolves.toEqual({
+      result: "error",
+      diagnostics: [
+        {
+          severity: "error",
+          code: "invalid-runtime-protocol",
+          message: `CMX runtime protocol from "${importSource}" does not export isRuntimeNode.`,
         },
       ],
     });
