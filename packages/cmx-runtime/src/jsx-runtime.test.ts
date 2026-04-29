@@ -5,6 +5,7 @@ import {
   isRuntimeNode,
   jsx,
 } from "cmx-runtime/jsx-runtime";
+import { isRuntimeNode as isRootRuntimeNode } from "cmx-runtime";
 
 describe("cmx-runtime/jsx-runtime", () => {
   it("creates branded runtime nodes for elements, fragments, and external components", () => {
@@ -43,5 +44,11 @@ describe("cmx-runtime/jsx-runtime", () => {
         },
       ],
     });
+  });
+
+  it("exposes runtime node identification from the package root", () => {
+    const element = jsx("main", {});
+
+    expect(isRootRuntimeNode(element)).toBe(true);
   });
 });

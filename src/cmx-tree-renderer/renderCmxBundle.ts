@@ -15,10 +15,9 @@ import {
   type CmxMeta,
   type CmxNode,
   type CmxRenderDiagnostic,
+  type RuntimeProtocol,
   type UnsupportedValuesPolicy,
 } from "./renderCmxTree.js";
-
-const RUNTIME_IMPORT_SOURCE = "cmx-runtime";
 
 export type RenderCmxBundleEntry = {
   result: "tree";
@@ -67,19 +66,6 @@ export type RenderCmxBundleInput = {
 export async function renderCmxBundle(
   input: RenderCmxBundleInput,
 ): Promise<RenderCmxBundleResult> {
-  if (input.bundle.runtime.importSource !== RUNTIME_IMPORT_SOURCE) {
-    return {
-      result: "error",
-      diagnostics: [
-        {
-          severity: "error",
-          code: "runtime-import-source-mismatch",
-          message: `CMX bundle targets runtime import source "${input.bundle.runtime.importSource}", but this executor expects "${RUNTIME_IMPORT_SOURCE}".`,
-        },
-      ],
-    };
-  }
-
   if (input.bundle.entries.length === 0) {
     return {
       result: "error",
@@ -93,11 +79,22 @@ export async function renderCmxBundle(
     };
   }
 
+  const runtimeProtocol = await loadRuntimeProtocol(
+    input.bundle.runtime.importSource,
+  );
+  if (runtimeProtocol.result === "error") {
+    return {
+      result: "error",
+      diagnostics: [runtimeProtocol.diagnostic],
+    };
+  }
+
   const renderedEntries = await Promise.all(
     input.bundle.entries.map(async (entry) => {
       try {
         const rendered = await renderCmxTree({
           moduleUrl: pathToFileURL(path.join(input.outDir, entry.file)),
+          runtime: runtimeProtocol.protocol,
           metaType: entry.meta?.type,
           unsupportedValues: input.unsupportedValues,
         });
@@ -141,6 +138,49 @@ export async function renderCmxBundle(
   return {
     result: "error",
     diagnostics,
+  };
+}
+
+type RuntimeProtocolResult =
+  | { result: "loaded"; protocol: RuntimeProtocol }
+  | { result: "error"; diagnostic: CmxRenderDiagnostic };
+
+async function loadRuntimeProtocol(
+  importSource: string,
+): Promise<RuntimeProtocolResult> {
+  let runtime: Record<string, unknown>;
+  try {
+    runtime = (await import(/* @vite-ignore */ importSource)) as Record<
+      string,
+      unknown
+    >;
+  } catch (error) {
+    return {
+      result: "error",
+      diagnostic: {
+        severity: "error",
+        code: "runtime-protocol-unavailable",
+        message: `CMX runtime protocol could not be loaded from "${importSource}".`,
+      },
+    };
+  }
+
+  if (typeof runtime.isRuntimeNode !== "function") {
+    return {
+      result: "error",
+      diagnostic: {
+        severity: "error",
+        code: "invalid-runtime-protocol",
+        message: `CMX runtime protocol from "${importSource}" does not export isRuntimeNode.`,
+      },
+    };
+  }
+
+  return {
+    result: "loaded",
+    protocol: {
+      isRuntimeNode: runtime.isRuntimeNode as RuntimeProtocol["isRuntimeNode"],
+    },
   };
 }
 

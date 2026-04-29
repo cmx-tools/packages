@@ -1,4 +1,3 @@
-import { isRuntimeNode, type RuntimeNode } from "cmx-runtime/jsx-runtime";
 import type { CmxDiagnostic } from "../CmxDiagnostic.js";
 
 export type CmxFragmentNode = {
@@ -52,6 +51,19 @@ export type CmxManifest = {
   externals: CmxManifestExternalRef[];
 };
 
+export type RuntimeNode = {
+  kind: "fragment" | "element" | "component";
+  tag?: string;
+  from?: string;
+  import?: string;
+  props?: Record<string, unknown>;
+  children?: unknown[];
+};
+
+export type RuntimeProtocol = {
+  isRuntimeNode(value: unknown): value is RuntimeNode;
+};
+
 export type RenderCmxTreeResult = {
   tree: CmxNode;
   meta?: CmxMeta;
@@ -61,8 +73,9 @@ export type RenderCmxTreeResult = {
 export type CmxRenderDiagnostic = CmxDiagnostic & {
   code:
     | "invalid-runtime-output"
+    | "invalid-runtime-protocol"
     | "render-error"
-    | "runtime-import-source-mismatch"
+    | "runtime-protocol-unavailable"
     | "undefined-value"
     | "unsupported-value";
 };
@@ -78,12 +91,14 @@ type ExternalUsageRef = {
 };
 type RenderContext = {
   unsupportedValues: UnsupportedValuesPolicy;
+  runtime: RuntimeProtocol;
   usedExternalRefs: ExternalUsageRef[];
   metaType?: CmxMetaTypeRef;
 };
 
 export type RenderCmxTreeInput = {
   moduleUrl: string | URL;
+  runtime?: RuntimeProtocol;
   unsupportedValues?: UnsupportedValuesPolicy;
   metaType?: CmxMetaTypeRef;
 };
@@ -112,7 +127,10 @@ export async function renderCmxTree(
   const exportedDefault = bundleModule.default;
   const root =
     typeof exportedDefault === "function" ? exportedDefault() : exportedDefault;
-  const context = createRenderContext(input);
+  const context = createRenderContext({
+    ...input,
+    runtime: input.runtime ?? (await loadDefaultRuntimeProtocol()),
+  });
   const tree = await normalizeCmxTreeValue(root, "default export", context);
   const meta = await normalizeMeta(bundleModule, context);
 
@@ -127,7 +145,9 @@ export async function normalizeCmxTree(value: unknown): Promise<CmxNode> {
   return normalizeCmxTreeValue(
     value,
     "default export",
-    createRenderContext({}),
+    createRenderContext({
+      runtime: await loadDefaultRuntimeProtocol(),
+    }),
   );
 }
 
@@ -166,7 +186,7 @@ async function normalizeCmxTreeValue(
     };
   }
 
-  if (!isRuntimeNode(resolvedValue)) {
+  if (!context.runtime.isRuntimeNode(resolvedValue)) {
     throw new CmxRenderError({
       severity: "error",
       code: "invalid-runtime-output",
@@ -310,7 +330,7 @@ async function normalizePropValue(
     return { keep: true, value: normalized };
   }
 
-  if (isRuntimeNode(resolvedValue)) {
+  if (context.runtime.isRuntimeNode(resolvedValue)) {
     slots.push(path);
     return {
       keep: true,
@@ -439,7 +459,7 @@ async function normalizeMetaValue(
     return { keep: true, value: normalized };
   }
 
-  if (isRuntimeNode(resolvedValue)) {
+  if (context.runtime.isRuntimeNode(resolvedValue)) {
     return {
       keep: true,
       value: await normalizeRuntimeNode(resolvedValue, pathLabel, context),
@@ -482,13 +502,26 @@ function unsupportedValue(
 }
 
 function createRenderContext(options: {
+  runtime: RuntimeProtocol;
   unsupportedValues?: UnsupportedValuesPolicy;
   metaType?: CmxMetaTypeRef;
 }): RenderContext {
   return {
+    runtime: options.runtime,
     unsupportedValues: options.unsupportedValues ?? "error",
     usedExternalRefs: [],
     ...(options.metaType ? { metaType: options.metaType } : {}),
+  };
+}
+
+async function loadDefaultRuntimeProtocol(): Promise<RuntimeProtocol> {
+  const runtime = (await import("cmx-runtime")) as Record<string, unknown>;
+  if (typeof runtime.isRuntimeNode !== "function") {
+    throw new Error("CMX runtime protocol does not export isRuntimeNode.");
+  }
+
+  return {
+    isRuntimeNode: runtime.isRuntimeNode as RuntimeProtocol["isRuntimeNode"],
   };
 }
 
