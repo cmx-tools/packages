@@ -340,6 +340,52 @@ describe("cmx", () => {
     });
   });
 
+  it("ignores non-entry exported meta annotations", async () => {
+    await withTempDir(async (tempDir) => {
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        [
+          'import { label } from "./helper";',
+          "export const meta = { title: 'Entry' };",
+          "export default <main>{label}</main>;",
+        ].join("\n"),
+      );
+      await writeFixture(
+        tempDir,
+        "helper.ts",
+        [
+          "type HelperMeta<T> = { local: T };",
+          "export const meta: HelperMeta<{ label: string }> = { local: { label: 'Helper' } };",
+          "export const label = meta.local.label;",
+        ].join("\n"),
+      );
+      const outDir = path.join(tempDir, "dist");
+      const bundle = await rolldown({
+        input: entryFile,
+        plugins: [cmx()],
+      });
+
+      try {
+        await bundle.write({
+          dir: outDir,
+          entryFileNames: "entry.js",
+        });
+
+        const cmxBundle = await readBundle(outDir);
+        expect(cmxBundle.entries).toEqual([
+          {
+            name: "entry",
+            file: "entry.js",
+            sourcemap: "entry.js.map",
+          },
+        ]);
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
   it("omits meta.type for non-extractable entries when unsupportedMetaTypes is omit", async () => {
     await withTempDir(async (tempDir) => {
       const entryFile = await writeFixture(

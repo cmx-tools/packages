@@ -106,23 +106,26 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
       return createExternalStubSource(stub);
     },
     transform(source, id) {
-      const metaType = extractMetaType(source, id);
-      if (metaType.result === "resolved") {
-        metaTypesByModuleId.set(path.resolve(id), metaType.ref);
-      } else {
-        metaTypesByModuleId.delete(path.resolve(id));
-      }
-      if (
-        metaType.result === "unsupported" &&
-        unsupportedMetaTypes === "error"
-      ) {
-        this.error(
-          {
-            code: META_TYPE_UNSUPPORTED,
-            message: META_TYPE_UNSUPPORTED_MESSAGE,
-          },
-          metaType.position,
-        );
+      const moduleId = path.resolve(id);
+      if (isEntryModule(moduleId, entryOrder)) {
+        const metaType = extractMetaType(source, id);
+        if (metaType.result === "resolved") {
+          metaTypesByModuleId.set(moduleId, metaType.ref);
+        } else {
+          metaTypesByModuleId.delete(moduleId);
+        }
+        if (
+          metaType.result === "unsupported" &&
+          unsupportedMetaTypes === "error"
+        ) {
+          this.error(
+            {
+              code: META_TYPE_UNSUPPORTED,
+              message: META_TYPE_UNSUPPORTED_MESSAGE,
+            },
+            metaType.position,
+          );
+        }
       }
 
       const dynamicImport = findDynamicImport(source, id);
@@ -623,6 +626,10 @@ function entrySortIndex(
     entryOrder.get(path.resolve(chunk.facadeModuleId)) ??
     Number.MAX_SAFE_INTEGER
   );
+}
+
+function isEntryModule(moduleId: string, entryOrder: Map<string, number>) {
+  return entryOrder.has(path.resolve(moduleId));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
