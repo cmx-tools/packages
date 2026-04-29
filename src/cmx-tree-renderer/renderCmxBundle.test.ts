@@ -405,6 +405,52 @@ describe("renderCmxBundle", () => {
       ],
     });
   });
+
+  it("omits source when generated frames cannot be mapped through sourcemaps", async () => {
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
+    await writeFile(
+      path.join(outDir, "entry.js"),
+      [
+        `const error = new Error("unmapped runtime error");`,
+        `error.stack = [`,
+        `  "Error: unmapped runtime error",`,
+        `  "    at Page (file://${path.join(outDir, "entry.js")}:1:7)",`,
+        `  "    at Page (/workspace/content/entry.tsx:12:3)",`,
+        `].join("\\n");`,
+        `throw error;`,
+      ].join("\n"),
+      "utf8",
+    );
+
+    await expect(
+      renderCmxBundle({
+        bundle: {
+          version: 1,
+          runtime: {
+            importSource: "cmx-runtime",
+          },
+          entries: [
+            {
+              name: "entry",
+              file: "entry.js",
+              sourcemap: "entry.js.map",
+            },
+          ],
+          chunks: [],
+        },
+        outDir,
+      }),
+    ).resolves.toEqual({
+      result: "error",
+      diagnostics: [
+        {
+          severity: "error",
+          code: "render-error",
+          message: "unmapped runtime error",
+        },
+      ],
+    });
+  });
 });
 
 async function writeCompiledEntry(
