@@ -1,0 +1,17 @@
+{
+  "name": "@example/content",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "cmx-bundle --external @example/backend-contract --external @example/ui-library --routing fs --out dist ./pages",
+    "postbuild": "cmx-render-tree --out ../backend/_db_content ./dist"
+  },
+  "dependencies": {
+    "@example/ui-library": "workspace:*",
+    "@example/backend-contract": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19"
+  }
+}

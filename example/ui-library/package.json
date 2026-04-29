@@ -1,0 +1,11 @@
+{
+  "name": "@example/ui-library",
+  "type": "module",
+  "exports": {
+    ".": "./components/index.js"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19"
+  }
+}

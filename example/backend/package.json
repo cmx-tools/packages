@@ -1,0 +1,21 @@
+{
+  "name": "@example/backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx server.tsx",
+    "gen:cmx-deps": "cmx-provide ./api.tsx:@example/backend-contract @example/ui-library --meta @example/backend-contract#Meta _gen_cmx_dependencies.ts"
+  },
+  "dependencies": {
+    "@example/backend-contract": "workspace:*",
+    "@example/ui-library": "workspace:*",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "tsx": "^4.21.0"
+  }
+}

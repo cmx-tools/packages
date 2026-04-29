@@ -1,0 +1,8 @@
+{
+  "$schema": "https://example.org/cmx.schema.json",
+  "tree": {
+    "type": "element",
+    "tag": "h1",
+    "children": ["Not Found"]
+  }
+}

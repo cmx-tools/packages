@@ -1,0 +1,13 @@
+{
+  "name": "@example/backend-contract",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts"
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19"
+  }
+}
