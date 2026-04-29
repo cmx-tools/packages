@@ -2,9 +2,15 @@ import type { InputOptions, OutputBundle, OutputChunk, Plugin } from "rolldown";
 import type { Program, StaticImport, VariableDeclarator } from "oxc-parser";
 import { ImportNameKind, parseSync, Visitor } from "oxc-parser";
 import path from "node:path";
+import {
+  CMX_BUNDLE_FILE_NAME,
+  CMX_BUNDLE_VERSION,
+  type CmxBundle,
+  type CmxBundleChunk,
+  type CmxBundleMetaTypeRef,
+} from "../cmx-bundle.js";
 import { findUnsupportedExternalImport } from "./findUnsupportedExternalImport.js";
 
-const BUNDLE_FILE_NAME = "cmx-bundle.json";
 const RUNTIME_IMPORT_SOURCE = "cmx-runtime";
 const DYNAMIC_IMPORT_UNSUPPORTED = "dynamic-import-unsupported";
 const META_TYPE_UNSUPPORTED = "meta-type-unsupported";
@@ -12,36 +18,6 @@ const META_TYPE_UNSUPPORTED_MESSAGE =
   "CMX meta.type could not be extracted. Use a simple type-only import from an external package for exported meta annotations.";
 const EXTERNAL_STUB_PREFIX = "cmx-external:";
 const VIRTUAL_EXTERNAL_STUB_PREFIX = `\0${EXTERNAL_STUB_PREFIX}`;
-
-export type CmxBundleChunk = {
-  file: string;
-  sourcemap: string;
-  isEntry: boolean;
-};
-
-export type CmxBundleEntry = {
-  name: string;
-  file: string;
-  sourcemap: string;
-  meta?: CmxBundleEntryMeta;
-};
-
-export type CmxBundleEntryMeta = {
-  type?: CmxBundleMetaTypeRef;
-};
-
-export type CmxBundleMetaTypeRef = {
-  from: string;
-  import?: string;
-};
-
-export type CmxBundle = {
-  runtime: {
-    importSource: string;
-  };
-  entries: CmxBundleEntry[];
-  chunks: CmxBundleChunk[];
-};
 
 export type UnsupportedMetaTypesPolicy = "error" | "omit";
 
@@ -186,6 +162,7 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
       const chunks = getOutputChunks(outputBundle);
       const bundleChunks = chunks.map(toBundleChunk);
       const cmxBundle: CmxBundle = {
+        version: CMX_BUNDLE_VERSION,
         runtime: {
           importSource: RUNTIME_IMPORT_SOURCE,
         },
@@ -212,7 +189,7 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
 
       this.emitFile({
         type: "asset",
-        fileName: BUNDLE_FILE_NAME,
+        fileName: CMX_BUNDLE_FILE_NAME,
         source: `${JSON.stringify(cmxBundle, null, 2)}\n`,
       });
     },

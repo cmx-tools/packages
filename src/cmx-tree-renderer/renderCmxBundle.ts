@@ -6,7 +6,7 @@ import type {
   CmxBundle,
   CmxBundleChunk,
   CmxBundleEntry,
-} from "../cmx-bundler/index.js";
+} from "../cmx-bundle.js";
 import type { CmxDiagnosticSource } from "../CmxDiagnostic.js";
 import {
   CmxRenderError,
