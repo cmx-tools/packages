@@ -17,4 +17,12 @@ pnpm test
 | `content-management-jsx/cmx-tree-renderer` | Executes emitted artifacts with an external CMX JSX runtime; normalizes to plain CMX trees.              |
 | `cmx-runtime/jsx-runtime`                  | JSX runtime entry expected by compiled artifacts.                                                        |
 
+## Render results
+
+`renderCmxBundle` returns:
+
+- `complete` when all entries rendered.
+- `partial` when at least one entry rendered and at least one entry failed.
+- `error` when artifact or runtime setup failed, or when zero entries rendered.
+
 Integration tests use `renderCmxTestbed` in `src/renderCmxTestbed.ts` (Rolldown + `cmx` + `renderCmxBundle`) as end-to-end smoke.

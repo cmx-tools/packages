@@ -70,7 +70,7 @@ describe("renderCmxBundle", () => {
     });
   });
 
-  it("renders entries when runtime import source matches", async () => {
+  it("returns complete when all entries render", async () => {
     const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
     await writeFile(
       path.join(outDir, "entry.js"),
@@ -207,7 +207,7 @@ describe("renderCmxBundle", () => {
     });
   });
 
-  it("preserves mapped diagnostics on partial multi-entry results", async () => {
+  it("returns partial when at least one entry renders and at least one entry fails", async () => {
     const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
     await writeCompiledEntry(
       outDir,
@@ -287,7 +287,7 @@ describe("renderCmxBundle", () => {
     });
   });
 
-  it("returns a fatal error result when every prebuilt entry fails", async () => {
+  it("returns error when zero entries render", async () => {
     const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
     await writeFile(
       path.join(outDir, "home.js"),
