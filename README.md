@@ -26,4 +26,4 @@ pnpm test
 - `partial` when at least one entry rendered and at least one entry failed.
 - `error` when artifact or runtime setup failed, or when zero entries rendered.
 
-Integration tests use `renderCmxTestbed` in `src/renderCmxTestbed.ts` (Rolldown + `cmx` + `renderCmxBundle`) as end-to-end smoke.
+Integration tests use `renderCmxTestbed` in `test/renderCmxTestbed.ts` (Rolldown + `cmx` + `renderCmxBundle`) as end-to-end smoke.
