@@ -1,6 +1,7 @@
 import type { InputOptions, OutputBundle, OutputChunk, Plugin } from "rolldown";
 import type { Program, StaticImport, VariableDeclarator } from "oxc-parser";
 import { ImportNameKind, parseSync, Visitor } from "oxc-parser";
+import { readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import {
   CMX_BUNDLE_FILE_NAME,
@@ -106,9 +107,10 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
       return createExternalStubSource(stub);
     },
     transform(source, id) {
-      const moduleId = path.resolve(id);
+      const moduleId = normalizeModulePath(id);
       if (isEntryModule(moduleId, entryOrder)) {
-        const metaType = extractMetaType(source, id);
+        const metaSource = authoredEntrySourceForMeta(id, source);
+        const metaType = extractMetaType(metaSource, id);
         if (metaType.result === "resolved") {
           metaTypesByModuleId.set(moduleId, metaType.ref);
         } else {
@@ -178,7 +180,9 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
           .map((chunk) => {
             const bundleChunk = toBundleChunk(chunk);
             const metaType = chunk.facadeModuleId
-              ? metaTypesByModuleId.get(path.resolve(chunk.facadeModuleId))
+              ? metaTypesByModuleId.get(
+                  normalizeModulePath(chunk.facadeModuleId),
+                )
               : undefined;
             return {
               name: chunk.name,
@@ -197,6 +201,30 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
       });
     },
   };
+}
+
+function authoredEntrySourceForMeta(id: string, transformSource: string): string {
+  if (id.includes("\0")) {
+    return transformSource;
+  }
+  const resolved = normalizeModulePath(id);
+  try {
+    return readFileSync(resolved, "utf8");
+  } catch {
+    return transformSource;
+  }
+}
+
+function normalizeModulePath(filePath: string): string {
+  if (filePath.includes("\0")) {
+    return filePath;
+  }
+  const resolved = path.resolve(filePath);
+  try {
+    return realpathSync(resolved);
+  } catch {
+    return resolved;
+  }
 }
 
 function extractMetaType(source: string, id: string): MetaTypeExtraction {
@@ -610,7 +638,10 @@ function createEntryOrder(input: InputOptions["input"]): Map<string, number> {
           : [];
 
   return new Map(
-    entries.map((entry, index) => [path.resolve(String(entry)), index]),
+    entries.map((entry, index) => [
+      normalizeModulePath(String(entry)),
+      index,
+    ]),
   );
 }
 
@@ -623,13 +654,13 @@ function entrySortIndex(
   }
 
   return (
-    entryOrder.get(path.resolve(chunk.facadeModuleId)) ??
+    entryOrder.get(normalizeModulePath(chunk.facadeModuleId)) ??
     Number.MAX_SAFE_INTEGER
   );
 }
 
 function isEntryModule(moduleId: string, entryOrder: Map<string, number>) {
-  return entryOrder.has(path.resolve(moduleId));
+  return entryOrder.has(moduleId);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

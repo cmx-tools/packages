@@ -22,7 +22,6 @@
     "oxc-parser": "^0.128.0"
   },
   "devDependencies": {
-    "@rolldown/binding-linux-arm64-gnu": "1.0.0-rc.18",
     "@types/node": "^24.12.2",
     "prettier": "^3.8.3",
     "rolldown": "^1.0.0-rc.18",
