@@ -1,10 +1,8 @@
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { rolldown } from "rolldown";
 import {
   CMX_BUNDLE_FILE_NAME,
   type CmxDiagnostic,
-  type CmxDiagnosticSource,
   parseCmxBundleJson,
   type CmxBundle,
 } from "cmx-bundle";
@@ -20,6 +18,8 @@ import {
   type CmxRenderDiagnostic,
   type UnsupportedValuesPolicy,
 } from "cmx-tree-renderer";
+import { createCmxTestbedWorkspace } from "./createCmxTestbedWorkspace.js";
+import { toCmxTestbedBuildDiagnostic } from "./toCmxTestbedBuildDiagnostic.js";
 
 export type RenderCmxTestbedInput = {
   files: Record<string, string>;
@@ -75,7 +75,8 @@ export type RenderCmxTestbedResult =
 export async function renderCmxTestbed(
   input: RenderCmxTestbedInput,
 ): Promise<RenderCmxTestbedResult> {
-  const rootDir = await createTestbedRootDir();
+  const workspace = await createCmxTestbedWorkspace();
+  const rootDir = workspace.rootDir;
   const entry = input.entry ?? "entry.tsx";
   const entryFiles = input.entries
     ? Object.fromEntries(
@@ -85,7 +86,7 @@ export async function renderCmxTestbed(
         ]),
       )
     : path.join(rootDir, entry);
-  await writeSourceFiles(rootDir, input.files);
+  await workspace.writeSourceFiles(input.files);
 
   const outDir = path.join(rootDir, "dist");
   const build = await rolldown({
@@ -105,12 +106,12 @@ export async function renderCmxTestbed(
         entryFileNames: input.entries ? "[name].js" : "entry.js",
       })
       .catch((error: unknown) => {
-        throw new CmxTestbedBuildError(toBuildDiagnostic(error));
+        throw new CmxTestbedBuildError(toCmxTestbedBuildDiagnostic(error));
       });
     const emittedFileNames = output.output
       .map((item) => item.fileName)
       .sort((a, b) => a.localeCompare(b));
-    const files = await readOutputFiles(outDir, emittedFileNames);
+    const files = await workspace.readOutputFiles(outDir, emittedFileNames);
     const bundle = parseCmxBundleJson(files[CMX_BUNDLE_FILE_NAME] ?? "");
     const bundleEntry = bundle.entries[0];
     if (!bundleEntry) {
@@ -167,40 +168,8 @@ export async function renderCmxTestbed(
   }
 }
 
-async function createTestbedRootDir(): Promise<string> {
-  const testbedDir = path.resolve(".cmx");
-  await mkdir(testbedDir, { recursive: true });
-  return mkdtemp(path.join(testbedDir, "testbed-"));
-}
-
 function entryNameFromPath(entryPath: string): string {
   return path.basename(entryPath, path.extname(entryPath));
-}
-
-async function writeSourceFiles(
-  rootDir: string,
-  files: Record<string, string>,
-): Promise<void> {
-  await Promise.all(
-    Object.entries(files).map(async ([relativePath, source]) => {
-      const absolutePath = path.join(rootDir, relativePath);
-      await mkdir(path.dirname(absolutePath), { recursive: true });
-      await writeFile(absolutePath, source, "utf8");
-    }),
-  );
-}
-
-async function readOutputFiles(
-  outDir: string,
-  fileNames: string[],
-): Promise<Record<string, string>> {
-  const files: Record<string, string> = {};
-  await Promise.all(
-    fileNames.map(async (fileName) => {
-      files[fileName] = await readFile(path.join(outDir, fileName), "utf8");
-    }),
-  );
-  return files;
 }
 
 class CmxTestbedBuildError extends Error {
@@ -211,156 +180,4 @@ class CmxTestbedBuildError extends Error {
     this.name = "CmxTestbedBuildError";
     this.diagnostic = diagnostic;
   }
-}
-
-function toBuildDiagnostic(error: unknown): CmxDiagnostic {
-  const errorRecord = isRecord(error) ? error : {};
-  const rawMessage =
-    typeof errorRecord.message === "string"
-      ? errorRecord.message
-      : "CMX bundle build failed.";
-  const cmxPluginDiagnostic = cmxPluginDiagnosticFromBuildMessage(rawMessage);
-  if (cmxPluginDiagnostic) {
-    return cmxPluginDiagnostic;
-  }
-
-  const dynamicImportSource = dynamicImportSourceFromBuildMessage(rawMessage);
-  if (dynamicImportSource) {
-    return {
-      severity: "error",
-      code: "dynamic-import-unsupported",
-      message: "Dynamic imports are not supported in CMX bundles.",
-      source: dynamicImportSource,
-    };
-  }
-
-  const code =
-    typeof errorRecord.code === "string" ? errorRecord.code : "cmx-build-error";
-  const loc = isRecord(errorRecord.loc) ? errorRecord.loc : undefined;
-  const source =
-    loc &&
-    typeof loc.file === "string" &&
-    typeof loc.line === "number" &&
-    typeof loc.column === "number"
-      ? {
-          file: loc.file,
-          line: loc.line,
-          column: loc.column,
-        }
-      : undefined;
-
-  return {
-    severity: "error",
-    code,
-    message: rawMessage,
-    ...(source ? { source } : {}),
-  };
-}
-
-function cmxPluginDiagnosticFromBuildMessage(
-  message: string,
-): CmxDiagnostic | undefined {
-  const source = cmxPluginSourceFromBuildMessage(message);
-  if (!source) {
-    return undefined;
-  }
-
-  if (
-    message.includes(
-      "Namespace imports from configured externals are not supported.",
-    )
-  ) {
-    return {
-      severity: "error",
-      code: "external-namespace-import-unsupported",
-      message: "Namespace imports from configured externals are not supported.",
-      source,
-    };
-  }
-
-  if (
-    message.includes(
-      "Side-effect-only imports from configured externals are not supported.",
-    )
-  ) {
-    return {
-      severity: "error",
-      code: "external-side-effect-import-unsupported",
-      message:
-        "Side-effect-only imports from configured externals are not supported.",
-      source,
-    };
-  }
-
-  if (
-    message.includes(
-      "Configured external imports must be rendered as JSX components.",
-    )
-  ) {
-    return {
-      severity: "error",
-      code: "external-component-call-unsupported",
-      message:
-        "Configured external imports must be rendered as JSX components.",
-      source,
-    };
-  }
-
-  if (
-    message.includes(
-      "Configured external imports cannot be used as runtime values.",
-    )
-  ) {
-    return {
-      severity: "error",
-      code: "external-runtime-value-unsupported",
-      message: "Configured external imports cannot be used as runtime values.",
-      source,
-    };
-  }
-
-  if (
-    message.includes(
-      "CMX meta.type could not be extracted. Use a simple type-only import from an external package for exported meta annotations.",
-    )
-  ) {
-    return {
-      severity: "error",
-      code: "meta-type-unsupported",
-      message:
-        "CMX meta.type could not be extracted. Use a simple type-only import from an external package for exported meta annotations.",
-      source,
-    };
-  }
-
-  return undefined;
-}
-
-function dynamicImportSourceFromBuildMessage(
-  message: string,
-): CmxDiagnosticSource | undefined {
-  if (!message.includes("Dynamic imports are not supported in CMX bundles.")) {
-    return undefined;
-  }
-
-  return cmxPluginSourceFromBuildMessage(message);
-}
-
-function cmxPluginSourceFromBuildMessage(
-  message: string,
-): CmxDiagnosticSource | undefined {
-  const match = /\[plugin cmx\]\s+(.+):(\d+):(\d+)/u.exec(message);
-  if (!match?.[1] || !match[2] || !match[3]) {
-    return undefined;
-  }
-
-  return {
-    file: match[1],
-    line: Number(match[2]),
-    column: Number(match[3]),
-  };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
