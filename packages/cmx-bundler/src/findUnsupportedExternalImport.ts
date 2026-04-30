@@ -1,4 +1,6 @@
 import { ImportNameKind, parseSync } from "oxc-parser";
+import type { CmxExternalPolicy } from "./CmxExternalPolicy.js";
+import { matchesCmxExternalPolicy } from "./CmxExternalPolicy.js";
 
 type UnsupportedExternalImport = {
   code: string;
@@ -21,9 +23,9 @@ type Scope = Set<string>;
 export function findUnsupportedExternalImport(
   source: string,
   id: string,
-  externalPatterns: string[],
+  externalPolicy: CmxExternalPolicy,
 ): UnsupportedExternalImport | undefined {
-  if (externalPatterns.length === 0) {
+  if (externalPolicy.patterns.length === 0) {
     return undefined;
   }
 
@@ -37,7 +39,7 @@ export function findUnsupportedExternalImport(
 
   for (const externalImport of parsed.module.staticImports) {
     const from = externalImport.moduleRequest.value;
-    if (!matchesExternal(from, externalPatterns)) {
+    if (!matchesCmxExternalPolicy(from, externalPolicy)) {
       continue;
     }
 
@@ -67,7 +69,7 @@ export function findUnsupportedExternalImport(
 
   const externalBindings = externalValueBindings(
     parsed.module.staticImports,
-    externalPatterns,
+    externalPolicy,
   );
   if (externalBindings.size === 0) {
     return undefined;
@@ -267,12 +269,15 @@ function externalValueBindings(
       isType: boolean;
     }>;
   }>,
-  externalPatterns: string[],
+  externalPolicy: CmxExternalPolicy,
 ): Map<string, ExternalBinding> {
   const bindings = new Map<string, ExternalBinding>();
   for (const externalImport of staticImports) {
     if (
-      !matchesExternal(externalImport.moduleRequest.value, externalPatterns)
+      !matchesCmxExternalPolicy(
+        externalImport.moduleRequest.value,
+        externalPolicy,
+      )
     ) {
       continue;
     }
@@ -381,32 +386,4 @@ function isAstNode(value: unknown): value is AstNode {
     "type" in value &&
     typeof (value as { type?: unknown }).type === "string"
   );
-}
-
-function matchesExternal(canonicalId: string, patterns: string[]): boolean {
-  for (const pattern of patterns) {
-    if (matchesExternalPattern(canonicalId, pattern)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function matchesExternalPattern(canonicalId: string, pattern: string): boolean {
-  if (pattern.endsWith("/**")) {
-    const base = pattern.slice(0, -3);
-    return canonicalId === base || canonicalId.startsWith(`${base}/`);
-  }
-
-  if (pattern.endsWith("/*")) {
-    const base = pattern.slice(0, -2);
-    if (!canonicalId.startsWith(`${base}/`)) {
-      return false;
-    }
-
-    const remainder = canonicalId.slice(base.length + 1);
-    return remainder.length > 0 && !remainder.includes("/");
-  }
-
-  return pattern === canonicalId || canonicalId.startsWith(`${pattern}/`);
 }
