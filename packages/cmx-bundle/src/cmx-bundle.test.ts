@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCmxBundleJson } from "content-management-jsx/cmx-bundle";
+import { parseCmxBundleJson } from "cmx-bundle";
 
 describe("parseCmxBundleJson", () => {
   it("accepts a v1 bundle with additive fields", () => {

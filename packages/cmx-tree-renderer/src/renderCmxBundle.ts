@@ -5,9 +5,9 @@ import { originalPositionFor, TraceMap } from "@jridgewell/trace-mapping";
 import type {
   CmxBundle,
   CmxBundleChunk,
+  CmxDiagnosticSource,
   CmxBundleEntry,
-} from "../cmx-bundle.js";
-import type { CmxDiagnosticSource } from "../CmxDiagnostic.js";
+} from "cmx-bundle";
 import {
   CmxRenderError,
   renderCmxTree,

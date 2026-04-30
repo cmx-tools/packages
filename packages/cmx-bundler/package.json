@@ -1,0 +1,26 @@
+{
+  "name": "cmx-bundler",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "pretest": "corepack pnpm run build",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "cmx-bundle": "workspace:*",
+    "oxc-parser": "^0.128.0",
+    "rolldown": "^1.0.0-rc.18"
+  }
+}

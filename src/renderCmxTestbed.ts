@@ -12,11 +12,12 @@ import { fileURLToPath } from "node:url";
 import { rolldown } from "rolldown";
 import {
   CMX_BUNDLE_FILE_NAME,
+  type CmxDiagnostic,
+  type CmxDiagnosticSource,
   parseCmxBundleJson,
   type CmxBundle,
-} from "./cmx-bundle.js";
-import { cmx, type UnsupportedMetaTypesPolicy } from "./cmx-bundler/index.js";
-import type { CmxDiagnostic, CmxDiagnosticSource } from "./CmxDiagnostic.js";
+} from "cmx-bundle";
+import { cmx, type UnsupportedMetaTypesPolicy } from "cmx-bundler";
 import {
   renderCmxBundle,
   type CmxNode,
@@ -27,7 +28,7 @@ import {
   type RenderCmxBundlePartialResult,
   type CmxRenderDiagnostic,
   type UnsupportedValuesPolicy,
-} from "./cmx-tree-renderer/index.js";
+} from "cmx-tree-renderer";
 
 export type RenderCmxTestbedInput = {
   files: Record<string, string>;

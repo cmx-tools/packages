@@ -1,6 +1,6 @@
 # content-management-jsx
 
-JSX content compiles to CMX through a **bundler plugin** (artifact emission) and a **tree renderer** (artifact execution). There is no package root export; import subpaths explicitly.
+JSX content compiles to CMX through a **bundler plugin** (artifact emission) and a **tree renderer** (artifact execution). The repository root is a private workspace shell.
 
 ## Quick start
 
@@ -9,13 +9,14 @@ pnpm install
 pnpm test
 ```
 
-## Package exports
+## Packages
 
-| Subpath                                    | Role                                                                                                     |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| `content-management-jsx/cmx-bundler`       | Rolldown/Rollup-compatible `cmx()` plugin; emits ESM chunks, sourcemaps, and `cmx-bundle.json` metadata. |
-| `content-management-jsx/cmx-tree-renderer` | Executes emitted artifacts with an external CMX JSX runtime; normalizes to plain CMX trees.              |
-| `cmx-runtime/jsx-runtime`                  | JSX runtime entry expected by compiled artifacts.                                                        |
+| Package             | Role                                                                                                     |
+| ------------------- | -------------------------------------------------------------------------------------------------------- |
+| `cmx-bundle`        | CMX bundle artifact contract and diagnostics.                                                            |
+| `cmx-bundler`       | Rolldown/Rollup-compatible `cmx()` plugin; emits ESM chunks, sourcemaps, and `cmx-bundle.json` metadata. |
+| `cmx-tree-renderer` | Executes emitted artifacts with an external CMX JSX runtime; normalizes to plain CMX trees.              |
+| `cmx-runtime`       | Runtime protocol and JSX runtime subpath exports expected by compiled artifacts.                         |
 
 ## Render results
 

@@ -4,7 +4,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { transform } from "esbuild";
 import { describe, expect, it } from "vitest";
-import { renderCmxBundle } from "content-management-jsx/cmx-tree-renderer";
+import { renderCmxBundle } from "cmx-tree-renderer";
 
 describe("renderCmxBundle", () => {
   it("returns an error result for a bundle with no entries", async () => {
