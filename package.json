@@ -6,8 +6,11 @@
   "type": "module",
   "scripts": {
     "build": "corepack pnpm -r --filter './packages/*' build",
-    "pretest": "corepack pnpm run build",
-    "test": "vitest run",
+    "pretest:unit": "corepack pnpm run build",
+    "test:unit": "vitest run --dir packages",
+    "pretest:integration": "corepack pnpm run build",
+    "test:integration": "vitest run --dir test",
+    "test": "corepack pnpm run test:unit && corepack pnpm run test:integration",
     "typecheck": "corepack pnpm run build && corepack pnpm -r --filter './packages/*' typecheck && tsc --noEmit",
     "fmt": "prettier --write ."
   },

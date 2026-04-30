@@ -1,14 +1,5 @@
-import {
-  cp,
-  copyFile,
-  mkdir,
-  mkdtemp,
-  readFile,
-  writeFile,
-} from "node:fs/promises";
-import os from "node:os";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { rolldown } from "rolldown";
 import {
   CMX_BUNDLE_FILE_NAME,
@@ -84,7 +75,7 @@ export type RenderCmxTestbedResult =
 export async function renderCmxTestbed(
   input: RenderCmxTestbedInput,
 ): Promise<RenderCmxTestbedResult> {
-  const rootDir = await mkdtemp(path.join(os.tmpdir(), "cmx-testbed-"));
+  const rootDir = await createTestbedRootDir();
   const entry = input.entry ?? "entry.tsx";
   const entryFiles = input.entries
     ? Object.fromEntries(
@@ -119,8 +110,6 @@ export async function renderCmxTestbed(
     const emittedFileNames = output.output
       .map((item) => item.fileName)
       .sort((a, b) => a.localeCompare(b));
-    await writeRuntimePackage(outDir);
-
     const files = await readOutputFiles(outDir, emittedFileNames);
     const bundle = parseCmxBundleJson(files[CMX_BUNDLE_FILE_NAME] ?? "");
     const bundleEntry = bundle.entries[0];
@@ -178,6 +167,12 @@ export async function renderCmxTestbed(
   }
 }
 
+async function createTestbedRootDir(): Promise<string> {
+  const testbedDir = path.resolve(".cmx");
+  await mkdir(testbedDir, { recursive: true });
+  return mkdtemp(path.join(testbedDir, "testbed-"));
+}
+
 function entryNameFromPath(entryPath: string): string {
   return path.basename(entryPath, path.extname(entryPath));
 }
@@ -206,32 +201,6 @@ async function readOutputFiles(
     }),
   );
   return files;
-}
-
-async function writeRuntimePackage(outDir: string): Promise<void> {
-  const runtimePackageDir = resolveRuntimePackageDir();
-  const packageDir = path.join(outDir, "node_modules", "cmx-runtime");
-  await mkdir(packageDir, { recursive: true });
-  await copyFile(
-    path.join(runtimePackageDir, "package.json"),
-    path.join(packageDir, "package.json"),
-  );
-  await cp(
-    path.join(runtimePackageDir, "dist"),
-    path.join(packageDir, "dist"),
-    {
-      recursive: true,
-    },
-  );
-}
-
-function resolveRuntimePackageDir(): string {
-  const runtimeEntryUrl = import.meta.resolve("cmx-runtime/jsx-runtime");
-  if (!runtimeEntryUrl.startsWith("file:")) {
-    throw new Error("CMX testbed runtime must resolve to a file URL.");
-  }
-
-  return path.dirname(path.dirname(fileURLToPath(runtimeEntryUrl)));
 }
 
 class CmxTestbedBuildError extends Error {
