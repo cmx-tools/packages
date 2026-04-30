@@ -1,4 +1,4 @@
-import type { CmxDiagnostic } from "../CmxDiagnostic.js";
+import type { CmxDiagnostic } from "cmx-bundle";
 
 export type CmxFragmentNode = {
   type: "fragment";

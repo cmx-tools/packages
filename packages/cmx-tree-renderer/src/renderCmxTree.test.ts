@@ -4,7 +4,7 @@ import {
   jsx,
   normalizeCmxTree,
   renderCmxTree,
-} from "content-management-jsx/cmx-tree-renderer";
+} from "cmx-tree-renderer";
 
 describe("cmx-tree-renderer", () => {
   it("normalizes a runtime-created element to plain CMX data", async () => {

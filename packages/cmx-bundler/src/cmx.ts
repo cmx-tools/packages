@@ -9,7 +9,7 @@ import {
   type CmxBundle,
   type CmxBundleChunk,
   type CmxBundleMetaTypeRef,
-} from "../cmx-bundle.js";
+} from "cmx-bundle";
 import { findUnsupportedExternalImport } from "./findUnsupportedExternalImport.js";
 
 const RUNTIME_IMPORT_SOURCE = "cmx-runtime";
@@ -203,7 +203,10 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
   };
 }
 
-function authoredEntrySourceForMeta(id: string, transformSource: string): string {
+function authoredEntrySourceForMeta(
+  id: string,
+  transformSource: string,
+): string {
   if (id.includes("\0")) {
     return transformSource;
   }
@@ -638,10 +641,7 @@ function createEntryOrder(input: InputOptions["input"]): Map<string, number> {
           : [];
 
   return new Map(
-    entries.map((entry, index) => [
-      normalizeModulePath(String(entry)),
-      index,
-    ]),
+    entries.map((entry, index) => [normalizeModulePath(String(entry)), index]),
   );
 }
 
