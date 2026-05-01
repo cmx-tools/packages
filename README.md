@@ -13,7 +13,7 @@ pnpm test
 
 | Package                 | Role                                                                                                     |
 | ----------------------- | -------------------------------------------------------------------------------------------------------- |
-| `cmx-contracts`         | Shared CMX contract types, `cmx-bundle.json` parse surface, diagnostics. |
+| `cmx-contracts`         | Shared CMX contract types, `cmx-bundle.json` parse surface, diagnostics.                                 |
 | `cmx-bundler`           | Rolldown/Rollup-compatible `cmx()` plugin; emits ESM chunks, sourcemaps, and `cmx-bundle.json` metadata. |
 | `cmx-document-renderer` | Executes emitted artifacts with an external CMX JSX runtime; emits CMX documents.                        |
 | `cmx-runtime`           | Runtime protocol and JSX runtime subpath exports expected by compiled artifacts.                         |
