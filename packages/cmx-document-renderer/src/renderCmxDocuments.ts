@@ -1,11 +1,10 @@
 import { pathToFileURL } from "node:url";
 import path from "node:path";
-import type { CmxBundle } from "cmx-bundle";
+import type { CmxBundle, CmxDocument } from "cmx-contracts";
 import { mapCmxBundleDiagnosticSource } from "./mapCmxBundleDiagnosticSource.js";
 import {
   CmxRenderError,
   renderCmxDocument,
-  type CmxDocument,
   type CmxRenderDiagnostic,
   type RuntimeProtocol,
   type UnsupportedValuesPolicy,

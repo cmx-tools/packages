@@ -17,7 +17,7 @@
   "devDependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",
     "@types/node": "^24.12.2",
-    "cmx-bundle": "workspace:*",
+    "cmx-contracts": "workspace:*",
     "cmx-bundler": "workspace:*",
     "cmx-document-renderer": "workspace:*",
     "cmx-react": "workspace:*",

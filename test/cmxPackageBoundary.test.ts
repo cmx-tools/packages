@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const ROOT_PACKAGE_NAME = "content-management-jsx";
 const PUBLIC_PACKAGE_NAMES = [
-  "cmx-bundle",
+  "cmx-contracts",
   "cmx-bundler",
   "cmx-runtime",
   "cmx-document-renderer",

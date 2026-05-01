@@ -1,56 +1,16 @@
 import type {
-  CmxDependency,
   CmxDiagnostic,
   CmxTypeRef,
-  CmxVersion,
-} from "cmx-bundle";
+  CmxComponentNode,
+  CmxDocument,
+  CmxElementNode,
+  CmxMeta,
+  CmxNode,
+  SlotPath,
+} from "cmx-contracts";
+import { CMX_DOCUMENT_VERSION } from "cmx-contracts";
 
 export const CMX_DOCUMENT_SCHEMA = "https://example.org/todo.v1.json";
-export const CMX_DOCUMENT_VERSION: CmxVersion = 1;
-
-export type CmxFragmentNode = {
-  type: "fragment";
-  children?: CmxNode[];
-};
-
-export type CmxElementNode = {
-  type: "element";
-  tag: string;
-  props?: Record<string, unknown>;
-  slots?: SlotPath[];
-  children?: CmxNode[];
-};
-
-export type CmxComponentNode = {
-  type: "component";
-  from: string;
-  import?: string;
-  props?: Record<string, unknown>;
-  slots?: SlotPath[];
-  children?: CmxNode[];
-};
-
-export type CmxNode =
-  | null
-  | boolean
-  | number
-  | string
-  | CmxFragmentNode
-  | CmxElementNode
-  | CmxComponentNode;
-
-export type CmxMeta = {
-  type?: CmxTypeRef;
-  data: unknown;
-};
-
-export type CmxDocument = {
-  $schema: string;
-  cmxVersion: CmxVersion;
-  dependencies: CmxDependency[];
-  meta?: CmxMeta;
-  tree: CmxNode;
-};
 
 export type RuntimeNode = {
   kind: "fragment" | "element" | "component";
@@ -79,7 +39,6 @@ export type CmxRenderDiagnostic = CmxDiagnostic & {
     | "unsupported-value";
 };
 
-export type SlotPath = Array<string | number>;
 export type UnsupportedValuesPolicy = "error" | "omit";
 
 type KeepResult = { keep: true; value: unknown };

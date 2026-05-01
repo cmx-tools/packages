@@ -3,13 +3,13 @@ import { rolldown } from "rolldown";
 import {
   CMX_BUNDLE_FILE_NAME,
   type CmxDiagnostic,
+  type CmxDocument,
   parseCmxBundleJson,
   type CmxBundle,
-} from "cmx-bundle";
+} from "cmx-contracts";
 import { cmx, type UnsupportedMetaTypesPolicy } from "cmx-bundler";
 import {
   renderCmxDocuments,
-  type CmxDocument,
   type RenderCmxDocumentsCompleteResult,
   type RenderCmxDocumentsErrorResult,
   type RenderCmxDocumentsPartialResult,

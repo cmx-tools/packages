@@ -4,7 +4,7 @@ import {
   type CmxBundle,
   type CmxBundleChunk,
   type CmxTypeRef,
-} from "cmx-bundle";
+} from "cmx-contracts";
 import { normalizeModulePath } from "./normalizeModulePath.js";
 
 export function createEntryOrder(

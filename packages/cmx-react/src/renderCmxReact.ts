@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import type { CmxEnvironment } from "cmx-bundle";
-import type { CmxDocument } from "cmx-document-renderer";
+import type { CmxDocument, CmxEnvironment } from "cmx-contracts";
 
 export type RenderCmxReactResult<Meta = unknown> = {
   children: ReactNode;

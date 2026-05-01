@@ -1,3 +1,5 @@
+import type { CmxDependency } from "./cmxDependency.js";
+
 export const CMX_BUNDLE_VERSION = 1;
 export const CMX_BUNDLE_FILE_NAME = "cmx-bundle.json";
 
@@ -6,20 +8,6 @@ export type CmxVersion = 1;
 export type CmxTypeRef = {
   from: string;
   import?: string;
-};
-
-export type CmxDependency = {
-  name: string;
-  specifier: string;
-  version: string;
-  integrity?: string;
-};
-
-export type CmxEnvironment<Meta = unknown> = {
-  dependencies: CmxDependency[];
-  imports: Record<string, Record<string, unknown>>;
-  metaType?: CmxTypeRef;
-  __meta?: Meta;
 };
 
 export type CmxEnvironmentEntry = {

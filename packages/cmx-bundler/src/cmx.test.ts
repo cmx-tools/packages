@@ -7,7 +7,7 @@ import {
   CMX_BUNDLE_FILE_NAME,
   parseCmxBundleJson,
   type CmxBundle,
-} from "cmx-bundle";
+} from "cmx-contracts";
 import { cmx } from "./cmx.js";
 
 async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {

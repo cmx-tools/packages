@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { Program, StaticImport, VariableDeclarator } from "oxc-parser";
 import { ImportNameKind, parseSync } from "oxc-parser";
-import type { CmxTypeRef } from "cmx-bundle";
+import type { CmxTypeRef } from "cmx-contracts";
 import { normalizeModulePath } from "./normalizeModulePath.js";
 
 type TypeAnnotatedMetaBinding = {
