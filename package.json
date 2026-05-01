@@ -5,6 +5,7 @@
   "packageManager": "pnpm@10.33.2",
   "type": "module",
   "scripts": {
+    "verify": "corepack pnpm run fmt:check && corepack pnpm run typecheck && corepack pnpm run test",
     "build": "corepack pnpm -r --filter './packages/*' build",
     "pretest:unit": "corepack pnpm run build",
     "test:unit": "vitest run --dir packages",
@@ -12,7 +13,8 @@
     "test:integration": "vitest run --dir test",
     "test": "corepack pnpm run test:unit && corepack pnpm run test:integration",
     "typecheck": "corepack pnpm run build && corepack pnpm -r --filter './packages/*' typecheck && tsc --noEmit",
-    "fmt": "prettier --write ."
+    "fmt": "prettier --write .",
+    "fmt:check": "prettier --check ."
   },
   "devDependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",
