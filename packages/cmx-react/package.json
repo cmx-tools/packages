@@ -1,0 +1,31 @@
+{
+  "name": "cmx-react",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "pretest": "corepack pnpm run build",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "cmx-bundle": "workspace:*",
+    "cmx-document-renderer": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^19"
+  },
+  "peerDependencies": {
+    "react": "^19"
+  }
+}
