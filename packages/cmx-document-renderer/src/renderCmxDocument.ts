@@ -5,7 +5,7 @@ import type {
   CmxVersion,
 } from "cmx-bundle";
 
-export const CMX_DOCUMENT_SCHEMA = "https://cmx.dev/schemas/document.v1.json";
+export const CMX_DOCUMENT_SCHEMA = "https://example.org/todo.v1.json";
 export const CMX_DOCUMENT_VERSION: CmxVersion = 1;
 
 export type CmxFragmentNode = {
