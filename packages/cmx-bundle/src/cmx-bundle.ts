@@ -15,6 +15,17 @@ export type CmxDependency = {
   integrity?: string;
 };
 
+export type CmxEnvironment<Meta = unknown> = {
+  dependencies: CmxDependency[];
+  imports: Record<string, Record<string, unknown>>;
+  metaType?: CmxTypeRef;
+};
+
+export type CmxEnvironmentEntry = {
+  from: string;
+  as?: string;
+};
+
 export type CmxBundleChunk = {
   file: string;
   sourcemap: string;

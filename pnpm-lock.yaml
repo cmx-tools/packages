@@ -22,6 +22,9 @@ importers:
       cmx-document-renderer:
         specifier: workspace:*
         version: link:packages/cmx-document-renderer
+      cmx-react:
+        specifier: workspace:*
+        version: link:packages/cmx-react
       cmx-runtime:
         specifier: workspace:*
         version: link:packages/cmx-runtime
@@ -131,6 +134,22 @@ importers:
       cmx-runtime:
         specifier: workspace:*
         version: link:../cmx-runtime
+
+  packages/cmx-react:
+    dependencies:
+      cmx-bundle:
+        specifier: workspace:*
+        version: link:../cmx-bundle
+      cmx-document-renderer:
+        specifier: workspace:*
+        version: link:../cmx-document-renderer
+      react:
+        specifier: ^19
+        version: 19.2.5
+    devDependencies:
+      "@types/react":
+        specifier: ^19
+        version: 19.2.14
 
   packages/cmx-runtime: {}
 
