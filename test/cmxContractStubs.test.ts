@@ -25,7 +25,11 @@ it("exposes the shallow environment source generation contract", () => {
     dependencies: unknown[];
     imports: Record<string, Record<string, unknown>>;
     metaType?: { from: string; import?: string };
+    __meta?: { title: string };
   }>();
+  expect(result.source).toContain(
+    "export const environment: CmxEnvironment<Meta> = {",
+  );
 });
 
 it("exposes the shallow React rendering contract", () => {
