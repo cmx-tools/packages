@@ -12,8 +12,22 @@ export type CmxGenerateEnvironmentSourceResult = {
 export function cmxGenerateEnvironmentSource(
   input: CmxGenerateEnvironmentSourceInput,
 ): CmxGenerateEnvironmentSourceResult {
+  const metaTypeName = input.metaType?.import;
+  const metaImportLine =
+    metaTypeName !== undefined && input.metaType
+      ? `import type { ${metaTypeName} } from ${JSON.stringify(
+          input.metaType.from,
+        )};\n\n`
+      : "";
+
+  const exportOpen =
+    metaTypeName !== undefined
+      ? `export const environment: CmxEnvironment<${metaTypeName}> = {`
+      : "export const environment: CmxEnvironment = {";
+
   return {
     source: [
+      metaImportLine,
       "type CmxDependency = {",
       "  name: string;",
       "  specifier: string;",
@@ -30,9 +44,10 @@ export function cmxGenerateEnvironmentSource(
       "  dependencies: CmxDependency[];",
       "  imports: Record<string, Record<string, unknown>>;",
       "  metaType?: CmxTypeRef;",
+      "  __meta?: Meta;",
       "};",
       "",
-      "export const environment = {",
+      exportOpen,
       "  dependencies: [],",
       "  imports: {",
       ...input.entries.map(
@@ -49,7 +64,7 @@ export function cmxGenerateEnvironmentSource(
             "  },",
           ]
         : []),
-      "} satisfies CmxEnvironment;",
+      "};",
       "",
     ].join("\n"),
   };

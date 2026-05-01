@@ -19,9 +19,10 @@ type CmxEnvironment<Meta = unknown> = {
   dependencies: CmxDependency[];
   imports: Record<string, Record<string, unknown>>;
   metaType?: CmxTypeRef;
+  __meta?: Meta;
 };
 
-export const environment = {
+export const environment: CmxEnvironment<Meta> = {
   dependencies: [
     {
       name: "@example/backend-contract",
@@ -42,4 +43,4 @@ export const environment = {
     from: "@example/backend-contract",
     import: "Meta",
   },
-} satisfies CmxEnvironment<Meta>;
+};

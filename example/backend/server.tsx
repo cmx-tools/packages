@@ -21,7 +21,7 @@ const server = createServer(async (req, res) => {
   const route = req.url?.includes("/about") ? "about" : "404";
   const { default: document } = await import(`./_db_content/${route}.json`);
 
-  const { children, meta } = renderCmxReact<Meta>(document, environment);
+  const { children, meta } = renderCmxReact(document, environment);
   const markup = renderToString(
     <StrictMode>
       <App children={children} meta={meta} />
