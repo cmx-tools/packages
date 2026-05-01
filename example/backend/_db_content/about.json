@@ -1,11 +1,26 @@
 {
-  "$schema": "https://example.org/cmx.schema.json",
+  "$schema": "https://cmx.dev/schemas/document.v1.json",
+  "cmxVersion": 1,
+  "dependencies": [
+    {
+      "name": "@example/backend-contract",
+      "specifier": "workspace:*",
+      "version": "0.1.0"
+    },
+    {
+      "name": "@example/ui-library",
+      "specifier": "workspace:*",
+      "version": "0.1.0"
+    }
+  ],
   "meta": {
-    "title": "About"
-  },
-  "metaType": {
-    "from": "@example/backend-contract",
-    "import": "Meta"
+    "type": {
+      "from": "@example/backend-contract",
+      "import": "Meta"
+    },
+    "data": {
+      "title": "About"
+    }
   },
   "tree": {
     "type": "element",
@@ -26,19 +41,5 @@
       },
       { "type": "element", "tag": "p", "children": ["About"] }
     ]
-  },
-  "dependencies": [
-    {
-      "name": "@example/ui-library",
-      "specifier": "workspace:*",
-      "version": "link:../ui-library",
-      "integrity": "sha512-..."
-    },
-    {
-      "name": "@example/backend-contract",
-      "specifier": "workspace:*",
-      "version": "link:../backend-contract",
-      "integrity": "sha512-..."
-    }
-  ]
+  }
 }

@@ -1,5 +1,7 @@
 {
-  "$schema": "https://example.org/cmx.schema.json",
+  "$schema": "https://cmx.dev/schemas/document.v1.json",
+  "cmxVersion": 1,
+  "dependencies": [],
   "tree": {
     "type": "element",
     "tag": "h1",
