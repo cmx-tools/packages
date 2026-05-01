@@ -1,4 +1,4 @@
-import { ImportNameKind, parseSync } from "oxc-parser";
+import { parseSync } from "rolldown/utils";
 import type { CmxExternalPolicy } from "./CmxExternalPolicy.js";
 import { matchesCmxExternalPolicy } from "./CmxExternalPolicy.js";
 
@@ -53,10 +53,7 @@ export function findUnsupportedExternalImport(
     }
 
     for (const entry of externalImport.entries) {
-      if (
-        !entry.isType &&
-        entry.importName.kind === ImportNameKind.NamespaceObject
-      ) {
+      if (!entry.isType && entry.importName.kind === "NamespaceObject") {
         return {
           code: "external-namespace-import-unsupported",
           message:
@@ -264,7 +261,7 @@ function externalValueBindings(
   staticImports: Array<{
     moduleRequest: { value: string };
     entries: Array<{
-      importName: { kind: ImportNameKind };
+      importName: { kind: string };
       localName: { value: string; start: number };
       isType: boolean;
     }>;
@@ -283,10 +280,7 @@ function externalValueBindings(
     }
 
     for (const entry of externalImport.entries) {
-      if (
-        entry.isType ||
-        entry.importName.kind === ImportNameKind.NamespaceObject
-      ) {
+      if (entry.isType || entry.importName.kind === "NamespaceObject") {
         continue;
       }
       bindings.set(entry.localName.value, {

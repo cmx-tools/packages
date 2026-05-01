@@ -1,4 +1,4 @@
-import { ImportNameKind, parseSync } from "oxc-parser";
+import { parseSync } from "rolldown/utils";
 import type { CmxExternalPolicy } from "./CmxExternalPolicy.js";
 import { matchesCmxExternalPolicy } from "./CmxExternalPolicy.js";
 
@@ -98,7 +98,7 @@ export function transformExternalImports(
 function externalStubFromImport(
   from: string,
   entries: Array<{
-    importName: { kind: ImportNameKind; name: string | null };
+    importName: { kind: string; name: string | null };
     isType: boolean;
   }>,
 ): ExternalStub | undefined {
@@ -113,12 +113,12 @@ function externalStubFromImport(
       continue;
     }
 
-    if (entry.importName.kind === ImportNameKind.Default) {
+    if (entry.importName.kind === "Default") {
       stub.hasDefault = true;
       continue;
     }
 
-    if (entry.importName.kind === ImportNameKind.Name) {
+    if (entry.importName.kind === "Name") {
       const importName = entry.importName.name;
       if (importName === "default") {
         stub.hasDefault = true;

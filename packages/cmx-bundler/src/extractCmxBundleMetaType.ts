@@ -1,9 +1,21 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import type { Program, StaticImport, VariableDeclarator } from "oxc-parser";
-import { ImportNameKind, parseSync } from "oxc-parser";
+import type { ParseResult } from "rolldown/utils";
+import { parseSync } from "rolldown/utils";
 import type { CmxTypeRef } from "cmx-contracts";
 import { normalizeModulePath } from "./normalizeModulePath.js";
+
+type StaticImport = ParseResult["module"]["staticImports"][number];
+type Program = ParseResult["program"];
+type ExportNamed = Extract<
+  Program["body"][number],
+  { type: "ExportNamedDeclaration" }
+>;
+type ExportedVariableDeclaration = Extract<
+  NonNullable<ExportNamed["declaration"]>,
+  { type: "VariableDeclaration" }
+>;
+type VariableDeclarator = ExportedVariableDeclaration["declarations"][number];
 
 type TypeAnnotatedMetaBinding = {
   type: "Identifier";
@@ -104,14 +116,14 @@ function importedTypeBindings(
         continue;
       }
 
-      if (entry.importName.kind === ImportNameKind.Default) {
+      if (entry.importName.kind === "Default") {
         bindings.set(entry.localName.value, {
           from: staticImport.moduleRequest.value,
         });
         continue;
       }
 
-      if (entry.importName.kind === ImportNameKind.Name) {
+      if (entry.importName.kind === "Name") {
         const importName = entry.importName.name;
         if (!importName || importName === "default") {
           continue;
