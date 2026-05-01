@@ -18,6 +18,9 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
+  "devDependencies": {
+    "rolldown": "^1.0.0-rc.18"
+  },
   "dependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",
     "cmx-contracts": "workspace:*",

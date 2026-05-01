@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { transform } from "esbuild";
+import { transform } from "rolldown/utils";
 import { describe, expect, it } from "vitest";
 import { renderCmxDocuments } from "cmx-document-renderer";
 
@@ -580,12 +580,21 @@ async function writeCompiledEntry(
   sourcefile: string,
   source: string,
 ): Promise<void> {
-  const compiled = await transform(source, {
-    format: "esm",
-    loader: "tsx",
-    sourcemap: "external",
-    sourcefile,
+  const compiled = await transform(sourcefile, source, {
+    lang: "tsx",
+    sourceType: "module",
+    sourcemap: true,
   });
+  if (compiled.errors.length > 0) {
+    throw compiled.errors[0];
+  }
+  if (!compiled.map) {
+    throw new Error("expected source map from transform");
+  }
   await writeFile(path.join(outDir, fileName), compiled.code, "utf8");
-  await writeFile(path.join(outDir, `${fileName}.map`), compiled.map, "utf8");
+  await writeFile(
+    path.join(outDir, `${fileName}.map`),
+    JSON.stringify(compiled.map),
+    "utf8",
+  );
 }
