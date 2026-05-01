@@ -74,6 +74,7 @@ describe("cmx", () => {
           runtime: {
             importSource: "cmx-runtime",
           },
+          dependencies: [],
           entries: [
             {
               name: "entry",
@@ -167,6 +168,7 @@ describe("cmx", () => {
         expect(cmxBundle.runtime).toEqual({
           importSource: "cmx-runtime",
         });
+        expect(cmxBundle.dependencies).toEqual([]);
         expect(cmxBundle.entries).toHaveLength(2);
         expect(cmxBundle.entries).toEqual(
           expect.arrayContaining([

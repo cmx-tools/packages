@@ -1,4 +1,12 @@
-import type { CmxDiagnostic } from "cmx-bundle";
+import type {
+  CmxDependency,
+  CmxDiagnostic,
+  CmxTypeRef,
+  CmxVersion,
+} from "cmx-bundle";
+
+export const CMX_DOCUMENT_SCHEMA = "https://cmx.dev/schemas/document.v1.json";
+export const CMX_DOCUMENT_VERSION: CmxVersion = 1;
 
 export type CmxFragmentNode = {
   type: "fragment";
@@ -32,23 +40,16 @@ export type CmxNode =
   | CmxComponentNode;
 
 export type CmxMeta = {
-  type?: CmxMetaTypeRef;
+  type?: CmxTypeRef;
   data: unknown;
 };
 
-export type CmxMetaTypeRef = {
-  from: string;
-  import?: string;
-};
-
-export type CmxManifestExternalRef = {
-  from: string;
-  imports?: string[];
-  default?: true;
-};
-
-export type CmxManifest = {
-  externals: CmxManifestExternalRef[];
+export type CmxDocument = {
+  $schema: string;
+  cmxVersion: CmxVersion;
+  dependencies: CmxDependency[];
+  meta?: CmxMeta;
+  tree: CmxNode;
 };
 
 export type RuntimeNode = {
@@ -64,10 +65,8 @@ export type RuntimeProtocol = {
   isRuntimeNode(value: unknown): value is RuntimeNode;
 };
 
-export type RenderCmxTreeResult = {
-  tree: CmxNode;
-  meta?: CmxMeta;
-  manifest: CmxManifest;
+export type RenderCmxDocumentResult = {
+  document: CmxDocument;
 };
 
 export type CmxRenderDiagnostic = CmxDiagnostic & {
@@ -85,22 +84,17 @@ export type UnsupportedValuesPolicy = "error" | "omit";
 
 type KeepResult = { keep: true; value: unknown };
 type DropResult = { keep: false };
-type ExternalUsageRef = {
-  from: string;
-  import?: string;
-};
 type RenderContext = {
   unsupportedValues: UnsupportedValuesPolicy;
   runtime: RuntimeProtocol;
-  usedExternalRefs: ExternalUsageRef[];
-  metaType?: CmxMetaTypeRef;
+  metaType?: CmxTypeRef;
 };
 
-export type RenderCmxTreeInput = {
+export type RenderCmxDocumentInput = {
   moduleUrl: string | URL;
   runtime?: RuntimeProtocol;
   unsupportedValues?: UnsupportedValuesPolicy;
-  metaType?: CmxMetaTypeRef;
+  metaType?: CmxTypeRef;
 };
 
 export class CmxRenderError extends Error {
@@ -113,9 +107,9 @@ export class CmxRenderError extends Error {
   }
 }
 
-export async function renderCmxTree(
-  input: RenderCmxTreeInput,
-): Promise<RenderCmxTreeResult> {
+export async function renderCmxDocument(
+  input: RenderCmxDocumentInput,
+): Promise<RenderCmxDocumentResult> {
   const bundleModule = (await import(
     /* @vite-ignore */ toModuleUrl(input.moduleUrl)
   )) as Record<string, unknown>;
@@ -131,27 +125,21 @@ export async function renderCmxTree(
     ...input,
     runtime: input.runtime ?? (await loadDefaultRuntimeProtocol()),
   });
-  const tree = await normalizeCmxTreeValue(root, "default export", context);
+  const tree = await normalizeCmxNodeValue(root, "default export", context);
   const meta = await normalizeMeta(bundleModule, context);
 
   return {
-    tree,
-    ...(meta ? { meta } : {}),
-    manifest: createManifest(context.usedExternalRefs),
+    document: {
+      $schema: CMX_DOCUMENT_SCHEMA,
+      cmxVersion: CMX_DOCUMENT_VERSION,
+      dependencies: [],
+      ...(meta ? { meta } : {}),
+      tree,
+    },
   };
 }
 
-export async function normalizeCmxTree(value: unknown): Promise<CmxNode> {
-  return normalizeCmxTreeValue(
-    value,
-    "default export",
-    createRenderContext({
-      runtime: await loadDefaultRuntimeProtocol(),
-    }),
-  );
-}
-
-async function normalizeCmxTreeValue(
+async function normalizeCmxNodeValue(
   value: unknown,
   pathLabel: string,
   context: RenderContext,
@@ -180,7 +168,7 @@ async function normalizeCmxTreeValue(
       type: "fragment",
       children: await Promise.all(
         flattenChildren(resolvedValue).map((child, index) =>
-          normalizeCmxTreeValue(child, `${pathLabel}[${index}]`, context),
+          normalizeCmxNodeValue(child, `${pathLabel}[${index}]`, context),
         ),
       ),
     };
@@ -219,10 +207,6 @@ async function normalizeRuntimeNode(
       from: node.from ?? "",
       ...(node.import ? { import: node.import } : {}),
     };
-    context.usedExternalRefs.push({
-      from: output.from,
-      import: output.import,
-    });
     return addNodeFields(output, node, pathLabel, context);
   }
 
@@ -402,7 +386,7 @@ async function normalizeChildValue(
     return normalized;
   }
 
-  return [await normalizeCmxTreeValue(resolvedValue, pathLabel, context)];
+  return [await normalizeCmxNodeValue(resolvedValue, pathLabel, context)];
 }
 
 async function normalizeMeta(
@@ -504,12 +488,11 @@ function unsupportedValue(
 function createRenderContext(options: {
   runtime: RuntimeProtocol;
   unsupportedValues?: UnsupportedValuesPolicy;
-  metaType?: CmxMetaTypeRef;
+  metaType?: CmxTypeRef;
 }): RenderContext {
   return {
     runtime: options.runtime,
     unsupportedValues: options.unsupportedValues ?? "error",
-    usedExternalRefs: [],
     ...(options.metaType ? { metaType: options.metaType } : {}),
   };
 }
@@ -522,46 +505,6 @@ async function loadDefaultRuntimeProtocol(): Promise<RuntimeProtocol> {
 
   return {
     isRuntimeNode: runtime.isRuntimeNode as RuntimeProtocol["isRuntimeNode"],
-  };
-}
-
-function createManifest(usedRefs: ExternalUsageRef[]): CmxManifest {
-  const mergedByModule = new Map<
-    string,
-    { hasDefault: boolean; imports: Set<string> }
-  >();
-
-  for (const ref of usedRefs) {
-    const current = mergedByModule.get(ref.from) ?? {
-      hasDefault: false,
-      imports: new Set<string>(),
-    };
-
-    if (ref.import === undefined) {
-      current.hasDefault = true;
-    } else {
-      current.imports.add(ref.import);
-    }
-
-    mergedByModule.set(ref.from, current);
-  }
-
-  return {
-    externals: [...mergedByModule.entries()]
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([from, entry]) => {
-        const manifestEntry: CmxManifestExternalRef = { from };
-        const imports = [...entry.imports].sort((left, right) =>
-          left.localeCompare(right),
-        );
-        if (imports.length > 0) {
-          manifestEntry.imports = imports;
-        }
-        if (entry.hasDefault) {
-          manifestEntry.default = true;
-        }
-        return manifestEntry;
-      }),
   };
 }
 

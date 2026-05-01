@@ -7,7 +7,7 @@ const PUBLIC_PACKAGE_NAMES = [
   "cmx-bundle",
   "cmx-bundler",
   "cmx-runtime",
-  "cmx-tree-renderer",
+  "cmx-document-renderer",
 ];
 
 type PackageJson = {

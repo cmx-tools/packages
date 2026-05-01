@@ -1,6 +1,20 @@
 export const CMX_BUNDLE_VERSION = 1;
 export const CMX_BUNDLE_FILE_NAME = "cmx-bundle.json";
 
+export type CmxVersion = 1;
+
+export type CmxTypeRef = {
+  from: string;
+  import?: string;
+};
+
+export type CmxDependency = {
+  name: string;
+  specifier: string;
+  version: string;
+  integrity?: string;
+};
+
 export type CmxBundleChunk = {
   file: string;
   sourcemap: string;
@@ -15,12 +29,7 @@ export type CmxBundleEntry = {
 };
 
 export type CmxBundleEntryMeta = {
-  type?: CmxBundleMetaTypeRef;
-};
-
-export type CmxBundleMetaTypeRef = {
-  from: string;
-  import?: string;
+  type?: CmxTypeRef;
 };
 
 export type CmxBundle = {
@@ -28,6 +37,7 @@ export type CmxBundle = {
   runtime: {
     importSource: string;
   };
+  dependencies: CmxDependency[];
   entries: CmxBundleEntry[];
   chunks: CmxBundleChunk[];
 };
@@ -48,6 +58,7 @@ function parseCmxBundle(value: unknown): CmxBundle {
   return {
     version: CMX_BUNDLE_VERSION,
     runtime: parseRuntime(value.runtime),
+    dependencies: parseArray(value.dependencies, parseDependency),
     entries: parseArray(value.entries, parseEntry),
     chunks: parseArray(value.chunks, parseChunk),
   };
@@ -91,7 +102,7 @@ function parseEntryMeta(value: unknown): CmxBundleEntryMeta {
   };
 }
 
-function parseMetaTypeRef(value: unknown): CmxBundleMetaTypeRef {
+function parseMetaTypeRef(value: unknown): CmxTypeRef {
   if (!isRecord(value) || typeof value.from !== "string") {
     throw invalidBundle();
   }
@@ -103,6 +114,28 @@ function parseMetaTypeRef(value: unknown): CmxBundleMetaTypeRef {
   return {
     from: value.from,
     ...(value.import === undefined ? {} : { import: value.import }),
+  };
+}
+
+function parseDependency(value: unknown): CmxDependency {
+  if (
+    !isRecord(value) ||
+    typeof value.name !== "string" ||
+    typeof value.specifier !== "string" ||
+    typeof value.version !== "string"
+  ) {
+    throw invalidBundle();
+  }
+
+  if (value.integrity !== undefined && typeof value.integrity !== "string") {
+    throw invalidBundle();
+  }
+
+  return {
+    name: value.name,
+    specifier: value.specifier,
+    version: value.version,
+    ...(value.integrity === undefined ? {} : { integrity: value.integrity }),
   };
 }
 

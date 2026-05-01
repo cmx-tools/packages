@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { Program, StaticImport, VariableDeclarator } from "oxc-parser";
 import { ImportNameKind, parseSync } from "oxc-parser";
-import type { CmxBundleMetaTypeRef } from "cmx-bundle";
+import type { CmxTypeRef } from "cmx-bundle";
 import { normalizeModulePath } from "./normalizeModulePath.js";
 
 type TypeAnnotatedMetaBinding = {
@@ -28,7 +28,7 @@ export type CmxBundleMetaTypeExtraction =
     }
   | {
       result: "resolved";
-      ref: CmxBundleMetaTypeRef;
+      ref: CmxTypeRef;
     }
   | {
       result: "unsupported";
@@ -92,8 +92,8 @@ function authoredEntrySourceForMeta(
 
 function importedTypeBindings(
   staticImports: StaticImport[],
-): Map<string, CmxBundleMetaTypeRef> {
-  const bindings = new Map<string, CmxBundleMetaTypeRef>();
+): Map<string, CmxTypeRef> {
+  const bindings = new Map<string, CmxTypeRef>();
   for (const staticImport of staticImports) {
     if (!isExternalTypeSource(staticImport.moduleRequest.value)) {
       continue;

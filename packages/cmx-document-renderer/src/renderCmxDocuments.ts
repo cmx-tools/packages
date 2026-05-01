@@ -4,62 +4,58 @@ import type { CmxBundle } from "cmx-bundle";
 import { mapCmxBundleDiagnosticSource } from "./mapCmxBundleDiagnosticSource.js";
 import {
   CmxRenderError,
-  renderCmxTree,
-  type CmxManifest,
-  type CmxMeta,
-  type CmxNode,
+  renderCmxDocument,
+  type CmxDocument,
   type CmxRenderDiagnostic,
   type RuntimeProtocol,
   type UnsupportedValuesPolicy,
-} from "./renderCmxTree.js";
+} from "./renderCmxDocument.js";
 
-export type RenderCmxBundleEntry = {
-  result: "tree";
-  tree: CmxNode;
-  meta?: CmxMeta;
-  manifest: CmxManifest;
+export type RenderCmxDocumentsEntry = {
+  result: "document";
+  document: CmxDocument;
 };
 
-export type RenderCmxBundleEntryError = {
+export type RenderCmxDocumentsEntryError = {
   result: "error";
   diagnostics: CmxRenderDiagnostic[];
 };
 
-export type RenderCmxBundleEntryResult =
-  | RenderCmxBundleEntry
-  | RenderCmxBundleEntryError;
+export type RenderCmxDocumentsEntryResult =
+  | RenderCmxDocumentsEntry
+  | RenderCmxDocumentsEntryError;
 
-export type RenderCmxBundleCompleteResult = {
+export type RenderCmxDocumentsCompleteResult = {
   result: "complete";
-  entries: Record<string, RenderCmxBundleEntry>;
+  entries: Record<string, RenderCmxDocumentsEntry>;
   diagnostics: [];
 };
 
-export type RenderCmxBundlePartialResult = {
+export type RenderCmxDocumentsPartialResult = {
   result: "partial";
-  entries: Record<string, RenderCmxBundleEntryResult>;
+  entries: Record<string, RenderCmxDocumentsEntryResult>;
   diagnostics: CmxRenderDiagnostic[];
 };
 
-export type RenderCmxBundleErrorResult = {
+export type RenderCmxDocumentsErrorResult = {
   result: "error";
   diagnostics: CmxRenderDiagnostic[];
 };
 
-export type RenderCmxBundleResult =
-  | RenderCmxBundleCompleteResult
-  | RenderCmxBundlePartialResult
-  | RenderCmxBundleErrorResult;
+export type RenderCmxDocumentsResult =
+  | RenderCmxDocumentsCompleteResult
+  | RenderCmxDocumentsPartialResult
+  | RenderCmxDocumentsErrorResult;
 
-export type RenderCmxBundleInput = {
+export type RenderCmxDocumentsInput = {
   bundle: CmxBundle;
   outDir: string;
   unsupportedValues?: UnsupportedValuesPolicy;
 };
 
-export async function renderCmxBundle(
-  input: RenderCmxBundleInput,
-): Promise<RenderCmxBundleResult> {
+export async function renderCmxDocuments(
+  input: RenderCmxDocumentsInput,
+): Promise<RenderCmxDocumentsResult> {
   if (input.bundle.entries.length === 0) {
     return {
       result: "error",
@@ -86,13 +82,22 @@ export async function renderCmxBundle(
   const renderedEntries = await Promise.all(
     input.bundle.entries.map(async (entry) => {
       try {
-        const rendered = await renderCmxTree({
+        const rendered = await renderCmxDocument({
           moduleUrl: pathToFileURL(path.join(input.outDir, entry.file)),
           runtime: runtimeProtocol.protocol,
           metaType: entry.meta?.type,
           unsupportedValues: input.unsupportedValues,
         });
-        return [entry.name, { result: "tree", ...rendered }] as const;
+        return [
+          entry.name,
+          {
+            result: "document",
+            document: {
+              ...rendered.document,
+              dependencies: input.bundle.dependencies,
+            },
+          },
+        ] as const;
       } catch (error) {
         return [
           entry.name,
@@ -107,7 +112,7 @@ export async function renderCmxBundle(
 
   const entries = Object.fromEntries(renderedEntries) as Record<
     string,
-    RenderCmxBundleEntryResult
+    RenderCmxDocumentsEntryResult
   >;
   const diagnostics = renderedEntries.flatMap(([, entry]) =>
     entry.result === "error" ? entry.diagnostics : [],
@@ -116,12 +121,12 @@ export async function renderCmxBundle(
   if (diagnostics.length === 0) {
     return {
       result: "complete",
-      entries: entries as Record<string, RenderCmxBundleEntry>,
+      entries: entries as Record<string, RenderCmxDocumentsEntry>,
       diagnostics: [],
     };
   }
 
-  if (renderedEntries.some(([, entry]) => entry.result === "tree")) {
+  if (renderedEntries.some(([, entry]) => entry.result === "document")) {
     return {
       result: "partial",
       entries,
@@ -180,7 +185,7 @@ async function loadRuntimeProtocol(
 
 async function toRenderDiagnostic(
   error: unknown,
-  input: RenderCmxBundleInput,
+  input: RenderCmxDocumentsInput,
 ): Promise<CmxRenderDiagnostic> {
   if (error instanceof CmxRenderError) {
     return error.diagnostic;

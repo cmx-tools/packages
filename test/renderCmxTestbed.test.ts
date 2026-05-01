@@ -9,12 +9,12 @@ import {
   type RenderCmxTestbedSuccessResult,
 } from "./renderCmxTestbed.js";
 
-function expectTreeResult(
+function expectDocumentResult(
   result: RenderCmxTestbedResult,
 ): RenderCmxTestbedSuccessResult {
-  expect(result.result).toBe("tree");
-  if (result.result !== "tree") {
-    throw new Error("expected tree result");
+  expect(result.result).toBe("document");
+  if (result.result !== "document") {
+    throw new Error("expected document result");
   }
   return result;
 }
@@ -221,7 +221,7 @@ describe("renderCmxTestbed", () => {
   });
 
   it("builds a TSX source fixture through the bundle boundary and renders CMX", async () => {
-    const result = expectTreeResult(
+    const result = expectDocumentResult(
       await renderCmxTestbed({
         files: {
           "entry.tsx": "export default <main>Hello</main>;\n",
@@ -230,11 +230,14 @@ describe("renderCmxTestbed", () => {
     );
 
     expect(result).toMatchObject({
-      result: "tree",
-      tree: {
-        type: "element",
-        tag: "main",
-        children: ["Hello"],
+      result: "document",
+      document: {
+        dependencies: [],
+        tree: {
+          type: "element",
+          tag: "main",
+          children: ["Hello"],
+        },
       },
       diagnostics: [],
       bundle: {
@@ -257,7 +260,7 @@ describe("renderCmxTestbed", () => {
   });
 
   it("resolves the workspace cmx-runtime package without materializing it beside tmp output", async () => {
-    const result = expectTreeResult(
+    const result = expectDocumentResult(
       await renderCmxTestbed({
         files: {
           "entry.tsx": "export default <main>Hello</main>;\n",
@@ -295,12 +298,12 @@ describe("renderCmxTestbed", () => {
     expect(new Set(Object.keys(result.entries))).toEqual(
       new Set(["home", "about"]),
     );
-    expect(result.entries.home.tree).toEqual({
+    expect(result.entries.home.document.tree).toEqual({
       type: "element",
       tag: "main",
       children: ["Home ", 1],
     });
-    expect(result.entries.about.tree).toEqual({
+    expect(result.entries.about.document.tree).toEqual({
       type: "element",
       tag: "main",
       children: ["About ", 1],
@@ -354,11 +357,13 @@ describe("renderCmxTestbed", () => {
       new Set(["home", "broken"]),
     );
     expect(result.entries.home).toMatchObject({
-      result: "tree",
-      tree: {
-        type: "element",
-        tag: "main",
-        children: ["Home"],
+      result: "document",
+      document: {
+        tree: {
+          type: "element",
+          tag: "main",
+          children: ["Home"],
+        },
       },
     });
     expect(result.entries.broken).toEqual({
@@ -381,7 +386,7 @@ describe("renderCmxTestbed", () => {
   });
 
   it("renders fragments through the bundle boundary", async () => {
-    const result = expectTreeResult(
+    const result = expectDocumentResult(
       await renderCmxTestbed({
         files: {
           "entry.tsx": "export default <><h1>A</h1><h2>B</h2></>;\n",
@@ -389,7 +394,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.tree).toEqual({
+    expect(result.document.tree).toEqual({
       type: "fragment",
       children: [
         {
@@ -418,21 +423,21 @@ describe("renderCmxTestbed", () => {
       Promise.all(
         Object.entries(sources).map(
           async ([entry, source]) =>
-            expectTreeResult(
+            expectDocumentResult(
               await renderCmxTestbed({
                 entry,
                 files: {
                   [entry]: source,
                 },
               }),
-            ).tree,
+            ).document.tree,
         ),
       ),
     ).resolves.toEqual([null, true, "hello", 42]);
   });
 
   it("renders root arrays and nested child arrays through the bundle boundary", async () => {
-    const result = expectTreeResult(
+    const result = expectDocumentResult(
       await renderCmxTestbed({
         files: {
           "entry.tsx": [
@@ -443,7 +448,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.tree).toEqual({
+    expect(result.document.tree).toEqual({
       type: "fragment",
       children: [
         {
@@ -470,7 +475,7 @@ describe("renderCmxTestbed", () => {
   });
 
   it("flattens async component array output in child position", async () => {
-    const result = expectTreeResult(
+    const result = expectDocumentResult(
       await renderCmxTestbed({
         files: {
           "entry.tsx": [
@@ -489,7 +494,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.tree).toEqual({
+    expect(result.document.tree).toEqual({
       type: "element",
       tag: "ul",
       children: [
@@ -514,7 +519,7 @@ describe("renderCmxTestbed", () => {
   });
 
   it("maps explicit children props through the bundle boundary", async () => {
-    const result = expectTreeResult(
+    const result = expectDocumentResult(
       await renderCmxTestbed({
         externals: ["@theme/ui"],
         files: {
@@ -531,7 +536,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.tree).toEqual({
+    expect(result.document.tree).toEqual({
       type: "fragment",
       children: [
         {
@@ -561,7 +566,7 @@ describe("renderCmxTestbed", () => {
   });
 
   it("preserves local component children shape through the bundle boundary", async () => {
-    const result = expectTreeResult(
+    const result = expectDocumentResult(
       await renderCmxTestbed({
         files: {
           "entry.tsx": [
@@ -574,7 +579,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.tree).toEqual({
+    expect(result.document.tree).toEqual({
       type: "fragment",
       children: [
         {
@@ -592,7 +597,7 @@ describe("renderCmxTestbed", () => {
   });
 
   it("preserves JSX text boundaries through the bundle boundary", async () => {
-    const result = expectTreeResult(
+    const result = expectDocumentResult(
       await renderCmxTestbed({
         files: {
           "entry.tsx": [
@@ -607,7 +612,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.tree).toEqual({
+    expect(result.document.tree).toEqual({
       type: "element",
       tag: "section",
       children: [
@@ -622,8 +627,8 @@ describe("renderCmxTestbed", () => {
     });
   });
 
-  it("normalizes props, slots, meta data, and rendered manifest through the bundle boundary", async () => {
-    const result = expectTreeResult(
+  it("normalizes props, slots, and meta data through the bundle boundary", async () => {
+    const result = expectDocumentResult(
       await renderCmxTestbed({
         files: {
           "entry.tsx": [
@@ -647,7 +652,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.tree).toEqual({
+    expect(result.document.tree).toEqual({
       type: "element",
       tag: "main",
       props: {
@@ -684,7 +689,7 @@ describe("renderCmxTestbed", () => {
         },
       ],
     });
-    expect(result.meta).toEqual({
+    expect(result.document.meta).toEqual({
       data: {
         slug: "home",
         preview: {
@@ -694,18 +699,11 @@ describe("renderCmxTestbed", () => {
         },
       },
     });
-    expect(result.manifest).toEqual({
-      externals: [
-        {
-          from: "@theme/ui",
-          imports: ["Hero"],
-        },
-      ],
-    });
+    expect(result.document.dependencies).toEqual([]);
   });
 
   it("attaches named imported meta type refs from bundle metadata", async () => {
-    const result = expectTreeResult(
+    const result = expectDocumentResult(
       await renderCmxTestbed({
         files: {
           "entry.tsx": [
@@ -717,7 +715,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.meta).toEqual({
+    expect(result.document.meta).toEqual({
       type: {
         from: "@theme/content",
         import: "PageMeta",
@@ -734,13 +732,11 @@ describe("renderCmxTestbed", () => {
         },
       },
     });
-    expect(result.manifest).toEqual({
-      externals: [],
-    });
+    expect(result.document.dependencies).toEqual([]);
   });
 
   it("attaches default imported meta type refs from bundle metadata", async () => {
-    const result = expectTreeResult(
+    const result = expectDocumentResult(
       await renderCmxTestbed({
         files: {
           "entry.tsx": [
@@ -752,7 +748,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.meta).toEqual({
+    expect(result.document.meta).toEqual({
       type: {
         from: "@theme/content",
       },
@@ -767,9 +763,7 @@ describe("renderCmxTestbed", () => {
         },
       },
     });
-    expect(result.manifest).toEqual({
-      externals: [],
-    });
+    expect(result.document.dependencies).toEqual([]);
   });
 
   it("rejects complex exported meta type annotations by default", async () => {
@@ -834,7 +828,7 @@ describe("renderCmxTestbed", () => {
   });
 
   it("omits meta.type for complex meta type when unsupportedMetaTypes is omit", async () => {
-    const result = expectTreeResult(
+    const result = expectDocumentResult(
       await renderCmxTestbed({
         unsupportedMetaTypes: "omit",
         files: {
@@ -847,7 +841,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.meta).toEqual({
+    expect(result.document.meta).toEqual({
       data: {
         title: "Hello",
       },
@@ -856,7 +850,7 @@ describe("renderCmxTestbed", () => {
   });
 
   it("omits meta.type for local type-only meta import when unsupportedMetaTypes is omit", async () => {
-    const result = expectTreeResult(
+    const result = expectDocumentResult(
       await renderCmxTestbed({
         unsupportedMetaTypes: "omit",
         files: {
@@ -870,7 +864,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.meta).toEqual({
+    expect(result.document.meta).toEqual({
       data: {
         title: "Hello",
       },
@@ -879,7 +873,7 @@ describe("renderCmxTestbed", () => {
   });
 
   it("renders configured external imports through importer-edge stubs", async () => {
-    const result = expectTreeResult(
+    const result = expectDocumentResult(
       await renderCmxTestbed({
         externals: ["@theme/ui"],
         files: {
@@ -898,7 +892,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.tree).toEqual({
+    expect(result.document.tree).toEqual({
       type: "fragment",
       children: [
         {
@@ -920,15 +914,7 @@ describe("renderCmxTestbed", () => {
         },
       ],
     });
-    expect(result.manifest).toEqual({
-      externals: [
-        {
-          from: "@theme/ui",
-          imports: ["Card", "Hero"],
-          default: true,
-        },
-      ],
-    });
+    expect(result.document.dependencies).toEqual([]);
   });
 
   it("returns unsupported value diagnostics for props and meta data by default", async () => {
@@ -969,7 +955,7 @@ describe("renderCmxTestbed", () => {
   });
 
   it("omits unsupported prop and meta data values when configured", async () => {
-    const result = expectTreeResult(
+    const result = expectDocumentResult(
       await renderCmxTestbed({
         unsupportedValues: "omit",
         files: {
@@ -984,7 +970,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.tree).toEqual({
+    expect(result.document.tree).toEqual({
       type: "element",
       tag: "button",
       props: {
@@ -996,7 +982,7 @@ describe("renderCmxTestbed", () => {
         },
       },
     });
-    expect(result.meta).toEqual({
+    expect(result.document.meta).toEqual({
       data: {
         slug: "home",
       },
@@ -1071,7 +1057,7 @@ describe("renderCmxTestbed", () => {
   });
 
   it("returns plain serializable CMX output only", async () => {
-    const result = expectTreeResult(
+    const result = expectDocumentResult(
       await renderCmxTestbed({
         files: {
           "entry.tsx": "export default <main>Hello</main>;\n",
@@ -1079,6 +1065,8 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(JSON.parse(JSON.stringify(result.tree))).toEqual(result.tree);
+    expect(JSON.parse(JSON.stringify(result.document.tree))).toEqual(
+      result.document.tree,
+    );
   });
 });
