@@ -4,17 +4,18 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { transform } from "esbuild";
 import { describe, expect, it } from "vitest";
-import { renderCmxBundle } from "cmx-tree-renderer";
+import { renderCmxDocuments } from "cmx-document-renderer";
 
-describe("renderCmxBundle", () => {
+describe("renderCmxDocuments", () => {
   it("returns an error result for a bundle with no entries", async () => {
     await expect(
-      renderCmxBundle({
+      renderCmxDocuments({
         bundle: {
           version: 1,
           runtime: {
             importSource: "cmx-runtime",
           },
+          dependencies: [],
           entries: [],
           chunks: [],
         },
@@ -48,12 +49,19 @@ describe("renderCmxBundle", () => {
     );
 
     await expect(
-      renderCmxBundle({
+      renderCmxDocuments({
         bundle: {
           version: 1,
           runtime: {
             importSource: pathToFileURL(path.join(outDir, "runtime.js")).href,
           },
+          dependencies: [
+            {
+              name: "@theme/ui",
+              specifier: "^1.0.0",
+              version: "1.2.3",
+            },
+          ],
           entries: [
             {
               name: "entry",
@@ -69,13 +77,21 @@ describe("renderCmxBundle", () => {
       result: "complete",
       entries: {
         entry: {
-          result: "tree",
-          tree: {
-            type: "element",
-            tag: "main",
-          },
-          manifest: {
-            externals: [],
+          result: "document",
+          document: {
+            $schema: "https://cmx.dev/schemas/document.v1.json",
+            cmxVersion: 1,
+            dependencies: [
+              {
+                name: "@theme/ui",
+                specifier: "^1.0.0",
+                version: "1.2.3",
+              },
+            ],
+            tree: {
+              type: "element",
+              tag: "main",
+            },
           },
         },
       },
@@ -93,12 +109,13 @@ describe("renderCmxBundle", () => {
     const importSource = pathToFileURL(path.join(outDir, "missing.js")).href;
 
     await expect(
-      renderCmxBundle({
+      renderCmxDocuments({
         bundle: {
           version: 1,
           runtime: {
             importSource,
           },
+          dependencies: [],
           entries: [
             {
               name: "entry",
@@ -133,12 +150,13 @@ describe("renderCmxBundle", () => {
     const importSource = pathToFileURL(path.join(outDir, "runtime.js")).href;
 
     await expect(
-      renderCmxBundle({
+      renderCmxDocuments({
         bundle: {
           version: 1,
           runtime: {
             importSource,
           },
+          dependencies: [],
           entries: [
             {
               name: "entry",
@@ -171,12 +189,13 @@ describe("renderCmxBundle", () => {
     );
 
     await expect(
-      renderCmxBundle({
+      renderCmxDocuments({
         bundle: {
           version: 1,
           runtime: {
             importSource: "cmx-runtime",
           },
+          dependencies: [],
           entries: [
             {
               name: "entry",
@@ -192,10 +211,12 @@ describe("renderCmxBundle", () => {
       result: "complete",
       entries: {
         entry: {
-          result: "tree",
-          tree: "rendered",
-          manifest: {
-            externals: [],
+          result: "document",
+          document: {
+            $schema: "https://cmx.dev/schemas/document.v1.json",
+            cmxVersion: 1,
+            dependencies: [],
+            tree: "rendered",
           },
         },
       },
@@ -217,12 +238,13 @@ describe("renderCmxBundle", () => {
     );
 
     await expect(
-      renderCmxBundle({
+      renderCmxDocuments({
         bundle: {
           version: 1,
           runtime: {
             importSource: "cmx-runtime",
           },
+          dependencies: [],
           entries: [
             {
               name: "entry",
@@ -265,12 +287,13 @@ describe("renderCmxBundle", () => {
     );
 
     await expect(
-      renderCmxBundle({
+      renderCmxDocuments({
         bundle: {
           version: 1,
           runtime: {
             importSource: "cmx-runtime",
           },
+          dependencies: [],
           entries: [
             {
               name: "entry",
@@ -318,12 +341,13 @@ describe("renderCmxBundle", () => {
       ].join("\n"),
     );
 
-    const result = await renderCmxBundle({
+    const result = await renderCmxDocuments({
       bundle: {
         version: 1,
         runtime: {
           importSource: "cmx-runtime",
         },
+        dependencies: [],
         entries: [
           {
             name: "home",
@@ -345,8 +369,10 @@ describe("renderCmxBundle", () => {
       result: "partial",
       entries: {
         home: {
-          result: "tree",
-          tree: "Home",
+          result: "document",
+          document: {
+            tree: "Home",
+          },
         },
         broken: {
           result: "error",
@@ -393,12 +419,13 @@ describe("renderCmxBundle", () => {
     );
 
     await expect(
-      renderCmxBundle({
+      renderCmxDocuments({
         bundle: {
           version: 1,
           runtime: {
             importSource: "cmx-runtime",
           },
+          dependencies: [],
           entries: [
             {
               name: "home",
@@ -458,12 +485,13 @@ describe("renderCmxBundle", () => {
     );
 
     await expect(
-      renderCmxBundle({
+      renderCmxDocuments({
         bundle: {
           version: 1,
           runtime: {
             importSource: "cmx-runtime",
           },
+          dependencies: [],
           entries: [
             {
               name: "entry",
@@ -515,12 +543,13 @@ describe("renderCmxBundle", () => {
     );
 
     await expect(
-      renderCmxBundle({
+      renderCmxDocuments({
         bundle: {
           version: 1,
           runtime: {
             importSource: "cmx-runtime",
           },
+          dependencies: [],
           entries: [
             {
               name: "entry",

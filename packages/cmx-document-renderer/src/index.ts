@@ -1,5 +1,5 @@
-export * from "./renderCmxTree.js";
-export * from "./renderCmxBundle.js";
+export * from "./renderCmxDocument.js";
+export * from "./renderCmxDocuments.js";
 export {
   Fragment,
   __registerExternal,

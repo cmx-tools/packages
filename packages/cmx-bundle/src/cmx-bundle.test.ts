@@ -11,6 +11,15 @@ describe("parseCmxBundleJson", () => {
             importSource: "cmx-runtime",
             extra: true,
           },
+          dependencies: [
+            {
+              name: "@site/types",
+              specifier: "^1.0.0",
+              version: "1.2.3",
+              integrity: "sha512-test",
+              extra: true,
+            },
+          ],
           entries: [
             {
               name: "home",
@@ -43,6 +52,14 @@ describe("parseCmxBundleJson", () => {
       runtime: {
         importSource: "cmx-runtime",
       },
+      dependencies: [
+        {
+          name: "@site/types",
+          specifier: "^1.0.0",
+          version: "1.2.3",
+          integrity: "sha512-test",
+        },
+      ],
       entries: [
         {
           name: "home",
@@ -75,6 +92,7 @@ describe("parseCmxBundleJson", () => {
           runtime: {
             importSource: "cmx-runtime",
           },
+          dependencies: [],
           entries: [
             {
               name: "home",

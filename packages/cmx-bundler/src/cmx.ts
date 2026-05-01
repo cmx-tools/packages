@@ -1,6 +1,6 @@
 import type { InputOptions, Plugin } from "rolldown";
 import { parseSync, Visitor } from "oxc-parser";
-import { CMX_BUNDLE_FILE_NAME, type CmxBundleMetaTypeRef } from "cmx-bundle";
+import { CMX_BUNDLE_FILE_NAME, type CmxTypeRef } from "cmx-bundle";
 import {
   createCmxBundleArtifact,
   createEntryOrder,
@@ -37,7 +37,7 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
   const externalPolicy = createCmxExternalPolicy(options.externals ?? []);
   const unsupportedMetaTypes = options.unsupportedMetaTypes ?? "error";
   const externalStubs = new Map<string, ExternalStub>();
-  const metaTypesByModuleId = new Map<string, CmxBundleMetaTypeRef>();
+  const metaTypesByModuleId = new Map<string, CmxTypeRef>();
   let entryOrder = new Map<string, number>();
 
   return {

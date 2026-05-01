@@ -8,16 +8,14 @@ import {
 } from "cmx-bundle";
 import { cmx, type UnsupportedMetaTypesPolicy } from "cmx-bundler";
 import {
-  renderCmxBundle,
-  type CmxNode,
-  type CmxManifest,
-  type CmxMeta,
-  type RenderCmxBundleCompleteResult,
-  type RenderCmxBundleErrorResult,
-  type RenderCmxBundlePartialResult,
+  renderCmxDocuments,
+  type CmxDocument,
+  type RenderCmxDocumentsCompleteResult,
+  type RenderCmxDocumentsErrorResult,
+  type RenderCmxDocumentsPartialResult,
   type CmxRenderDiagnostic,
   type UnsupportedValuesPolicy,
-} from "cmx-tree-renderer";
+} from "cmx-document-renderer";
 import { createCmxTestbedWorkspace } from "./createCmxTestbedWorkspace.js";
 import { toCmxTestbedBuildDiagnostic } from "./toCmxTestbedBuildDiagnostic.js";
 
@@ -38,10 +36,8 @@ export type RenderCmxTestbedBundles = {
 };
 
 export type RenderCmxTestbedSuccessResult = RenderCmxTestbedBundles & {
-  result: "tree";
-  tree: CmxNode;
-  meta?: CmxMeta;
-  manifest: CmxManifest;
+  result: "document";
+  document: CmxDocument;
   diagnostics: [];
 };
 
@@ -56,13 +52,13 @@ export type RenderCmxTestbedBuildErrorResult = {
 };
 
 export type RenderCmxTestbedCompleteResult = RenderCmxTestbedBundles &
-  RenderCmxBundleCompleteResult;
+  RenderCmxDocumentsCompleteResult;
 
 export type RenderCmxTestbedPartialResult = RenderCmxTestbedBundles &
-  RenderCmxBundlePartialResult;
+  RenderCmxDocumentsPartialResult;
 
 export type RenderCmxTestbedBundleErrorResult = RenderCmxTestbedBundles &
-  RenderCmxBundleErrorResult;
+  RenderCmxDocumentsErrorResult;
 
 export type RenderCmxTestbedResult =
   | RenderCmxTestbedSuccessResult
@@ -125,7 +121,7 @@ export async function renderCmxTestbed(
       outDir,
     };
 
-    const renderedBundle = await renderCmxBundle({
+    const renderedDocuments = await renderCmxDocuments({
       bundle,
       outDir,
       unsupportedValues: input.unsupportedValues,
@@ -133,18 +129,16 @@ export async function renderCmxTestbed(
 
     if (input.entries) {
       return {
-        ...renderedBundle,
+        ...renderedDocuments,
         ...bundleResult,
       };
     }
 
-    if (renderedBundle.result === "complete") {
-      const renderedEntry = renderedBundle.entries[bundleEntry.name];
+    if (renderedDocuments.result === "complete") {
+      const renderedEntry = renderedDocuments.entries[bundleEntry.name];
       return {
-        result: "tree",
-        tree: renderedEntry.tree,
-        ...(renderedEntry.meta ? { meta: renderedEntry.meta } : {}),
-        manifest: renderedEntry.manifest,
+        result: "document",
+        document: renderedEntry.document,
         diagnostics: [],
         ...bundleResult,
       };
@@ -152,7 +146,7 @@ export async function renderCmxTestbed(
 
     return {
       result: "error",
-      diagnostics: renderedBundle.diagnostics,
+      diagnostics: renderedDocuments.diagnostics,
       ...bundleResult,
     };
   } catch (error) {
