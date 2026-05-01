@@ -55,6 +55,9 @@ importers:
       "@example/ui-library":
         specifier: workspace:*
         version: link:../ui-library
+      cmx-react:
+        specifier: workspace:*
+        version: link:../../packages/cmx-react
       react:
         specifier: ^19.2.5
         version: 19.2.5

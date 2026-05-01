@@ -4,11 +4,12 @@
   "type": "module",
   "scripts": {
     "start": "tsx server.tsx",
-    "gen:cmx-deps": "cmx-provide ./api.tsx:@example/backend-contract @example/ui-library --meta @example/backend-contract#Meta _gen_cmx_dependencies.ts"
+    "gen:cmx-env": "cmx-provide ./api.tsx:@example/backend-contract @example/ui-library --meta @example/backend-contract#Meta _gen_cmx_environment.ts"
   },
   "dependencies": {
     "@example/backend-contract": "workspace:*",
     "@example/ui-library": "workspace:*",
+    "cmx-react": "workspace:*",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },

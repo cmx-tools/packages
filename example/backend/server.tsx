@@ -1,10 +1,9 @@
 import { createServer } from "node:http";
 import { StrictMode } from "react";
 import { renderToString } from "react-dom/server";
-import { dependencies } from "./_gen_cmx_dependencies.js";
-import { Meta } from "@example/backend-contract";
-// @ts-ignore TODO: IMPLEMENT
-import { renderCmx } from "cmx-react";
+import { environment } from "./_gen_cmx_environment.js";
+import type { Meta } from "@example/backend-contract";
+import { renderCmxReact } from "cmx-react";
 
 function App({ children, meta }: { children: React.ReactNode; meta?: Meta }) {
   return (
@@ -20,11 +19,9 @@ function App({ children, meta }: { children: React.ReactNode; meta?: Meta }) {
 
 const server = createServer(async (req, res) => {
   const route = req.url?.includes("/about") ? "about" : "404";
-  const cmxTree = await import(`./_db_content/${route}.json`);
+  const { default: document } = await import(`./_db_content/${route}.json`);
 
-  // verifies dependencies of tree vs bundled dependencies
-  // then resolves the tree down to react intrinsics
-  const { children, meta } = renderCmx(cmxTree, dependencies);
+  const { children, meta } = renderCmxReact<Meta>(document, environment);
   const markup = renderToString(
     <StrictMode>
       <App children={children} meta={meta} />
