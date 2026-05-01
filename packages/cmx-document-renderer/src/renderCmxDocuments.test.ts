@@ -79,7 +79,7 @@ describe("renderCmxDocuments", () => {
         entry: {
           result: "document",
           document: {
-            $schema: "https://cmx.dev/schemas/document.v1.json",
+            $schema: "https://example.org/todo.v1.json",
             cmxVersion: 1,
             dependencies: [
               {
@@ -213,7 +213,7 @@ describe("renderCmxDocuments", () => {
         entry: {
           result: "document",
           document: {
-            $schema: "https://cmx.dev/schemas/document.v1.json",
+            $schema: "https://example.org/todo.v1.json",
             cmxVersion: 1,
             dependencies: [],
             tree: "rendered",
