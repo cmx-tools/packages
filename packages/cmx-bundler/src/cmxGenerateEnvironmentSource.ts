@@ -1,4 +1,4 @@
-import type { CmxEnvironmentEntry, CmxTypeRef } from "cmx-bundle";
+import type { CmxEnvironmentEntry, CmxTypeRef } from "cmx-contracts";
 
 export type CmxGenerateEnvironmentSourceInput = {
   entries: CmxEnvironmentEntry[];

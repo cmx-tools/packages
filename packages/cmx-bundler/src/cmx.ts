@@ -1,6 +1,6 @@
 import type { InputOptions, Plugin } from "rolldown";
 import { parseSync, Visitor } from "oxc-parser";
-import { CMX_BUNDLE_FILE_NAME, type CmxTypeRef } from "cmx-bundle";
+import { CMX_BUNDLE_FILE_NAME, type CmxTypeRef } from "cmx-contracts";
 import {
   createCmxBundleArtifact,
   createEntryOrder,

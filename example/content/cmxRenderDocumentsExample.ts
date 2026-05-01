@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { CMX_BUNDLE_FILE_NAME, parseCmxBundleJson } from "cmx-bundle";
+import { CMX_BUNDLE_FILE_NAME, parseCmxBundleJson } from "cmx-contracts";
 import { renderCmxDocuments } from "cmx-document-renderer";
 
 const BUNDLE_DIR = "dist";

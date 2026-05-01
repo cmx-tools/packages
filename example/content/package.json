@@ -7,7 +7,7 @@
     "postbuild": "tsx cmxRenderDocumentsExample.ts"
   },
   "dependencies": {
-    "cmx-bundle": "workspace:*",
+    "cmx-contracts": "workspace:*",
     "cmx-bundler": "workspace:*",
     "cmx-document-renderer": "workspace:*",
     "@example/ui-library": "workspace:*",

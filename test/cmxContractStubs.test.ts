@@ -1,5 +1,5 @@
 import { expect, expectTypeOf, it } from "vitest";
-import type { CmxEnvironment, CmxEnvironmentEntry } from "cmx-bundle";
+import type { CmxEnvironment, CmxEnvironmentEntry } from "cmx-contracts";
 import {
   cmxGenerateEnvironmentSource,
   type CmxGenerateEnvironmentSourceInput,

@@ -1,4 +1,4 @@
-import type { CmxDiagnostic, CmxDiagnosticSource } from "cmx-bundle";
+import type { CmxDiagnostic, CmxDiagnosticSource } from "cmx-contracts";
 
 export function toCmxTestbedBuildDiagnostic(error: unknown): CmxDiagnostic {
   const errorRecord = isRecord(error) ? error : {};

@@ -1,4 +1,5 @@
 Read MISSION.md
+Read CONTEXT.md for CMX domain glossary and package boundaries.
 
 Github Repo is `Xiphe/content-management-jsx`
 DO use conventional commit message format

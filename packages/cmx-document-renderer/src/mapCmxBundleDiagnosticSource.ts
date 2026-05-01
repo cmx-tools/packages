@@ -6,7 +6,7 @@ import type {
   CmxBundleChunk,
   CmxDiagnosticSource,
   CmxBundleEntry,
-} from "cmx-bundle";
+} from "cmx-contracts";
 
 export async function mapCmxBundleDiagnosticSource(
   error: unknown,

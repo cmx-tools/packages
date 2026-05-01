@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",
-    "cmx-bundle": "workspace:*",
+    "cmx-contracts": "workspace:*",
     "cmx-runtime": "workspace:*"
   }
 }

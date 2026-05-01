@@ -19,7 +19,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "cmx-bundle": "workspace:*",
+    "cmx-contracts": "workspace:*",
     "oxc-parser": "^0.128.0",
     "rolldown": "^1.0.0-rc.18"
   }
