@@ -55,6 +55,9 @@ importers:
       "@example/ui-library":
         specifier: workspace:*
         version: link:../ui-library
+      cmx-bundler:
+        specifier: workspace:*
+        version: link:../../packages/cmx-bundler
       cmx-react:
         specifier: workspace:*
         version: link:../../packages/cmx-react
@@ -95,6 +98,15 @@ importers:
       "@example/ui-library":
         specifier: workspace:*
         version: link:../ui-library
+      cmx-bundle:
+        specifier: workspace:*
+        version: link:../../packages/cmx-bundle
+      cmx-bundler:
+        specifier: workspace:*
+        version: link:../../packages/cmx-bundler
+      cmx-document-renderer:
+        specifier: workspace:*
+        version: link:../../packages/cmx-document-renderer
     devDependencies:
       "@types/react":
         specifier: ^19
@@ -102,6 +114,9 @@ importers:
       "@types/react-dom":
         specifier: ^19
         version: 19.2.3(@types/react@19.2.14)
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
 
   example/ui-library:
     devDependencies:
