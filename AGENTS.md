@@ -1,10 +1,11 @@
+GitHub: `Xiphe/content-management-jsx`
+Commit Messages Format: Conventional Commits
+Package manager: pnpm
+
 Read MISSION.md
 Read CONTEXT.md for CMX domain glossary and package boundaries.
 
-Github Repo is `Xiphe/content-management-jsx`
-DO use conventional commit message format
 ONLY commit when instructed
-
 NEVER write docs or code-comments for intermediate or iterative steps
 ANY docs/comments MUST cut to the point. NO fluff. AVOID parentheses
 
@@ -25,7 +26,11 @@ File structure:
 ```
 
 FOLDERS are internal modules with index as API
-NEVER folders with less then 3 implementation files
+NEVER folders with only one implementation file
+(tests, index and other barrels are not implementation files).
 NEVER deep imports from internal modules
 ALWAYS feature/deep-module based architecture. Small interface, lots of implementation
 AVOID functional folders (`components` or `hooks`)
+
+ALWAYS test through official module/package APIs
+NEVER cement internal interfaces or implementation details using tests.
