@@ -39,6 +39,14 @@ function expectPartialResult(
   return result;
 }
 
+const THEME_UI_DEPENDENCY = [
+  {
+    name: "@theme/ui",
+    specifier: "^0.0.0",
+    version: "0.0.0",
+  },
+];
+
 describe("renderCmxTestbed", () => {
   it("omits source for runtime errors without generated bundle frames", async () => {
     await expect(
@@ -563,6 +571,7 @@ describe("renderCmxTestbed", () => {
         },
       ],
     });
+    expect(result.document.dependencies).toEqual(THEME_UI_DEPENDENCY);
   });
 
   it("preserves local component children shape through the bundle boundary", async () => {
@@ -914,7 +923,7 @@ describe("renderCmxTestbed", () => {
         },
       ],
     });
-    expect(result.document.dependencies).toEqual([]);
+    expect(result.document.dependencies).toEqual(THEME_UI_DEPENDENCY);
   });
 
   it("returns unsupported value diagnostics for props and meta data by default", async () => {

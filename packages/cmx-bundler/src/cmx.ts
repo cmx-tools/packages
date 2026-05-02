@@ -1,12 +1,18 @@
-import type { InputOptions, Plugin } from "rolldown";
+import path from "node:path";
+import type { InputOptions, Plugin, TransformPluginContext } from "rolldown";
 import { parseSync, Visitor } from "rolldown/utils";
-import { CMX_BUNDLE_FILE_NAME, type CmxTypeRef } from "cmx-contracts";
+import type { CmxDependency, CmxTypeRef } from "cmx-contracts";
+import { CMX_BUNDLE_FILE_NAME } from "cmx-contracts";
 import {
   createCmxBundleArtifact,
   createEntryOrder,
   isEntryModule,
 } from "./createCmxBundleArtifact.js";
-import { createCmxExternalPolicy } from "./CmxExternalPolicy.js";
+import { readConsumerPackageJson } from "./consumerPackage.js";
+import {
+  createCmxExternalPolicy,
+  matchesCmxExternalPolicy,
+} from "./CmxExternalPolicy.js";
 import {
   createExternalStubSource,
   externalStubIdFromSource,
@@ -17,6 +23,11 @@ import {
 import { extractCmxBundleMetaType } from "./extractCmxBundleMetaType.js";
 import { findUnsupportedExternalImport } from "./findUnsupportedExternalImport.js";
 import { normalizeModulePath } from "./normalizeModulePath.js";
+import {
+  resolveAndRecordCmxExternalDependency,
+  type CmxGetIntegrity,
+  type CmxIntegrityContext,
+} from "./resolveCmxExternalDependency.js";
 
 const RUNTIME_IMPORT_SOURCE = "cmx-runtime";
 const DYNAMIC_IMPORT_UNSUPPORTED = "dynamic-import-unsupported";
@@ -29,7 +40,16 @@ export type UnsupportedMetaTypesPolicy = "error" | "omit";
 export type CmxPluginOptions = {
   externals?: string[];
   unsupportedMetaTypes?: UnsupportedMetaTypesPolicy;
+  /**
+   * Absolute or cwd-relative path to the consumer `package.json` used for
+   * dependency ranges and external resolution validation. Defaults to
+   * `./package.json` under `process.cwd()`.
+   */
+  consumerPackageJson?: string;
+  getIntegrity?: CmxGetIntegrity;
 };
+
+export type { CmxGetIntegrity, CmxIntegrityContext };
 
 export function cmx(options: CmxPluginOptions = {}): Plugin {
   const jsxRuntimeModuleId = `${RUNTIME_IMPORT_SOURCE}/jsx-runtime`;
@@ -38,13 +58,32 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
   const unsupportedMetaTypes = options.unsupportedMetaTypes ?? "error";
   const externalStubs = new Map<string, ExternalStub>();
   const metaTypesByModuleId = new Map<string, CmxTypeRef>();
+  const bundleDependencies = new Map<string, CmxDependency>();
   let entryOrder = new Map<string, number>();
+  let consumerPackageJsonPathResolved!: string;
+  let consumerPackage!: ReturnType<typeof readConsumerPackageJson>;
 
   return {
     name: "cmx",
     options(inputOptions) {
       entryOrder = createEntryOrder(inputOptions.input);
       return withCmxJsxRuntime(inputOptions);
+    },
+    buildStart() {
+      bundleDependencies.clear();
+      consumerPackageJsonPathResolved = path.resolve(
+        options.consumerPackageJson ?? path.join(process.cwd(), "package.json"),
+      );
+      try {
+        consumerPackage = readConsumerPackageJson(
+          consumerPackageJsonPathResolved,
+        );
+      } catch {
+        this.error({
+          code: "cmx-consumer-package-missing",
+          message: `Could not read consumer package.json at ${consumerPackageJsonPathResolved}.`,
+        });
+      }
     },
     outputOptions(outputOptions) {
       return {
@@ -83,12 +122,22 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
 
       return createExternalStubSource(RUNTIME_IMPORT_SOURCE, stub);
     },
-    transform(source, id) {
+    async transform(source, id) {
       const moduleId = normalizeModulePath(id);
       if (isEntryModule(moduleId, entryOrder)) {
         const metaType = extractCmxBundleMetaType(source, id);
         if (metaType.result === "resolved") {
           metaTypesByModuleId.set(moduleId, metaType.ref);
+          if (matchesCmxExternalPolicy(metaType.ref.from, externalPolicy)) {
+            await resolveAndRecordCmxExternalDependency(this, {
+              importSpecifier: metaType.ref.from,
+              importerId: id,
+              consumerPackageJsonPath: consumerPackageJsonPathResolved,
+              consumerPackage,
+              bundleDependencies,
+              getIntegrity: options.getIntegrity,
+            });
+          }
         } else {
           metaTypesByModuleId.delete(moduleId);
         }
@@ -132,11 +181,31 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
         );
       }
 
+      const resolveRecorder =
+        externalPolicy.patterns.length > 0
+          ? async (
+              context: TransformPluginContext,
+              importSpecifier: string,
+              importerId: string,
+            ) => {
+              await resolveAndRecordCmxExternalDependency(context, {
+                importSpecifier,
+                importerId,
+                consumerPackageJsonPath: consumerPackageJsonPathResolved,
+                consumerPackage,
+                bundleDependencies,
+                getIntegrity: options.getIntegrity,
+              });
+            }
+          : undefined;
+
       return transformExternalImports(
+        this,
         source,
         id,
         externalPolicy,
         externalStubs,
+        resolveRecorder,
       );
     },
     generateBundle(_outputOptions, outputBundle) {
@@ -145,6 +214,7 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
         entryOrder,
         runtimeImportSource: RUNTIME_IMPORT_SOURCE,
         metaTypesByModuleId,
+        dependencies: [...bundleDependencies.values()],
       });
 
       this.emitFile({
