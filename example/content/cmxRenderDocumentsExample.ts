@@ -16,6 +16,7 @@ export async function cmxRenderDocumentsExample(): Promise<void> {
     );
   }
 
+  // This filesystem handoff belongs to the example app.
   await mkdir(DOCUMENT_DIR, { recursive: true });
   for (const [name, entry] of Object.entries(rendered.entries)) {
     if (entry.result === "document") {

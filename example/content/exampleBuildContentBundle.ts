@@ -1,7 +1,7 @@
-import { cmxBundle } from "./cmxBundle.js";
+import { exampleBuildCmxBundle } from "./exampleBuildCmxBundle.js";
 
-export async function cmxBundleExample(): Promise<void> {
-  await cmxBundle({
+export async function exampleBuildContentBundle(): Promise<void> {
+  await exampleBuildCmxBundle({
     entries: {
       "404": "pages/404.tsx",
       about: "pages/about.tsx",
@@ -17,4 +17,4 @@ export async function cmxBundleExample(): Promise<void> {
   });
 }
 
-await cmxBundleExample();
+await exampleBuildContentBundle();

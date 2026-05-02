@@ -1,6 +1,6 @@
 # content-management-jsx
 
-JSX content compiles to CMX through a **bundler plugin** and a **document renderer**. The repository root is a private workspace shell.
+JSX content compiles to CMX through a **bundler plugin** and a **document renderer**. The current pipeline stops at CMX documents. React rendering and HTML output are downstream app concerns.
 
 ## Quick start
 
@@ -11,12 +11,24 @@ pnpm test
 
 ## Packages
 
-| Package                 | Role                                                                                                     |
-| ----------------------- | -------------------------------------------------------------------------------------------------------- |
-| `cmx-contracts`         | Shared CMX contract types, `cmx-bundle.json` parse surface, diagnostics.                                 |
-| `cmx-bundler`           | Rolldown/Rollup-compatible `cmx()` plugin; emits ESM chunks, sourcemaps, and `cmx-bundle.json` metadata. |
-| `cmx-document-renderer` | Executes emitted artifacts with an external CMX JSX runtime; emits CMX documents.                        |
-| `cmx-runtime`           | Runtime protocol and JSX runtime subpath exports expected by compiled artifacts.                         |
+| Package                 | Role                                                                                                      |
+| ----------------------- | --------------------------------------------------------------------------------------------------------- |
+| `cmx-contracts`         | Bundle, document, environment, dependency, parse, diagnostic, and verifier contracts.                     |
+| `cmx-bundler`           | Rolldown/Rollup-compatible `cmx()` plugin; emits ESM chunks, sourcemaps, and `cmx-bundle.json` metadata.  |
+| `cmx-document-renderer` | Reads a bundle directory, executes emitted artifacts with the CMX JSX runtime, and returns CMX documents. |
+| `cmx-react`             | Contract stub for later React rendering; not part of the non-React bundle-to-document path.               |
+| `cmx-runtime`           | Runtime protocol and JSX runtime subpath exports expected by compiled artifacts.                          |
+
+## Bundle-to-document flow
+
+1. A content repository builds TSX entries with Rolldown and `cmx()`.
+2. The build output directory contains JavaScript chunks, sourcemaps, and `cmx-bundle.json`.
+3. `renderCmxDocuments({ bundleDir })` accepts that directory and returns rendered CMX documents plus diagnostics.
+4. The renderer does not store, publish, forward, or convert documents to HTML.
+
+The `example/content` package shows one app-specific orchestration: build a bundle directory, render documents, then write JSON files into `example/backend/_db_content`. That filesystem handoff is example glue, not a package API. Other apps can store the returned documents in a database, forward them to a service, or keep them in memory.
+
+`cmx-contracts` exposes the bundle, document, and environment artifact contracts so custom pipelines can inspect or validate handoffs without depending on package internals.
 
 ## Render results
 

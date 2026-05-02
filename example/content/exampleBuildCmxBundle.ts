@@ -8,7 +8,7 @@ import {
 } from "cmx-contracts";
 import { cmx, type CmxPluginOptions } from "cmx-bundler";
 
-export type CmxBundleInput = {
+export type ExampleBuildCmxBundleInput = {
   entries: Record<string, string>;
   outDir: string;
   externals?: CmxPluginOptions["externals"];
@@ -16,7 +16,9 @@ export type CmxBundleInput = {
   cwd?: string;
 };
 
-export async function cmxBundle(input: CmxBundleInput): Promise<CmxBundle> {
+export async function exampleBuildCmxBundle(
+  input: ExampleBuildCmxBundleInput,
+): Promise<CmxBundle> {
   const bundle = await rolldown({
     input: input.entries,
     plugins: [
