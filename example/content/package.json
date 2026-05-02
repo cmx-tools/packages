@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsx cmxBundleExample.ts",
+    "build": "tsx exampleBuildContentBundle.ts",
     "postbuild": "tsx cmxRenderDocumentsExample.ts"
   },
   "dependencies": {
