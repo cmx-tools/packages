@@ -824,29 +824,26 @@ describe("renderCmxTestbed", () => {
     expect(result).not.toHaveProperty("bundle");
   });
 
-  it("rejects exported meta when metaType is not configured", async () => {
-    const result = await renderCmxTestbed({
-      files: {
-        "entry.tsx": [
-          'import type { PageMeta } from "./meta";',
-          "export const meta: PageMeta = { title: 'Hello' };",
-          "export default <main>Hello</main>;",
-        ].join("\n"),
-        "meta.ts": "export type PageMeta = { title: string };\n",
+  it("renders exported meta as unknown when metaType is not configured", async () => {
+    const result = expectDocumentResult(
+      await renderCmxTestbed({
+        files: {
+          "entry.tsx": [
+            'import type { PageMeta } from "./meta";',
+            "export const meta: PageMeta = { title: 'Hello' };",
+            "export default <main>Hello</main>;",
+          ].join("\n"),
+          "meta.ts": "export type PageMeta = { title: string };\n",
+        },
+      }),
+    );
+
+    expect(result.document.meta).toEqual({
+      data: {
+        title: "Hello",
       },
     });
-
-    expect(result).toMatchObject({
-      result: "error",
-      diagnostics: [
-        {
-          severity: "error",
-          code: "cmx-meta-type-missing",
-          message: "CMX entry exports meta but cmx metaType is not configured.",
-        },
-      ],
-    });
-    expect(result).not.toHaveProperty("bundle");
+    expect(result.bundle.entries[0]).not.toHaveProperty("meta");
   });
 
   it("allows omitted meta when configured metaType is optional", async () => {

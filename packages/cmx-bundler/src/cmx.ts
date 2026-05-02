@@ -35,7 +35,6 @@ const DYNAMIC_IMPORT_UNSUPPORTED = "dynamic-import-unsupported";
 const META_TYPE_UNSUPPORTED = "meta-type-unsupported";
 const META_TYPE_UNSUPPORTED_MESSAGE =
   "CMX meta annotations must be simple non-generic type references.";
-const META_TYPE_MISSING = "cmx-meta-type-missing";
 const META_REQUIRED = "cmx-meta-required";
 
 export type CmxPluginMetaType = CmxTypeRef & {
@@ -154,13 +153,6 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
             },
             metaExport.position,
           );
-        }
-        if (metaExport.result === "present" && !configuredMetaType) {
-          this.error({
-            code: META_TYPE_MISSING,
-            message:
-              "CMX entry exports meta but cmx metaType is not configured.",
-          });
         }
         if (
           metaExport.result === "none" &&
