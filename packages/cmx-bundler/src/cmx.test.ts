@@ -443,6 +443,128 @@ describe("cmx", () => {
     });
   });
 
+  it("emits a truthful environment module for configured externals", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "cmx-environment-fixture",
+            private: true,
+            dependencies: {
+              "@theme/content": "workspace:*",
+              "@theme/ui": "^2.0.0",
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeStubPackage(tempDir, "@theme/content", "1.1.0");
+      await writeStubPackage(tempDir, "@theme/ui", "2.3.0");
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        "export const meta = { title: 'Hello' };\nexport default <main>Hello</main>;\n",
+      );
+      await writeFixture(
+        tempDir,
+        "theme-ui.ts",
+        "export const Hero = () => null;\nexport default Hero;\n",
+      );
+      const outDir = path.join(tempDir, "dist");
+      const bundle = await rolldown({
+        input: entryFile,
+        plugins: [
+          cmx({
+            cwd: tempDir,
+            externals: [
+              { from: "./theme-ui.ts", as: "@theme/ui" },
+              { from: "@theme/content" },
+            ],
+            metaType: {
+              from: "@theme/content",
+              import: "PageMeta",
+            },
+            environment: {
+              fileName: "cmx-environment.ts",
+            },
+            getIntegrity: ({ packageName }) =>
+              packageName === "@theme/ui" ? "sha512-ui" : null,
+          }),
+        ],
+      });
+
+      try {
+        const output = await bundle.write({
+          dir: outDir,
+          entryFileNames: "entry.js",
+        });
+        expect(output.output.map((item) => item.fileName).sort()).toContain(
+          "cmx-environment.ts",
+        );
+
+        await expect(
+          readFile(path.join(outDir, "cmx-environment.ts"), "utf8"),
+        ).resolves.toEqual(
+          [
+            'import type { PageMeta } from "@theme/content";',
+            'import * as CmxEnvironmentImport0 from "./theme-ui.ts";',
+            'import type * as CmxEnvironmentPublic0 from "@theme/ui";',
+            'import * as CmxEnvironmentImport1 from "@theme/content";',
+            "",
+            "type CmxDependency = {",
+            "  name: string;",
+            "  specifier: string;",
+            "  version: string;",
+            "  integrity?: string;",
+            "};",
+            "",
+            "type CmxTypeRef = {",
+            "  from: string;",
+            "  import?: string;",
+            "};",
+            "",
+            "type CmxEnvironment<Meta = unknown> = {",
+            "  dependencies: CmxDependency[];",
+            "  imports: Record<string, Record<string, unknown>>;",
+            "  metaType?: CmxTypeRef;",
+            "  __meta?: Meta;",
+            "};",
+            "",
+            "export const environment: CmxEnvironment<PageMeta> = {",
+            "  dependencies: [",
+            "    {",
+            '      name: "@theme/content",',
+            '      specifier: "workspace:*",',
+            '      version: "1.1.0",',
+            "    },",
+            "    {",
+            '      name: "@theme/ui",',
+            '      specifier: "^2.0.0",',
+            '      version: "2.3.0",',
+            '      integrity: "sha512-ui",',
+            "    },",
+            "  ],",
+            "  imports: {",
+            '    "@theme/ui": CmxEnvironmentImport0 satisfies typeof CmxEnvironmentPublic0,',
+            '    "@theme/content": CmxEnvironmentImport1,',
+            "  },",
+            "  metaType: {",
+            '    from: "@theme/content",',
+            '    import: "PageMeta",',
+            "  },",
+            "};",
+            "",
+          ].join("\n"),
+        );
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
   it("uses configured metaType for content entries that export meta", async () => {
     await withTempDir(async (tempDir) => {
       const entryFile = await writeFixture(

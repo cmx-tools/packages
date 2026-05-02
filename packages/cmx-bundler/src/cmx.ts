@@ -8,6 +8,7 @@ import {
   createEntryOrder,
   isEntryModule,
 } from "./createCmxBundleArtifact.js";
+import { createCmxEnvironmentModuleSource } from "./createCmxEnvironmentModuleSource.js";
 import { readConsumerPackageJson } from "./consumerPackage.js";
 import {
   createCmxExternalPolicy,
@@ -44,8 +45,13 @@ export type CmxPluginMetaType = CmxTypeRef & {
 export type CmxPluginOptions = {
   externals?: CmxExternalEntry[];
   metaType?: CmxPluginMetaType;
+  environment?: CmxEnvironmentEmission;
   cwd?: string;
   getIntegrity?: CmxGetIntegrity;
+};
+
+export type CmxEnvironmentEmission = {
+  fileName: string;
 };
 
 export type { CmxGetIntegrity, CmxIntegrityContext };
@@ -61,6 +67,8 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
   const externalStubs = new Map<string, ExternalStub>();
   const metaTypesByModuleId = new Map<string, CmxTypeRef>();
   const bundleDependencies = new Map<string, CmxDependency>();
+  const environmentDependencies = new Map<string, CmxDependency>();
+  const environmentEntries = toEnvironmentEntries(options.externals ?? []);
   let entryOrder = new Map<string, number>();
   let consumerPackageJsonPathResolved!: string;
   let consumerPackage!: ReturnType<typeof readConsumerPackageJson>;
@@ -71,8 +79,9 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
       entryOrder = createEntryOrder(inputOptions.input);
       return withCmxJsxRuntime(inputOptions);
     },
-    buildStart() {
+    async buildStart() {
       bundleDependencies.clear();
+      environmentDependencies.clear();
       consumerPackageJsonPathResolved = path.resolve(
         path.join(options.cwd ?? process.cwd(), "package.json"),
       );
@@ -85,6 +94,26 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
           code: "cmx-consumer-package-missing",
           message: `Could not read consumer package.json at ${consumerPackageJsonPathResolved}.`,
         });
+      }
+      if (options.environment) {
+        const environmentImporterId = path.join(
+          path.dirname(consumerPackageJsonPathResolved),
+          "__cmx_environment__.ts",
+        );
+        for (const entry of environmentEntries) {
+          const publicImportSpecifier = entry.as ?? entry.from;
+          if (!hasPackageName(publicImportSpecifier)) {
+            continue;
+          }
+          await resolveAndRecordCmxExternalDependency(this, {
+            importSpecifier: publicImportSpecifier,
+            importerId: environmentImporterId,
+            consumerPackageJsonPath: consumerPackageJsonPathResolved,
+            consumerPackage,
+            bundleDependencies: environmentDependencies,
+            getIntegrity: options.getIntegrity,
+          });
+        }
       }
     },
     outputOptions(outputOptions) {
@@ -234,6 +263,18 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
         fileName: CMX_BUNDLE_FILE_NAME,
         source: `${JSON.stringify(cmxBundle, null, 2)}\n`,
       });
+
+      if (options.environment) {
+        this.emitFile({
+          type: "asset",
+          fileName: options.environment.fileName,
+          source: createCmxEnvironmentModuleSource({
+            entries: environmentEntries,
+            dependencies: [...environmentDependencies.values()],
+            metaType: configuredMetaType,
+          }),
+        });
+      }
     },
   };
 }
@@ -286,4 +327,24 @@ function toCmxTypeRef(metaType: CmxPluginMetaType): CmxTypeRef {
     from: metaType.from,
     ...(metaType.import === undefined ? {} : { import: metaType.import }),
   };
+}
+
+function toEnvironmentEntries(externals: CmxExternalEntry[]): Array<{
+  from: string;
+  as?: string;
+}> {
+  return externals
+    .map((entry) =>
+      typeof entry === "string" ? { from: entry } : { ...entry },
+    )
+    .filter((entry) => entry.from.trim().length > 0);
+}
+
+function hasPackageName(importSpecifier: string): boolean {
+  if (importSpecifier.startsWith(".") || path.isAbsolute(importSpecifier)) {
+    return false;
+  }
+
+  const parts = importSpecifier.split("/");
+  return importSpecifier.startsWith("@") ? parts.length >= 2 : parts[0] !== "";
 }
