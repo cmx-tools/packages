@@ -1,26 +1,8 @@
 import type { Meta } from "@example/backend-contract";
+import type { CmxEnvironment } from "cmx-contracts";
 import type * as BackendContract from "@example/backend-contract";
 import * as BackendApi from "./api.js";
 import * as ExampleUiLibrary from "@example/ui-library";
-
-type CmxDependency = {
-  name: string;
-  specifier: string;
-  version: string;
-  integrity?: string;
-};
-
-type CmxTypeRef = {
-  from: string;
-  import?: string;
-};
-
-type CmxEnvironment<Meta = unknown> = {
-  dependencies: CmxDependency[];
-  imports: Record<string, Record<string, unknown>>;
-  metaType?: CmxTypeRef;
-  __meta?: Meta;
-};
 
 export const environment: CmxEnvironment<Meta> = {
   dependencies: [

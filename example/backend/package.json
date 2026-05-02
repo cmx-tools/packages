@@ -10,6 +10,7 @@
     "@example/backend-contract": "workspace:*",
     "@example/ui-library": "workspace:*",
     "cmx-bundler": "workspace:*",
+    "cmx-contracts": "workspace:*",
     "cmx-react": "workspace:*",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
