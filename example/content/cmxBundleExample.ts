@@ -7,6 +7,12 @@ export async function cmxBundleExample(): Promise<void> {
       about: "pages/about.tsx",
     },
     externals: ["@example/backend-contract", "@example/ui-library"],
+    metaType: {
+      from: "@example/backend-contract",
+      import: "Meta",
+      optional: true,
+    },
+    cwd: ".",
     outDir: "dist",
   });
 }

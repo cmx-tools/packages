@@ -1,7 +1,18 @@
 {
   "$schema": "https://example.org/todo.v1.json",
   "cmxVersion": 1,
-  "dependencies": [],
+  "dependencies": [
+    {
+      "name": "@example/backend-contract",
+      "specifier": "workspace:*",
+      "version": "0.1.0"
+    },
+    {
+      "name": "@example/ui-library",
+      "specifier": "workspace:*",
+      "version": "0.1.0"
+    }
+  ],
   "tree": {
     "type": "element",
     "tag": "h1",

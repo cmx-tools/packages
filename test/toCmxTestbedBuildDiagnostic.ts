@@ -48,15 +48,15 @@ function cmxPluginDiagnosticFromBuildMessage(
   message: string,
 ): CmxDiagnostic | undefined {
   const source = cmxPluginSourceFromBuildMessage(message);
-  if (!source) {
-    return undefined;
-  }
 
   if (
     message.includes(
       "Namespace imports from configured externals are not supported.",
     )
   ) {
+    if (!source) {
+      return undefined;
+    }
     return {
       severity: "error",
       code: "external-namespace-import-unsupported",
@@ -70,6 +70,9 @@ function cmxPluginDiagnosticFromBuildMessage(
       "Side-effect-only imports from configured externals are not supported.",
     )
   ) {
+    if (!source) {
+      return undefined;
+    }
     return {
       severity: "error",
       code: "external-side-effect-import-unsupported",
@@ -84,6 +87,9 @@ function cmxPluginDiagnosticFromBuildMessage(
       "Configured external imports must be rendered as JSX components.",
     )
   ) {
+    if (!source) {
+      return undefined;
+    }
     return {
       severity: "error",
       code: "external-component-call-unsupported",
@@ -98,6 +104,9 @@ function cmxPluginDiagnosticFromBuildMessage(
       "Configured external imports cannot be used as runtime values.",
     )
   ) {
+    if (!source) {
+      return undefined;
+    }
     return {
       severity: "error",
       code: "external-runtime-value-unsupported",
@@ -108,15 +117,42 @@ function cmxPluginDiagnosticFromBuildMessage(
 
   if (
     message.includes(
-      "CMX meta.type could not be extracted. Use a simple type-only import from an external package for exported meta annotations.",
+      "CMX meta annotations must be simple non-generic type references.",
     )
   ) {
+    if (!source) {
+      return undefined;
+    }
     return {
       severity: "error",
       code: "meta-type-unsupported",
       message:
-        "CMX meta.type could not be extracted. Use a simple type-only import from an external package for exported meta annotations.",
+        "CMX meta annotations must be simple non-generic type references.",
       source,
+    };
+  }
+
+  if (
+    message.includes(
+      "CMX entry exports meta but cmx metaType is not configured.",
+    )
+  ) {
+    return {
+      severity: "error",
+      code: "cmx-meta-type-missing",
+      message: "CMX entry exports meta but cmx metaType is not configured.",
+    };
+  }
+
+  if (
+    message.includes(
+      "CMX entry must export meta because cmx metaType is required.",
+    )
+  ) {
+    return {
+      severity: "error",
+      code: "cmx-meta-required",
+      message: "CMX entry must export meta because cmx metaType is required.",
     };
   }
 

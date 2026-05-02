@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 import type { TransformPluginContext } from "rolldown";
 import type { CmxDependency } from "cmx-contracts";
 import {
@@ -38,7 +39,11 @@ export async function resolveAndRecordCmxExternalDependency(
     },
   );
 
-  if (!resolved) {
+  const unresolvedPackageJsonPath = !resolved
+    ? findNodeModulesPackageJson(input.importSpecifier, input.importerId)
+    : undefined;
+
+  if (!resolved && !unresolvedPackageJsonPath) {
     context.error({
       code: "cmx-external-resolve-failed",
       message: `CMX could not resolve external import ${JSON.stringify(input.importSpecifier)}.`,
@@ -46,7 +51,7 @@ export async function resolveAndRecordCmxExternalDependency(
     return;
   }
 
-  if (resolved.external) {
+  if (resolved?.external) {
     context.error({
       code: "cmx-bundler-external-conflict",
       message: `CMX external ${JSON.stringify(input.importSpecifier)} is also marked as a Rolldown external. Use CMX "externals" for CMX externals; do not list the same module in Rolldown input.external.`,
@@ -54,7 +59,10 @@ export async function resolveAndRecordCmxExternalDependency(
     return;
   }
 
-  if (!resolved.packageJsonPath) {
+  const packageJsonPath =
+    resolved?.packageJsonPath ?? unresolvedPackageJsonPath;
+
+  if (!packageJsonPath) {
     context.error({
       code: "cmx-external-missing-package-json",
       message: `CMX could not determine a package for external import ${JSON.stringify(input.importSpecifier)}.`,
@@ -62,7 +70,7 @@ export async function resolveAndRecordCmxExternalDependency(
     return;
   }
 
-  const packageSource = readFileSync(resolved.packageJsonPath, "utf8");
+  const packageSource = readFileSync(packageJsonPath, "utf8");
   const packageJson = JSON.parse(packageSource) as {
     name?: unknown;
     version?: unknown;
@@ -70,7 +78,7 @@ export async function resolveAndRecordCmxExternalDependency(
   if (typeof packageJson.name !== "string" || packageJson.name.length === 0) {
     context.error({
       code: "cmx-external-invalid-package-name",
-      message: `Invalid package name in ${resolved.packageJsonPath}.`,
+      message: `Invalid package name in ${packageJsonPath}.`,
     });
     return;
   }
@@ -80,7 +88,7 @@ export async function resolveAndRecordCmxExternalDependency(
   ) {
     context.error({
       code: "cmx-external-invalid-package-version",
-      message: `Invalid version in ${resolved.packageJsonPath}.`,
+      message: `Invalid version in ${packageJsonPath}.`,
     });
     return;
   }
@@ -103,8 +111,8 @@ export async function resolveAndRecordCmxExternalDependency(
     const fromCallback = input.getIntegrity({
       importSpecifier: input.importSpecifier,
       importerId: input.importerId,
-      resolvedId: resolved.id,
-      packageJsonPath: resolved.packageJsonPath,
+      resolvedId: resolved?.id ?? packageJsonPath,
+      packageJsonPath,
       packageName,
       packageVersion: packageJson.version,
       consumerPackageJsonPath: input.consumerPackageJsonPath,
@@ -122,4 +130,48 @@ export async function resolveAndRecordCmxExternalDependency(
     ...(integrity === undefined ? {} : { integrity }),
   };
   input.bundleDependencies.set(packageName, next);
+}
+
+function findNodeModulesPackageJson(
+  importSpecifier: string,
+  importerId: string,
+): string | undefined {
+  const packageName = packageNameFromImportSpecifier(importSpecifier);
+  if (!packageName) {
+    return undefined;
+  }
+
+  let currentDir = path.dirname(importerId);
+  while (true) {
+    const packageJsonPath = path.join(
+      currentDir,
+      "node_modules",
+      ...packageName.split("/"),
+      "package.json",
+    );
+    if (existsSync(packageJsonPath)) {
+      return packageJsonPath;
+    }
+
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      return undefined;
+    }
+    currentDir = parentDir;
+  }
+}
+
+function packageNameFromImportSpecifier(
+  importSpecifier: string,
+): string | undefined {
+  if (importSpecifier.startsWith(".") || path.isAbsolute(importSpecifier)) {
+    return undefined;
+  }
+
+  const parts = importSpecifier.split("/");
+  if (importSpecifier.startsWith("@")) {
+    return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : undefined;
+  }
+
+  return parts[0];
 }

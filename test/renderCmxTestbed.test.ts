@@ -639,6 +639,10 @@ describe("renderCmxTestbed", () => {
   it("normalizes props, slots, and meta data through the bundle boundary", async () => {
     const result = expectDocumentResult(
       await renderCmxTestbed({
+        metaType: {
+          from: "@theme/content",
+          import: "PageMeta",
+        },
         files: {
           "entry.tsx": [
             'import { __registerExternal } from "cmx-runtime/jsx-runtime";',
@@ -699,6 +703,10 @@ describe("renderCmxTestbed", () => {
       ],
     });
     expect(result.document.meta).toEqual({
+      type: {
+        from: "@theme/content",
+        import: "PageMeta",
+      },
       data: {
         slug: "home",
         preview: {
@@ -714,6 +722,10 @@ describe("renderCmxTestbed", () => {
   it("attaches named imported meta type refs from bundle metadata", async () => {
     const result = expectDocumentResult(
       await renderCmxTestbed({
+        metaType: {
+          from: "@theme/content",
+          import: "PageMeta",
+        },
         files: {
           "entry.tsx": [
             'import type { PageMeta } from "@theme/content";',
@@ -747,6 +759,9 @@ describe("renderCmxTestbed", () => {
   it("attaches default imported meta type refs from bundle metadata", async () => {
     const result = expectDocumentResult(
       await renderCmxTestbed({
+        metaType: {
+          from: "@theme/content",
+        },
         files: {
           "entry.tsx": [
             'import type PageMeta from "@theme/content";',
@@ -775,8 +790,12 @@ describe("renderCmxTestbed", () => {
     expect(result.document.dependencies).toEqual([]);
   });
 
-  it("rejects complex exported meta type annotations by default", async () => {
+  it("rejects complex exported meta type annotations", async () => {
     const result = await renderCmxTestbed({
+      metaType: {
+        from: "@theme/content",
+        import: "PageMeta",
+      },
       files: {
         "entry.tsx": [
           'import type { PageMeta } from "@theme/content";',
@@ -793,7 +812,7 @@ describe("renderCmxTestbed", () => {
           severity: "error",
           code: "meta-type-unsupported",
           message:
-            "CMX meta.type could not be extracted. Use a simple type-only import from an external package for exported meta annotations.",
+            "CMX meta annotations must be simple non-generic type references.",
           source: {
             file: expect.stringMatching(/entry\.tsx$/u),
             line: 2,
@@ -805,7 +824,7 @@ describe("renderCmxTestbed", () => {
     expect(result).not.toHaveProperty("bundle");
   });
 
-  it("rejects local type-only meta import by default", async () => {
+  it("rejects exported meta when metaType is not configured", async () => {
     const result = await renderCmxTestbed({
       files: {
         "entry.tsx": [
@@ -822,46 +841,64 @@ describe("renderCmxTestbed", () => {
       diagnostics: [
         {
           severity: "error",
-          code: "meta-type-unsupported",
-          message:
-            "CMX meta.type could not be extracted. Use a simple type-only import from an external package for exported meta annotations.",
-          source: {
-            file: expect.stringMatching(/entry\.tsx$/u),
-            line: 2,
-            column: expect.any(Number),
-          },
+          code: "cmx-meta-type-missing",
+          message: "CMX entry exports meta but cmx metaType is not configured.",
         },
       ],
     });
     expect(result).not.toHaveProperty("bundle");
   });
 
-  it("omits meta.type for complex meta type when unsupportedMetaTypes is omit", async () => {
+  it("allows omitted meta when configured metaType is optional", async () => {
     const result = expectDocumentResult(
       await renderCmxTestbed({
-        unsupportedMetaTypes: "omit",
+        metaType: {
+          from: "@theme/content",
+          import: "PageMeta",
+          optional: true,
+        },
         files: {
-          "entry.tsx": [
-            'import type { PageMeta } from "@theme/content";',
-            "export const meta: PageMeta<{ title: string }> = { title: 'Hello' };",
-            "export default <main>Hello</main>;",
-          ].join("\n"),
+          "entry.tsx": "export default <main>Hello</main>;\n",
         },
       }),
     );
 
-    expect(result.document.meta).toEqual({
-      data: {
-        title: "Hello",
-      },
-    });
+    expect(result.document).not.toHaveProperty("meta");
     expect(result.bundle.entries[0]).not.toHaveProperty("meta");
   });
 
-  it("omits meta.type for local type-only meta import when unsupportedMetaTypes is omit", async () => {
+  it("rejects omitted meta when configured metaType is required", async () => {
+    const result = await renderCmxTestbed({
+      metaType: {
+        from: "@theme/content",
+        import: "PageMeta",
+      },
+      files: {
+        "entry.tsx": "export default <main>Hello</main>;\n",
+      },
+    });
+
+    expect(result).toMatchObject({
+      result: "error",
+      diagnostics: [
+        {
+          severity: "error",
+          code: "cmx-meta-required",
+          message:
+            "CMX entry must export meta because cmx metaType is required.",
+        },
+      ],
+    });
+    expect(result).not.toHaveProperty("bundle");
+  });
+
+  it("uses configured metaType instead of local meta annotations", async () => {
     const result = expectDocumentResult(
       await renderCmxTestbed({
-        unsupportedMetaTypes: "omit",
+        metaType: {
+          from: "@theme/content",
+          import: "PageMeta",
+        },
         files: {
           "entry.tsx": [
             'import type { PageMeta } from "./meta";',
@@ -874,11 +911,22 @@ describe("renderCmxTestbed", () => {
     );
 
     expect(result.document.meta).toEqual({
+      type: {
+        from: "@theme/content",
+        import: "PageMeta",
+      },
       data: {
         title: "Hello",
       },
     });
-    expect(result.bundle.entries[0]).not.toHaveProperty("meta");
+    expect(result.bundle.entries[0]).toMatchObject({
+      meta: {
+        type: {
+          from: "@theme/content",
+          import: "PageMeta",
+        },
+      },
+    });
   });
 
   it("renders configured external imports through importer-edge stubs", async () => {
@@ -945,6 +993,10 @@ describe("renderCmxTestbed", () => {
 
     await expect(
       renderCmxTestbed({
+        metaType: {
+          from: "@theme/content",
+          import: "PageMeta",
+        },
         files: {
           "entry.tsx": [
             "export const meta = { slug: 'home', build: () => 'x' };",
@@ -966,6 +1018,10 @@ describe("renderCmxTestbed", () => {
   it("omits unsupported prop and meta data values when configured", async () => {
     const result = expectDocumentResult(
       await renderCmxTestbed({
+        metaType: {
+          from: "@theme/content",
+          import: "PageMeta",
+        },
         unsupportedValues: "omit",
         files: {
           "entry.tsx": [
@@ -992,6 +1048,10 @@ describe("renderCmxTestbed", () => {
       },
     });
     expect(result.document.meta).toEqual({
+      type: {
+        from: "@theme/content",
+        import: "PageMeta",
+      },
       data: {
         slug: "home",
       },
