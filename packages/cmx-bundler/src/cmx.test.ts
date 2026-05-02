@@ -565,6 +565,67 @@ describe("cmx", () => {
     });
   });
 
+  it("emits an environment module from a virtual env-only entry", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "cmx-environment-only-fixture",
+            private: true,
+            dependencies: {
+              "@theme/ui": "^2.0.0",
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeStubPackage(tempDir, "@theme/ui", "2.3.0");
+      const outDir = path.join(tempDir, "dist");
+      const envOnlyEntry = "virtual:cmx-env-only-entry";
+      const bundle = await rolldown({
+        input: envOnlyEntry,
+        plugins: [
+          {
+            name: "cmx-env-only-entry",
+            resolveId(source) {
+              if (source === envOnlyEntry) {
+                return source;
+              }
+            },
+            load(id) {
+              if (id === envOnlyEntry) {
+                return "export {};\n";
+              }
+            },
+          },
+          cmx({
+            cwd: tempDir,
+            externals: ["@theme/ui"],
+            environment: {
+              fileName: "cmx-environment.ts",
+            },
+          }),
+        ],
+      });
+
+      try {
+        await bundle.write({
+          dir: outDir,
+          entryFileNames: "env-only.js",
+        });
+
+        await expect(
+          readFile(path.join(outDir, "cmx-environment.ts"), "utf8"),
+        ).resolves.toContain('"@theme/ui": CmxEnvironmentImport0');
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
   it("uses configured metaType for content entries that export meta", async () => {
     await withTempDir(async (tempDir) => {
       const entryFile = await writeFixture(
