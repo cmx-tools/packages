@@ -122,8 +122,7 @@ export async function renderCmxTestbed(
     };
 
     const renderedDocuments = await renderCmxDocuments({
-      bundle,
-      outDir,
+      bundleDir: outDir,
       unsupportedValues: input.unsupportedValues,
     });
 

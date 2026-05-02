@@ -8,10 +8,12 @@ import type {
   CmxBundleEntry,
 } from "cmx-contracts";
 
-export async function mapCmxBundleDiagnosticSource(
-  error: unknown,
-  input: { bundle: CmxBundle; outDir: string },
-): Promise<{ source: CmxDiagnosticSource } | Record<string, never>> {
+export async function mapCmxBundleDiagnosticSource(input: {
+  error: unknown;
+  bundle: CmxBundle;
+  bundleDir: string;
+}): Promise<{ source: CmxDiagnosticSource } | Record<string, never>> {
+  const error = input.error;
   if (!(error instanceof Error) || !error.stack) {
     return {};
   }
@@ -26,7 +28,7 @@ export async function mapCmxBundleDiagnosticSource(
     }
 
     const source = await sourceFromSourcemap(
-      input.outDir,
+      input.bundleDir,
       emittedFile.sourcemap,
       generatedLocation,
     );
@@ -52,13 +54,13 @@ function bundleFiles(
 }
 
 async function sourceFromSourcemap(
-  outDir: string,
+  bundleDir: string,
   sourcemap: string,
   generatedLocation: { line: number; column: number },
 ): Promise<CmxDiagnosticSource | undefined> {
   let sourcemapSource: string;
   try {
-    sourcemapSource = await readFile(path.join(outDir, sourcemap), "utf8");
+    sourcemapSource = await readFile(path.join(bundleDir, sourcemap), "utf8");
   } catch {
     return undefined;
   }
@@ -81,7 +83,7 @@ async function sourceFromSourcemap(
   }
 
   return {
-    file: path.resolve(outDir, original.source),
+    file: path.resolve(bundleDir, original.source),
     line: original.line,
     column: original.column,
   };

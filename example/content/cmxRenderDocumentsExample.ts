@@ -1,18 +1,13 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { CMX_BUNDLE_FILE_NAME, parseCmxBundleJson } from "cmx-contracts";
 import { renderCmxDocuments } from "cmx-document-renderer";
 
 const BUNDLE_DIR = "dist";
 const DOCUMENT_DIR = "../backend/_db_content";
 
 export async function cmxRenderDocumentsExample(): Promise<void> {
-  const bundle = parseCmxBundleJson(
-    await readFile(path.join(BUNDLE_DIR, CMX_BUNDLE_FILE_NAME), "utf8"),
-  );
   const rendered = await renderCmxDocuments({
-    bundle,
-    outDir: BUNDLE_DIR,
+    bundleDir: BUNDLE_DIR,
   });
 
   if (rendered.result === "error") {

@@ -10,6 +10,7 @@
     "cmx-contracts": "workspace:*",
     "cmx-bundler": "workspace:*",
     "cmx-document-renderer": "workspace:*",
+    "rolldown": "^1.0.0-rc.18",
     "@example/ui-library": "workspace:*",
     "@example/backend-contract": "workspace:*"
   },

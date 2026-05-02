@@ -1,6 +1,12 @@
+import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
-import type { CmxBundle, CmxDocument } from "cmx-contracts";
+import {
+  CMX_BUNDLE_FILE_NAME,
+  parseCmxBundleJson,
+  type CmxBundle,
+  type CmxDocument,
+} from "cmx-contracts";
 import { mapCmxBundleDiagnosticSource } from "./mapCmxBundleDiagnosticSource.js";
 import {
   CmxRenderError,
@@ -47,15 +53,16 @@ export type RenderCmxDocumentsResult =
   | RenderCmxDocumentsErrorResult;
 
 export type RenderCmxDocumentsInput = {
-  bundle: CmxBundle;
-  outDir: string;
+  bundleDir: string;
   unsupportedValues?: UnsupportedValuesPolicy;
 };
 
 export async function renderCmxDocuments(
   input: RenderCmxDocumentsInput,
 ): Promise<RenderCmxDocumentsResult> {
-  if (input.bundle.entries.length === 0) {
+  const bundle = await readCmxBundle(input.bundleDir);
+
+  if (bundle.entries.length === 0) {
     return {
       result: "error",
       diagnostics: [
@@ -69,7 +76,7 @@ export async function renderCmxDocuments(
   }
 
   const runtimeProtocol = await loadRuntimeProtocol(
-    input.bundle.runtime.importSource,
+    bundle.runtime.importSource,
   );
   if (runtimeProtocol.result === "error") {
     return {
@@ -78,11 +85,15 @@ export async function renderCmxDocuments(
     };
   }
 
+  const context = {
+    bundle,
+    bundleDir: input.bundleDir,
+  };
   const renderedEntries = await Promise.all(
-    input.bundle.entries.map(async (entry) => {
+    bundle.entries.map(async (entry) => {
       try {
         const rendered = await renderCmxDocument({
-          moduleUrl: pathToFileURL(path.join(input.outDir, entry.file)),
+          moduleUrl: pathToFileURL(path.join(input.bundleDir, entry.file)),
           runtime: runtimeProtocol.protocol,
           metaType: entry.meta?.type,
           unsupportedValues: input.unsupportedValues,
@@ -93,7 +104,7 @@ export async function renderCmxDocuments(
             result: "document",
             document: {
               ...rendered.document,
-              dependencies: input.bundle.dependencies,
+              dependencies: bundle.dependencies,
             },
           },
         ] as const;
@@ -102,7 +113,7 @@ export async function renderCmxDocuments(
           entry.name,
           {
             result: "error",
-            diagnostics: [await toRenderDiagnostic(error, input)],
+            diagnostics: [await toRenderDiagnostic(error, context)],
           },
         ] as const;
       }
@@ -137,6 +148,12 @@ export async function renderCmxDocuments(
     result: "error",
     diagnostics,
   };
+}
+
+async function readCmxBundle(bundleDir: string): Promise<CmxBundle> {
+  return parseCmxBundleJson(
+    await readFile(path.join(bundleDir, CMX_BUNDLE_FILE_NAME), "utf8"),
+  );
 }
 
 type RuntimeProtocolResult =
@@ -184,7 +201,7 @@ async function loadRuntimeProtocol(
 
 async function toRenderDiagnostic(
   error: unknown,
-  input: RenderCmxDocumentsInput,
+  input: { bundle: CmxBundle; bundleDir: string },
 ): Promise<CmxRenderDiagnostic> {
   if (error instanceof CmxRenderError) {
     return error.diagnostic;
@@ -194,6 +211,10 @@ async function toRenderDiagnostic(
     severity: "error",
     code: "render-error",
     message: error instanceof Error ? error.message : "Unknown render error.",
-    ...(await mapCmxBundleDiagnosticSource(error, input)),
+    ...(await mapCmxBundleDiagnosticSource({
+      error,
+      bundle: input.bundle,
+      bundleDir: input.bundleDir,
+    })),
   };
 }

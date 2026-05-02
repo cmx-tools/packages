@@ -4,12 +4,16 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { transform } from "rolldown/utils";
 import { describe, expect, it } from "vitest";
+import { CMX_BUNDLE_FILE_NAME, type CmxBundle } from "cmx-contracts";
 import { renderCmxDocuments } from "cmx-document-renderer";
 
 describe("renderCmxDocuments", () => {
   it("returns an error result for a bundle with no entries", async () => {
+    const bundleDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
+
     await expect(
-      renderCmxDocuments({
+      renderCmxBundle({
+        bundleDir,
         bundle: {
           version: 1,
           runtime: {
@@ -19,7 +23,6 @@ describe("renderCmxDocuments", () => {
           entries: [],
           chunks: [],
         },
-        outDir: "/unused",
       }),
     ).resolves.toEqual({
       result: "error",
@@ -49,7 +52,8 @@ describe("renderCmxDocuments", () => {
     );
 
     await expect(
-      renderCmxDocuments({
+      renderCmxBundle({
+        bundleDir: outDir,
         bundle: {
           version: 1,
           runtime: {
@@ -71,7 +75,6 @@ describe("renderCmxDocuments", () => {
           ],
           chunks: [],
         },
-        outDir,
       }),
     ).resolves.toEqual({
       result: "complete",
@@ -109,7 +112,8 @@ describe("renderCmxDocuments", () => {
     const importSource = pathToFileURL(path.join(outDir, "missing.js")).href;
 
     await expect(
-      renderCmxDocuments({
+      renderCmxBundle({
+        bundleDir: outDir,
         bundle: {
           version: 1,
           runtime: {
@@ -125,7 +129,6 @@ describe("renderCmxDocuments", () => {
           ],
           chunks: [],
         },
-        outDir,
       }),
     ).resolves.toEqual({
       result: "error",
@@ -150,7 +153,8 @@ describe("renderCmxDocuments", () => {
     const importSource = pathToFileURL(path.join(outDir, "runtime.js")).href;
 
     await expect(
-      renderCmxDocuments({
+      renderCmxBundle({
+        bundleDir: outDir,
         bundle: {
           version: 1,
           runtime: {
@@ -166,7 +170,6 @@ describe("renderCmxDocuments", () => {
           ],
           chunks: [],
         },
-        outDir,
       }),
     ).resolves.toEqual({
       result: "error",
@@ -189,7 +192,8 @@ describe("renderCmxDocuments", () => {
     );
 
     await expect(
-      renderCmxDocuments({
+      renderCmxBundle({
+        bundleDir: outDir,
         bundle: {
           version: 1,
           runtime: {
@@ -205,7 +209,6 @@ describe("renderCmxDocuments", () => {
           ],
           chunks: [],
         },
-        outDir,
       }),
     ).resolves.toEqual({
       result: "complete",
@@ -238,7 +241,8 @@ describe("renderCmxDocuments", () => {
     );
 
     await expect(
-      renderCmxDocuments({
+      renderCmxBundle({
+        bundleDir: outDir,
         bundle: {
           version: 1,
           runtime: {
@@ -254,7 +258,6 @@ describe("renderCmxDocuments", () => {
           ],
           chunks: [],
         },
-        outDir,
       }),
     ).resolves.toMatchObject({
       result: "error",
@@ -287,7 +290,8 @@ describe("renderCmxDocuments", () => {
     );
 
     await expect(
-      renderCmxDocuments({
+      renderCmxBundle({
+        bundleDir: outDir,
         bundle: {
           version: 1,
           runtime: {
@@ -303,7 +307,6 @@ describe("renderCmxDocuments", () => {
           ],
           chunks: [],
         },
-        outDir,
       }),
     ).resolves.toMatchObject({
       result: "error",
@@ -341,7 +344,8 @@ describe("renderCmxDocuments", () => {
       ].join("\n"),
     );
 
-    const result = await renderCmxDocuments({
+    const result = await renderCmxBundle({
+      bundleDir: outDir,
       bundle: {
         version: 1,
         runtime: {
@@ -362,7 +366,6 @@ describe("renderCmxDocuments", () => {
         ],
         chunks: [],
       },
-      outDir,
     });
 
     expect(result).toMatchObject({
@@ -419,7 +422,8 @@ describe("renderCmxDocuments", () => {
     );
 
     await expect(
-      renderCmxDocuments({
+      renderCmxBundle({
+        bundleDir: outDir,
         bundle: {
           version: 1,
           runtime: {
@@ -440,7 +444,6 @@ describe("renderCmxDocuments", () => {
           ],
           chunks: [],
         },
-        outDir,
       }),
     ).resolves.toEqual({
       result: "error",
@@ -485,7 +488,8 @@ describe("renderCmxDocuments", () => {
     );
 
     await expect(
-      renderCmxDocuments({
+      renderCmxBundle({
+        bundleDir: outDir,
         bundle: {
           version: 1,
           runtime: {
@@ -507,7 +511,6 @@ describe("renderCmxDocuments", () => {
             },
           ],
         },
-        outDir,
       }),
     ).resolves.toMatchObject({
       result: "error",
@@ -543,7 +546,8 @@ describe("renderCmxDocuments", () => {
     );
 
     await expect(
-      renderCmxDocuments({
+      renderCmxBundle({
+        bundleDir: outDir,
         bundle: {
           version: 1,
           runtime: {
@@ -559,7 +563,6 @@ describe("renderCmxDocuments", () => {
           ],
           chunks: [],
         },
-        outDir,
       }),
     ).resolves.toEqual({
       result: "error",
@@ -573,6 +576,20 @@ describe("renderCmxDocuments", () => {
     });
   });
 });
+
+async function renderCmxBundle(input: {
+  bundleDir: string;
+  bundle: CmxBundle;
+}): ReturnType<typeof renderCmxDocuments> {
+  await writeFile(
+    path.join(input.bundleDir, CMX_BUNDLE_FILE_NAME),
+    `${JSON.stringify(input.bundle, null, 2)}\n`,
+    "utf8",
+  );
+  return renderCmxDocuments({
+    bundleDir: input.bundleDir,
+  });
+}
 
 async function writeCompiledEntry(
   outDir: string,
