@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import type { TransformPluginContext } from "rolldown";
+import type { PluginContext } from "rolldown";
 import type { CmxDependency } from "cmx-contracts";
 import {
   findConsumerDependencySpecifier,
@@ -21,7 +21,7 @@ export type CmxIntegrityContext = {
 export type CmxGetIntegrity = (context: CmxIntegrityContext) => string | null;
 
 export async function resolveAndRecordCmxExternalDependency(
-  context: TransformPluginContext,
+  context: PluginContext,
   input: {
     importSpecifier: string;
     importerId: string;
