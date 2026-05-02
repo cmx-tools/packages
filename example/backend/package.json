@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx server.tsx",
-    "gen:cmx-env": "tsx cmxGenerateEnvironmentSourceExample.ts"
+    "gen:cmx-env": "tsx cmxEnvironmentExample.ts"
   },
   "dependencies": {
     "@example/backend-contract": "workspace:*",
@@ -13,7 +13,8 @@
     "cmx-contracts": "workspace:*",
     "cmx-react": "workspace:*",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "rolldown": "^1.0.0-rc.18"
   },
   "devDependencies": {
     "@types/node": "^24",
