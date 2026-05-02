@@ -95,6 +95,7 @@ export async function renderCmxDocuments(
         const rendered = await renderCmxDocument({
           moduleUrl: pathToFileURL(path.join(input.bundleDir, entry.file)),
           runtime: runtimeProtocol.protocol,
+          dependencies: bundle.dependencies,
           metaType: entry.meta?.type,
           unsupportedValues: input.unsupportedValues,
         });
@@ -102,10 +103,7 @@ export async function renderCmxDocuments(
           entry.name,
           {
             result: "document",
-            document: {
-              ...rendered.document,
-              dependencies: bundle.dependencies,
-            },
+            document: rendered.document,
           },
         ] as const;
       } catch (error) {

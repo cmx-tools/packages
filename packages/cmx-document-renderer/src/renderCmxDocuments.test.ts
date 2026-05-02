@@ -84,13 +84,7 @@ describe("renderCmxDocuments", () => {
           document: {
             $schema: "https://example.org/todo.v1.json",
             cmxVersion: 1,
-            dependencies: [
-              {
-                name: "@theme/ui",
-                specifier: "^1.0.0",
-                version: "1.2.3",
-              },
-            ],
+            dependencies: [],
             tree: {
               type: "element",
               tag: "main",
@@ -99,6 +93,148 @@ describe("renderCmxDocuments", () => {
         },
       },
       diagnostics: [],
+    });
+  });
+
+  it("selects dependencies from rendered external component refs", async () => {
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
+    await writeFile(
+      path.join(outDir, "entry.js"),
+      `export default { kind: "component", from: "@theme/ui/button", import: "Button" };\n`,
+      "utf8",
+    );
+    await writeFile(
+      path.join(outDir, "runtime.js"),
+      `export function isRuntimeNode(value) {
+        return value && value.kind === "component";
+      }\n`,
+      "utf8",
+    );
+
+    await expect(
+      renderCmxBundle({
+        bundleDir: outDir,
+        bundle: {
+          version: 1,
+          runtime: {
+            importSource: pathToFileURL(path.join(outDir, "runtime.js")).href,
+          },
+          dependencies: [
+            {
+              name: "@theme/ui",
+              specifier: "^1.0.0",
+              version: "1.2.3",
+            },
+            {
+              name: "@theme/unused",
+              specifier: "^2.0.0",
+              version: "2.3.4",
+            },
+          ],
+          entries: [
+            {
+              name: "entry",
+              file: "entry.js",
+              sourcemap: "entry.js.map",
+            },
+          ],
+          chunks: [],
+        },
+      }),
+    ).resolves.toMatchObject({
+      result: "complete",
+      entries: {
+        entry: {
+          result: "document",
+          document: {
+            dependencies: [
+              {
+                name: "@theme/ui",
+                specifier: "^1.0.0",
+                version: "1.2.3",
+              },
+            ],
+            tree: {
+              type: "component",
+              from: "@theme/ui/button",
+              import: "Button",
+            },
+          },
+        },
+      },
+    });
+  });
+
+  it("selects dependencies from emitted typed meta refs", async () => {
+    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
+    await writeFile(
+      path.join(outDir, "entry.js"),
+      `export const meta = { title: "Home" };\nexport default "Home";\n`,
+      "utf8",
+    );
+
+    await expect(
+      renderCmxBundle({
+        bundleDir: outDir,
+        bundle: {
+          version: 1,
+          runtime: {
+            importSource: "cmx-runtime",
+          },
+          dependencies: [
+            {
+              name: "@theme/content",
+              specifier: "workspace:*",
+              version: "0.0.0",
+            },
+            {
+              name: "@theme/unused",
+              specifier: "^2.0.0",
+              version: "2.3.4",
+            },
+          ],
+          entries: [
+            {
+              name: "entry",
+              file: "entry.js",
+              sourcemap: "entry.js.map",
+              meta: {
+                type: {
+                  from: "@theme/content",
+                  import: "PageMeta",
+                },
+              },
+            },
+          ],
+          chunks: [],
+        },
+      }),
+    ).resolves.toMatchObject({
+      result: "complete",
+      entries: {
+        entry: {
+          result: "document",
+          document: {
+            dependencies: [
+              {
+                name: "@theme/content",
+                specifier: "workspace:*",
+                version: "0.0.0",
+              },
+            ],
+            meta: {
+              type: {
+                from: "@theme/content",
+                import: "PageMeta",
+              },
+              data: {
+                title: "Home",
+              },
+            },
+            tree: "Home",
+          },
+        },
+      },
     });
   });
 

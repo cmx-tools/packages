@@ -1,4 +1,5 @@
 import type {
+  CmxDependency,
   CmxDiagnostic,
   CmxTypeRef,
   CmxComponentNode,
@@ -46,6 +47,8 @@ type DropResult = { keep: false };
 type RenderContext = {
   unsupportedValues: UnsupportedValuesPolicy;
   runtime: RuntimeProtocol;
+  dependencies: CmxDependency[];
+  usedDependencyNames: Set<string>;
   metaType?: CmxTypeRef;
 };
 
@@ -53,6 +56,7 @@ export type RenderCmxDocumentInput = {
   moduleUrl: string | URL;
   runtime?: RuntimeProtocol;
   unsupportedValues?: UnsupportedValuesPolicy;
+  dependencies?: CmxDependency[];
   metaType?: CmxTypeRef;
 };
 
@@ -91,7 +95,9 @@ export async function renderCmxDocument(
     document: {
       $schema: CMX_DOCUMENT_SCHEMA,
       cmxVersion: CMX_DOCUMENT_VERSION,
-      dependencies: [],
+      dependencies: context.dependencies.filter((dependency) =>
+        context.usedDependencyNames.has(dependency.name),
+      ),
       ...(meta ? { meta } : {}),
       tree,
     },
@@ -161,6 +167,7 @@ async function normalizeRuntimeNode(
   }
 
   if (node.kind === "component") {
+    registerDependencyRef(node.from, context);
     const output: CmxComponentNode = {
       type: "component",
       from: node.from ?? "",
@@ -361,6 +368,10 @@ async function normalizeMeta(
     return undefined;
   }
 
+  if (context.metaType) {
+    registerDependencyRef(context.metaType.from, context);
+  }
+
   return {
     ...(context.metaType ? { type: context.metaType } : {}),
     data: result.value,
@@ -447,13 +458,46 @@ function unsupportedValue(
 function createRenderContext(options: {
   runtime: RuntimeProtocol;
   unsupportedValues?: UnsupportedValuesPolicy;
+  dependencies?: CmxDependency[];
   metaType?: CmxTypeRef;
 }): RenderContext {
   return {
     runtime: options.runtime,
     unsupportedValues: options.unsupportedValues ?? "error",
+    dependencies: options.dependencies ?? [],
+    usedDependencyNames: new Set(),
     ...(options.metaType ? { metaType: options.metaType } : {}),
   };
+}
+
+function registerDependencyRef(
+  from: string | undefined,
+  context: RenderContext,
+): void {
+  if (!from) {
+    return;
+  }
+
+  const packageName = packageNameFromImportRef(from);
+  if (
+    packageName &&
+    context.dependencies.some((dependency) => dependency.name === packageName)
+  ) {
+    context.usedDependencyNames.add(packageName);
+  }
+}
+
+function packageNameFromImportRef(from: string): string | undefined {
+  const [first, second] = from.split("/");
+  if (!first) {
+    return undefined;
+  }
+
+  if (first.startsWith("@")) {
+    return second ? `${first}/${second}` : undefined;
+  }
+
+  return first;
 }
 
 async function loadDefaultRuntimeProtocol(): Promise<RuntimeProtocol> {
