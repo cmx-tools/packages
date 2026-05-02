@@ -39,7 +39,11 @@
           }
         ]
       },
-      { "type": "element", "tag": "p", "children": ["About"] }
+      {
+        "type": "element",
+        "tag": "p",
+        "children": ["About"]
+      }
     ]
   }
 }

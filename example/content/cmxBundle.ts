@@ -12,12 +12,20 @@ export type CmxBundleInput = {
   entries: Record<string, string>;
   outDir: string;
   externals?: CmxPluginOptions["externals"];
+  metaType?: CmxPluginOptions["metaType"];
+  cwd?: string;
 };
 
 export async function cmxBundle(input: CmxBundleInput): Promise<CmxBundle> {
   const bundle = await rolldown({
     input: input.entries,
-    plugins: [cmx({ externals: input.externals })],
+    plugins: [
+      cmx({
+        externals: input.externals,
+        metaType: input.metaType,
+        cwd: input.cwd,
+      }),
+    ],
   });
 
   try {

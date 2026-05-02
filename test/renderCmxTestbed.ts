@@ -7,7 +7,7 @@ import {
   parseCmxBundleJson,
   type CmxBundle,
 } from "cmx-contracts";
-import { cmx, type UnsupportedMetaTypesPolicy } from "cmx-bundler";
+import { cmx, type CmxPluginOptions } from "cmx-bundler";
 import {
   renderCmxDocuments,
   type RenderCmxDocumentsCompleteResult,
@@ -23,8 +23,8 @@ export type RenderCmxTestbedInput = {
   files: Record<string, string>;
   entry?: string;
   entries?: string[];
-  externals?: string[];
-  unsupportedMetaTypes?: UnsupportedMetaTypesPolicy;
+  externals?: CmxPluginOptions["externals"];
+  metaType?: CmxPluginOptions["metaType"];
   unsupportedValues?: UnsupportedValuesPolicy;
 };
 
@@ -87,12 +87,10 @@ export async function renderCmxTestbed(
     ...input.files,
   };
   await workspace.writeSourceFiles(fixtureFiles);
-  const consumerPackageJson = Object.prototype.hasOwnProperty.call(
+  const hasConsumerPackageJson = Object.prototype.hasOwnProperty.call(
     fixtureFiles,
     "package.json",
-  )
-    ? path.join(rootDir, "package.json")
-    : undefined;
+  );
 
   const outDir = path.join(rootDir, "dist");
   const build = await rolldown({
@@ -100,8 +98,8 @@ export async function renderCmxTestbed(
     plugins: [
       cmx({
         externals: input.externals,
-        ...(consumerPackageJson ? { consumerPackageJson } : {}),
-        unsupportedMetaTypes: input.unsupportedMetaTypes,
+        metaType: input.metaType,
+        ...(hasConsumerPackageJson ? { cwd: rootDir } : {}),
       }),
     ],
   });
@@ -177,10 +175,17 @@ function entryNameFromPath(entryPath: string): string {
 }
 
 function createExternalPackageFixtureFiles(
-  externals: string[],
+  externals: NonNullable<CmxPluginOptions["externals"]>,
 ): Record<string, string> {
   const packages = [
-    ...new Set(externals.map(packageNameFromExternal).filter(isString)),
+    ...new Set(
+      externals
+        .map((external) =>
+          typeof external === "string" ? external : external.from,
+        )
+        .map(packageNameFromExternal)
+        .filter(isString),
+    ),
   ];
   if (packages.length === 0) {
     return {};

@@ -2,12 +2,19 @@ export type CmxExternalPolicy = {
   patterns: string[];
 };
 
+export type CmxExternalEntry = string | CmxStructuredExternalEntry;
+
+export type CmxStructuredExternalEntry = {
+  from: string;
+  as?: string;
+};
+
 export function createCmxExternalPolicy(
-  externals: string[],
+  externals: CmxExternalEntry[],
 ): CmxExternalPolicy {
   return {
     patterns: externals
-      .map((entry) => entry.trim())
+      .map((entry) => (typeof entry === "string" ? entry : entry.from).trim())
       .filter((entry) => entry.length > 0)
       .map((entry) => {
         if (entry.endsWith("/**")) {
