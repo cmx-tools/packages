@@ -19,6 +19,7 @@ export function createCmxEnvironmentModuleSource(input: {
           `import type { ${metaTypeName} } from ${JSON.stringify(input.metaType.from)};`,
         ]
       : []),
+    'import type { CmxEnvironment } from "cmx-contracts";',
     ...input.entries.flatMap((entry, index) => [
       `import * as CmxEnvironmentImport${index} from ${JSON.stringify(entry.from)};`,
       ...(entry.as
@@ -35,25 +36,6 @@ export function createCmxEnvironmentModuleSource(input: {
   return [
     ...importLines,
     ...(importLines.length > 0 ? [""] : []),
-    "type CmxDependency = {",
-    "  name: string;",
-    "  specifier: string;",
-    "  version: string;",
-    "  integrity?: string;",
-    "};",
-    "",
-    "type CmxTypeRef = {",
-    "  from: string;",
-    "  import?: string;",
-    "};",
-    "",
-    "type CmxEnvironment<Meta = unknown> = {",
-    "  dependencies: CmxDependency[];",
-    "  imports: Record<string, Record<string, unknown>>;",
-    "  metaType?: CmxTypeRef;",
-    "  __meta?: Meta;",
-    "};",
-    "",
     exportOpen,
     `  dependencies: ${formatDependencies(sortedDependencies)},`,
     "  imports: {",

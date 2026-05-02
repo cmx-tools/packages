@@ -53,6 +53,9 @@ importers:
       cmx-bundler:
         specifier: workspace:*
         version: link:../../packages/cmx-bundler
+      cmx-contracts:
+        specifier: workspace:*
+        version: link:../../packages/cmx-contracts
       cmx-react:
         specifier: workspace:*
         version: link:../../packages/cmx-react

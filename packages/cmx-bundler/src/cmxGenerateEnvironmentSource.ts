@@ -13,12 +13,16 @@ export function cmxGenerateEnvironmentSource(
   input: CmxGenerateEnvironmentSourceInput,
 ): CmxGenerateEnvironmentSourceResult {
   const metaTypeName = input.metaType?.import;
-  const metaImportLine =
-    metaTypeName !== undefined && input.metaType
-      ? `import type { ${metaTypeName} } from ${JSON.stringify(
-          input.metaType.from,
-        )};\n\n`
-      : "";
+  const importLines = [
+    ...(metaTypeName !== undefined && input.metaType
+      ? [
+          `import type { ${metaTypeName} } from ${JSON.stringify(
+            input.metaType.from,
+          )};`,
+        ]
+      : []),
+    'import type { CmxEnvironment } from "cmx-contracts";',
+  ];
 
   const exportOpen =
     metaTypeName !== undefined
@@ -27,25 +31,7 @@ export function cmxGenerateEnvironmentSource(
 
   return {
     source: [
-      metaImportLine,
-      "type CmxDependency = {",
-      "  name: string;",
-      "  specifier: string;",
-      "  version: string;",
-      "  integrity?: string;",
-      "};",
-      "",
-      "type CmxTypeRef = {",
-      "  from: string;",
-      "  import?: string;",
-      "};",
-      "",
-      "type CmxEnvironment<Meta = unknown> = {",
-      "  dependencies: CmxDependency[];",
-      "  imports: Record<string, Record<string, unknown>>;",
-      "  metaType?: CmxTypeRef;",
-      "  __meta?: Meta;",
-      "};",
+      ...importLines,
       "",
       exportOpen,
       "  dependencies: [],",
