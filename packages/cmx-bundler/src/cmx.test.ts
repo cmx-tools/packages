@@ -649,7 +649,7 @@ describe("cmx", () => {
     });
   });
 
-  it("rejects exported meta when metaType is not configured", async () => {
+  it("allows exported meta when metaType is not configured", async () => {
     await withTempDir(async (tempDir) => {
       const entryFile = await writeFixture(
         tempDir,
@@ -666,21 +666,16 @@ describe("cmx", () => {
       });
 
       try {
-        await expect(
-          bundle.write({
-            dir: outDir,
-            entryFileNames: "entry.js",
-          }),
-        ).rejects.toMatchObject({
-          errors: [
-            expect.objectContaining({
-              pluginCode: "cmx-meta-type-missing",
-            }),
-          ],
+        await bundle.write({
+          dir: outDir,
+          entryFileNames: "entry.js",
         });
-        await expect(
-          readFile(path.join(outDir, "cmx-bundle.json"), "utf8"),
-        ).rejects.toMatchObject({ code: "ENOENT" });
+
+        const cmxBundle = await readBundle(outDir);
+        expect(cmxBundle.entries[0]).toMatchObject({
+          name: "entry",
+        });
+        expect(cmxBundle.entries[0]).not.toHaveProperty("meta");
       } finally {
         await bundle.close();
       }

@@ -134,18 +134,6 @@ function cmxPluginDiagnosticFromBuildMessage(
 
   if (
     message.includes(
-      "CMX entry exports meta but cmx metaType is not configured.",
-    )
-  ) {
-    return {
-      severity: "error",
-      code: "cmx-meta-type-missing",
-      message: "CMX entry exports meta but cmx metaType is not configured.",
-    };
-  }
-
-  if (
-    message.includes(
       "CMX entry must export meta because cmx metaType is required.",
     )
   ) {
