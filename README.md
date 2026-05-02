@@ -57,7 +57,10 @@ const build = await rolldown({
     },
     cmx({
       cwd: "example/backend",
-      externals: ["@example/backend-contract", "@example/ui-library"],
+      externals: [
+        { from: "./api.js", as: "@example/backend-contract" },
+        "@example/ui-library",
+      ],
       metaType: {
         from: "@example/backend-contract",
         import: "Meta",
@@ -87,3 +90,9 @@ Smoke path:
 ```sh
 corepack pnpm --filter cmx-bundler test -- -t "emits an environment module from a virtual env-only entry"
 ```
+
+## Migration notes
+
+`cmxGenerateEnvironmentSource`, `CmxGenerateEnvironmentSourceInput`, and `CmxGenerateEnvironmentSourceResult` are removed from `cmx-bundler`. Use Rolldown with `cmx({ environment: { fileName } })` instead.
+
+Environment generation now uses `cmx()` options. Replace generator `entries` with plugin `externals`, using `{ from, as }` when a local implementation satisfies a public package contract. Configure `metaType`, `cwd`, and `getIntegrity` on the same `cmx()` call used for content bundling or environment-only generation.
