@@ -3,3 +3,4 @@ export * from "./cmxEnvironment.js";
 export * from "./cmxBundle.js";
 export * from "./cmxDiagnostic.js";
 export * from "./cmxDocument.js";
+export * from "./verifyCmxDocumentEnvironment.js";
