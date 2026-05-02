@@ -3,6 +3,7 @@ import {
   CMX_BUNDLE_VERSION,
   type CmxBundle,
   type CmxBundleChunk,
+  type CmxDependency,
   type CmxTypeRef,
 } from "cmx-contracts";
 import { normalizeModulePath } from "./normalizeModulePath.js";
@@ -36,6 +37,7 @@ export function createCmxBundleArtifact(input: {
   entryOrder: Map<string, number>;
   runtimeImportSource: string;
   metaTypesByModuleId: Map<string, CmxTypeRef>;
+  dependencies: CmxDependency[];
 }): CmxBundle {
   const chunks = getOutputChunks(input.outputBundle);
   const bundleChunks = chunks.map(toBundleChunk);
@@ -45,7 +47,9 @@ export function createCmxBundleArtifact(input: {
     runtime: {
       importSource: input.runtimeImportSource,
     },
-    dependencies: [],
+    dependencies: [...input.dependencies].sort((left, right) =>
+      left.name.localeCompare(right.name),
+    ),
     entries: chunks
       .filter((chunk) => chunk.isEntry)
       .sort(

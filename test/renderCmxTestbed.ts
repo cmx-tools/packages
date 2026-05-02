@@ -82,7 +82,17 @@ export async function renderCmxTestbed(
         ]),
       )
     : path.join(rootDir, entry);
-  await workspace.writeSourceFiles(input.files);
+  const fixtureFiles = {
+    ...createExternalPackageFixtureFiles(input.externals ?? []),
+    ...input.files,
+  };
+  await workspace.writeSourceFiles(fixtureFiles);
+  const consumerPackageJson = Object.prototype.hasOwnProperty.call(
+    fixtureFiles,
+    "package.json",
+  )
+    ? path.join(rootDir, "package.json")
+    : undefined;
 
   const outDir = path.join(rootDir, "dist");
   const build = await rolldown({
@@ -90,6 +100,7 @@ export async function renderCmxTestbed(
     plugins: [
       cmx({
         externals: input.externals,
+        ...(consumerPackageJson ? { consumerPackageJson } : {}),
         unsupportedMetaTypes: input.unsupportedMetaTypes,
       }),
     ],
@@ -163,6 +174,74 @@ export async function renderCmxTestbed(
 
 function entryNameFromPath(entryPath: string): string {
   return path.basename(entryPath, path.extname(entryPath));
+}
+
+function createExternalPackageFixtureFiles(
+  externals: string[],
+): Record<string, string> {
+  const packages = [
+    ...new Set(externals.map(packageNameFromExternal).filter(isString)),
+  ];
+  if (packages.length === 0) {
+    return {};
+  }
+
+  return {
+    "package.json": `${JSON.stringify(
+      {
+        name: "cmx-testbed",
+        private: true,
+        dependencies: Object.fromEntries(
+          packages.map((packageName) => [packageName, "^0.0.0"]),
+        ),
+      },
+      null,
+      2,
+    )}\n`,
+    ...Object.fromEntries(
+      packages.flatMap((packageName) => [
+        [
+          packageFixturePath(packageName, "package.json"),
+          `${JSON.stringify(
+            {
+              name: packageName,
+              version: "0.0.0",
+              type: "module",
+              main: "index.js",
+            },
+            null,
+            2,
+          )}\n`,
+        ],
+        [packageFixturePath(packageName, "index.js"), "export default null;\n"],
+      ]),
+    ),
+  };
+}
+
+function packageNameFromExternal(external: string): string | undefined {
+  const normalized = external
+    .trim()
+    .replace(/\/\*\*?$/u, "")
+    .replace(/\/+$/u, "");
+  if (normalized.length === 0 || normalized.includes("*")) {
+    return undefined;
+  }
+
+  if (normalized.startsWith("@")) {
+    const [scope, name] = normalized.split("/");
+    return scope && name ? `${scope}/${name}` : undefined;
+  }
+
+  return normalized.split("/")[0];
+}
+
+function packageFixturePath(packageName: string, fileName: string): string {
+  return path.join("node_modules", ...packageName.split("/"), fileName);
+}
+
+function isString(value: string | undefined): value is string {
+  return typeof value === "string";
 }
 
 class CmxTestbedBuildError extends Error {

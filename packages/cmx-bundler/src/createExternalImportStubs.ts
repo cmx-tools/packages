@@ -1,3 +1,4 @@
+import type { TransformPluginContext } from "rolldown";
 import { parseSync } from "rolldown/utils";
 import type { CmxExternalPolicy } from "./CmxExternalPolicy.js";
 import { matchesCmxExternalPolicy } from "./CmxExternalPolicy.js";
@@ -43,12 +44,18 @@ export function createExternalStubSource(
   return `${lines.join("\n")}\n`;
 }
 
-export function transformExternalImports(
+export async function transformExternalImports(
+  context: TransformPluginContext,
   source: string,
   id: string,
   externalPolicy: CmxExternalPolicy,
   externalStubs: Map<string, ExternalStub>,
-): { code: string; map: null } | null {
+  resolveExternalImport?: (
+    context: TransformPluginContext,
+    importSpecifier: string,
+    importerId: string,
+  ) => Promise<void>,
+): Promise<{ code: string; map: null } | null> {
   if (externalPolicy.patterns.length === 0) {
     return null;
   }
@@ -71,6 +78,10 @@ export function transformExternalImports(
     const stub = externalStubFromImport(from, externalImport.entries);
     if (!stub) {
       continue;
+    }
+
+    if (resolveExternalImport) {
+      await resolveExternalImport(context, from, id);
     }
 
     const stubId = createExternalStubId(id, from);

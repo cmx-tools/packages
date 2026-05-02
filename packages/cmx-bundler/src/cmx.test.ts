@@ -32,6 +32,69 @@ async function readBundle(outDir: string): Promise<CmxBundle> {
   );
 }
 
+async function writeStubPackage(
+  rootDir: string,
+  packageName: string,
+  version: string,
+): Promise<void> {
+  const segments = packageName.startsWith("@")
+    ? ["node_modules", ...packageName.split("/")]
+    : ["node_modules", packageName];
+  const pkgDir = path.join(rootDir, ...segments);
+  await mkdir(pkgDir, { recursive: true });
+  await writeFile(
+    path.join(pkgDir, "package.json"),
+    `${JSON.stringify(
+      {
+        name: packageName,
+        version,
+        main: "index.js",
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+  await writeFile(
+    path.join(pkgDir, "index.js"),
+    "export const Hero = () => null;\nexport default Hero;\n",
+    "utf8",
+  );
+}
+
+async function writeStubPackageWithSubpath(
+  rootDir: string,
+  packageName: string,
+  subpath: string,
+  version: string,
+): Promise<void> {
+  const segments = packageName.startsWith("@")
+    ? ["node_modules", ...packageName.split("/")]
+    : ["node_modules", packageName];
+  const pkgDir = path.join(rootDir, ...segments);
+  await mkdir(pkgDir, { recursive: true });
+  await writeFile(
+    path.join(pkgDir, "package.json"),
+    `${JSON.stringify(
+      {
+        name: packageName,
+        version,
+        exports: {
+          [`./${subpath}`]: `./${subpath}.js`,
+        },
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+  await writeFile(
+    path.join(pkgDir, `${subpath}.js`),
+    "export const Widget = () => null;\nexport default Widget;\n",
+    "utf8",
+  );
+}
+
 describe("cmx", () => {
   it("emits ESM, external sourcemap, and minimal CMX bundle for TSX entry", async () => {
     await withTempDir(async (tempDir) => {
@@ -253,6 +316,20 @@ describe("cmx", () => {
 
   it("emits configured external component stubs without bundling the external package", async () => {
     await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "cmx-external-fixture",
+            private: true,
+            dependencies: { "@theme/ui": "^0.0.0" },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeStubPackage(tempDir, "@theme/ui", "1.0.0");
       const entryFile = await writeFixture(
         tempDir,
         "entry.tsx",
@@ -264,7 +341,12 @@ describe("cmx", () => {
       const outDir = path.join(tempDir, "dist");
       const bundle = await rolldown({
         input: entryFile,
-        plugins: [cmx({ externals: ["@theme/ui"] })],
+        plugins: [
+          cmx({
+            externals: ["@theme/ui"],
+            consumerPackageJson: path.join(tempDir, "package.json"),
+          }),
+        ],
       });
 
       try {
@@ -274,6 +356,13 @@ describe("cmx", () => {
         });
 
         const cmxBundle = await readBundle(outDir);
+        expect(cmxBundle.dependencies).toEqual([
+          {
+            name: "@theme/ui",
+            specifier: "^0.0.0",
+            version: "1.0.0",
+          },
+        ]);
         expect(cmxBundle.entries).toEqual([
           {
             name: "entry",
@@ -293,6 +382,61 @@ describe("cmx", () => {
         await expect(
           readFile(path.join(outDir, "entry.js"), "utf8"),
         ).resolves.toContain('import: "Hero"');
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("includes dependency integrity when getIntegrity returns a string", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "cmx-external-fixture",
+            private: true,
+            dependencies: { "@theme/ui": "^0.0.0" },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeStubPackage(tempDir, "@theme/ui", "2.0.0");
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        ['import Hero from "@theme/ui";', "export default <Hero />;"].join(
+          "\n",
+        ),
+      );
+      const outDir = path.join(tempDir, "dist");
+      const bundle = await rolldown({
+        input: entryFile,
+        plugins: [
+          cmx({
+            externals: ["@theme/ui"],
+            consumerPackageJson: path.join(tempDir, "package.json"),
+            getIntegrity: () => "sha512-test",
+          }),
+        ],
+      });
+
+      try {
+        await bundle.write({
+          dir: outDir,
+          entryFileNames: "entry.js",
+        });
+        const cmxBundle = await readBundle(outDir);
+        expect(cmxBundle.dependencies).toEqual([
+          {
+            name: "@theme/ui",
+            specifier: "^0.0.0",
+            version: "2.0.0",
+            integrity: "sha512-test",
+          },
+        ]);
       } finally {
         await bundle.close();
       }
@@ -527,6 +671,20 @@ describe("cmx", () => {
 
   it("allows local bindings that shadow configured external imports", async () => {
     await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "shadow-fixture",
+            private: true,
+            dependencies: { "@theme/ui": "^0.0.0" },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeStubPackage(tempDir, "@theme/ui", "1.0.0");
       const entryFile = await writeFixture(
         tempDir,
         "entry.tsx",
@@ -540,7 +698,12 @@ describe("cmx", () => {
       );
       const bundle = await rolldown({
         input: entryFile,
-        plugins: [cmx({ externals: ["@theme/ui"] })],
+        plugins: [
+          cmx({
+            externals: ["@theme/ui"],
+            consumerPackageJson: path.join(tempDir, "package.json"),
+          }),
+        ],
       });
 
       try {
@@ -555,6 +718,20 @@ describe("cmx", () => {
 
   it("allows configured external imports in type-only references", async () => {
     await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "type-only-fixture",
+            private: true,
+            dependencies: { "@theme/ui": "^0.0.0" },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeStubPackage(tempDir, "@theme/ui", "1.0.0");
       const entryFile = await writeFixture(
         tempDir,
         "entry.tsx",
@@ -567,7 +744,12 @@ describe("cmx", () => {
       );
       const bundle = await rolldown({
         input: entryFile,
-        plugins: [cmx({ externals: ["@theme/ui"] })],
+        plugins: [
+          cmx({
+            externals: ["@theme/ui"],
+            consumerPackageJson: path.join(tempDir, "package.json"),
+          }),
+        ],
       });
 
       try {
@@ -602,6 +784,390 @@ describe("cmx", () => {
           errors: [
             {
               pluginCode: "external-runtime-value-unsupported",
+            },
+          ],
+        });
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("preserves public subpath in emitted external ref and package-level dependency name", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "subpath-fixture",
+            private: true,
+            dependencies: { "@acme/widgets": "^3.0.0" },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeStubPackageWithSubpath(
+        tempDir,
+        "@acme/widgets",
+        "button",
+        "3.1.0",
+      );
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        [
+          'import Widget from "@acme/widgets/button";',
+          "export default <Widget />;",
+        ].join("\n"),
+      );
+      const outDir = path.join(tempDir, "dist");
+      const bundle = await rolldown({
+        input: entryFile,
+        plugins: [
+          cmx({
+            externals: ["@acme/widgets/**"],
+            consumerPackageJson: path.join(tempDir, "package.json"),
+          }),
+        ],
+      });
+
+      try {
+        await bundle.write({
+          dir: outDir,
+          entryFileNames: "entry.js",
+        });
+        const cmxBundle = await readBundle(outDir);
+        expect(cmxBundle.dependencies).toEqual([
+          {
+            name: "@acme/widgets",
+            specifier: "^3.0.0",
+            version: "3.1.0",
+          },
+        ]);
+        await expect(
+          readFile(path.join(outDir, "entry.js"), "utf8"),
+        ).resolves.toContain('from: "@acme/widgets/button"');
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("dedupes bundle.dependencies when the same external package is imported twice", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "dedupe-fixture",
+            private: true,
+            dependencies: { "@theme/ui": "^1.0.0" },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeStubPackage(tempDir, "@theme/ui", "1.0.0");
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        [
+          'import DefaultHero, { Hero as Named } from "@theme/ui";',
+          "export default <><DefaultHero /><Named /></>;",
+        ].join("\n"),
+      );
+      const outDir = path.join(tempDir, "dist");
+      const bundle = await rolldown({
+        input: entryFile,
+        plugins: [
+          cmx({
+            externals: ["@theme/ui"],
+            consumerPackageJson: path.join(tempDir, "package.json"),
+          }),
+        ],
+      });
+
+      try {
+        await bundle.write({
+          dir: outDir,
+          entryFileNames: "entry.js",
+        });
+        const cmxBundle = await readBundle(outDir);
+        expect(cmxBundle.dependencies).toHaveLength(1);
+        expect(cmxBundle.dependencies[0]?.name).toBe("@theme/ui");
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("does not add bundle.dependencies for non-external local imports", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "local-mix-fixture",
+            private: true,
+            dependencies: { "@theme/ui": "^1.0.0" },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeStubPackage(tempDir, "@theme/ui", "1.0.0");
+      await writeFixture(
+        tempDir,
+        "local.tsx",
+        "export const label = 'local';\n",
+      );
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        [
+          'import { label } from "./local";',
+          'import Hero from "@theme/ui";',
+          "export default <main>{label}<Hero /></main>;",
+        ].join("\n"),
+      );
+      const outDir = path.join(tempDir, "dist");
+      const bundle = await rolldown({
+        input: entryFile,
+        plugins: [
+          cmx({
+            externals: ["@theme/ui"],
+            consumerPackageJson: path.join(tempDir, "package.json"),
+          }),
+        ],
+      });
+
+      try {
+        await bundle.write({
+          dir: outDir,
+          entryFileNames: "entry.js",
+        });
+        const cmxBundle = await readBundle(outDir);
+        expect(cmxBundle.dependencies).toEqual([
+          {
+            name: "@theme/ui",
+            specifier: "^1.0.0",
+            version: "1.0.0",
+          },
+        ]);
+        await expect(
+          readFile(path.join(outDir, "entry.js"), "utf8"),
+        ).resolves.toContain("local");
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("records bundle dependency when typed meta import matches configured externals", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "meta-external-fixture",
+            private: true,
+            dependencies: { "@theme/content": "workspace:*" },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeStubPackage(tempDir, "@theme/content", "0.5.0");
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        [
+          'import type { PageMeta } from "@theme/content";',
+          "export const meta: PageMeta = { title: 'Hello' };",
+          "export default <main>Hello</main>;",
+        ].join("\n"),
+      );
+      const outDir = path.join(tempDir, "dist");
+      const bundle = await rolldown({
+        input: entryFile,
+        plugins: [
+          cmx({
+            externals: ["@theme/content"],
+            consumerPackageJson: path.join(tempDir, "package.json"),
+          }),
+        ],
+      });
+
+      try {
+        await bundle.write({
+          dir: outDir,
+          entryFileNames: "entry.js",
+        });
+        const cmxBundle = await readBundle(outDir);
+        expect(cmxBundle.dependencies).toEqual([
+          {
+            name: "@theme/content",
+            specifier: "workspace:*",
+            version: "0.5.0",
+          },
+        ]);
+        expect(cmxBundle.entries[0]).toMatchObject({
+          meta: {
+            type: {
+              from: "@theme/content",
+              import: "PageMeta",
+            },
+          },
+        });
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("rejects when the resolved package is not declared in the consumer package.json", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "missing-decl-fixture",
+            private: true,
+            dependencies: { other: "^1.0.0" },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeStubPackage(tempDir, "@theme/ui", "1.0.0");
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        ['import Hero from "@theme/ui";', "export default <Hero />;"].join(
+          "\n",
+        ),
+      );
+      const bundle = await rolldown({
+        input: entryFile,
+        plugins: [
+          cmx({
+            externals: ["@theme/ui"],
+            consumerPackageJson: path.join(tempDir, "package.json"),
+          }),
+        ],
+      });
+
+      try {
+        await expect(
+          bundle.generate({ format: "esm", sourcemap: true }),
+        ).rejects.toMatchObject({
+          errors: [
+            {
+              pluginCode: "cmx-external-missing-consumer-dependency",
+            },
+          ],
+        });
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("rejects when an external import cannot be resolved", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "unresolved-fixture",
+            private: true,
+            dependencies: { "@theme/ui": "^1.0.0" },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        ['import Hero from "@theme/ui";', "export default <Hero />;"].join(
+          "\n",
+        ),
+      );
+      const bundle = await rolldown({
+        input: entryFile,
+        plugins: [
+          cmx({
+            externals: ["@theme/ui"],
+            consumerPackageJson: path.join(tempDir, "package.json"),
+          }),
+        ],
+      });
+
+      try {
+        await expect(
+          bundle.generate({ format: "esm", sourcemap: true }),
+        ).rejects.toMatchObject({
+          errors: [
+            {
+              pluginCode: "cmx-external-resolve-failed",
+            },
+          ],
+        });
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("rejects when the same module is both a Rolldown external and a CMX external", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "rolldown-external-fixture",
+            private: true,
+            dependencies: { "@theme/ui": "^1.0.0" },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeStubPackage(tempDir, "@theme/ui", "1.0.0");
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        ['import Hero from "@theme/ui";', "export default <Hero />;"].join(
+          "\n",
+        ),
+      );
+      const bundle = await rolldown({
+        input: entryFile,
+        external: ["@theme/ui"],
+        plugins: [
+          cmx({
+            externals: ["@theme/ui"],
+            consumerPackageJson: path.join(tempDir, "package.json"),
+          }),
+        ],
+      });
+
+      try {
+        await expect(
+          bundle.generate({ format: "esm", sourcemap: true }),
+        ).rejects.toMatchObject({
+          errors: [
+            {
+              pluginCode: "cmx-bundler-external-conflict",
             },
           ],
         });
