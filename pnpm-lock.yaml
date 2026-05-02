@@ -102,6 +102,9 @@ importers:
       cmx-document-renderer:
         specifier: workspace:*
         version: link:../../packages/cmx-document-renderer
+      rolldown:
+        specifier: ^1.0.0-rc.18
+        version: 1.0.0-rc.18
     devDependencies:
       '@types/react':
         specifier: ^19

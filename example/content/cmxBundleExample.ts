@@ -1,4 +1,4 @@
-import { cmxBundle } from "cmx-bundler";
+import { cmxBundle } from "./cmxBundle.js";
 
 export async function cmxBundleExample(): Promise<void> {
   await cmxBundle({
