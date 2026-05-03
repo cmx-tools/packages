@@ -11,7 +11,8 @@ import type {
 } from "cmx-contracts";
 import { CMX_DOCUMENT_VERSION } from "cmx-contracts";
 
-export const CMX_DOCUMENT_SCHEMA = "https://example.org/todo.v1.json";
+export const CMX_DOCUMENT_SCHEMA =
+  "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json";
 
 export type RuntimeNode = {
   kind: "fragment" | "element" | "component";
