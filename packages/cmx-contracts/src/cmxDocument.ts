@@ -39,6 +39,7 @@ export type CmxNode =
 export type CmxMeta = {
   type?: CmxTypeRef;
   data: unknown;
+  slots?: SlotPath[];
 };
 
 export type CmxDocument = {

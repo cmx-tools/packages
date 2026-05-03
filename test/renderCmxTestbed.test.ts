@@ -651,7 +651,7 @@ describe("renderCmxTestbed", () => {
             "const action = <button>Act</button>;",
             "const fake = { type: 'component', from: '@fake/ui', import: 'Fake' };",
             "void Unused;",
-            "export const meta = { slug: 'home', preview: <span>Meta</span> };",
+            "export const meta = { slug: 'home', data: { preview: <span>Meta</span>, fake } };",
             "export default <main",
             "  id='home'",
             "  missing={undefined}",
@@ -709,14 +709,49 @@ describe("renderCmxTestbed", () => {
       },
       data: {
         slug: "home",
-        preview: {
-          type: "element",
-          tag: "span",
-          children: ["Meta"],
+        data: {
+          preview: {
+            type: "element",
+            tag: "span",
+            children: ["Meta"],
+          },
+          fake: {
+            type: "component",
+            from: "@fake/ui",
+            import: "Fake",
+          },
         },
       },
+      slots: [["data", "preview"]],
     });
     expect(result.document.dependencies).toEqual([]);
+  });
+
+  it("normalizes root meta slots and component refs through the bundle boundary", async () => {
+    const result = expectDocumentResult(
+      await renderCmxTestbed({
+        files: {
+          "entry.tsx": [
+            'import { __registerExternal } from "cmx-runtime/jsx-runtime";',
+            'const Hero = __registerExternal({ from: "@theme/ui", import: "Hero" });',
+            "export const meta = <Hero tone='meta' />;",
+            "export default <main />;",
+          ].join("\n"),
+        },
+      }),
+    );
+
+    expect(result.document.meta).toEqual({
+      data: {
+        type: "component",
+        from: "@theme/ui",
+        import: "Hero",
+        props: {
+          tone: "meta",
+        },
+      },
+      slots: [[]],
+    });
   });
 
   it("attaches named imported meta type refs from bundle metadata", async () => {

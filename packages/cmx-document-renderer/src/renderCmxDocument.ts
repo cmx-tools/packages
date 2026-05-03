@@ -364,7 +364,14 @@ async function normalizeMeta(
     return undefined;
   }
 
-  const result = await normalizeMetaValue(module.meta, "meta", context);
+  const slots: SlotPath[] = [];
+  const result = await normalizeMetaValue(
+    module.meta,
+    "meta",
+    [],
+    slots,
+    context,
+  );
   if (!result.keep) {
     return undefined;
   }
@@ -376,12 +383,15 @@ async function normalizeMeta(
   return {
     ...(context.metaType ? { type: context.metaType } : {}),
     data: result.value,
+    ...(slots.length > 0 ? { slots } : {}),
   };
 }
 
 async function normalizeMetaValue(
   value: unknown,
   pathLabel: string,
+  path: SlotPath,
+  slots: SlotPath[],
   context: RenderContext,
 ): Promise<KeepResult | DropResult> {
   const resolvedValue = await value;
@@ -405,6 +415,8 @@ async function normalizeMetaValue(
       const result = await normalizeMetaValue(
         resolvedValue[index],
         `${pathLabel}[${index}]`,
+        [...path, normalized.length],
+        slots,
         context,
       );
       if (result.keep) {
@@ -415,6 +427,7 @@ async function normalizeMetaValue(
   }
 
   if (context.runtime.isRuntimeNode(resolvedValue)) {
+    slots.push(path);
     return {
       keep: true,
       value: await normalizeRuntimeNode(resolvedValue, pathLabel, context),
@@ -430,6 +443,8 @@ async function normalizeMetaValue(
     const result = await normalizeMetaValue(
       nestedValue,
       `${pathLabel}.${key}`,
+      [...path, key],
+      slots,
       context,
     );
     if (result.keep) {
