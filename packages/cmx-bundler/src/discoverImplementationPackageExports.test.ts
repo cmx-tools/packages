@@ -155,7 +155,7 @@ describe("discoverImplementationPackageExports", () => {
     });
   });
 
-  it("reports complex exports", async () => {
+  it("discovers exact export keys with object values", async () => {
     await withTempDir(async (tempDir) => {
       const packageJsonPath = await writeFixture(
         tempDir,
@@ -166,6 +166,67 @@ describe("discoverImplementationPackageExports", () => {
               ".": {
                 import: "./index.js",
               },
+              "./tokens": {
+                import: "./tokens.js",
+              },
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+
+      await expect(
+        discoverImplementationPackageExports(
+          contextResolvingPackageJson(packageJsonPath),
+          {
+            implementation: "@runtime/ui",
+            importerId: path.join(tempDir, "entry.ts"),
+          },
+        ),
+      ).resolves.toEqual({ kind: "simple", subpaths: [".", "./tokens"] });
+    });
+  });
+
+  it("treats conditional root-only exports as root-only", async () => {
+    await withTempDir(async (tempDir) => {
+      const packageJsonPath = await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            exports: {
+              import: "./index.js",
+              require: "./index.cjs",
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+
+      await expect(
+        discoverImplementationPackageExports(
+          contextResolvingPackageJson(packageJsonPath),
+          {
+            implementation: "@runtime/ui",
+            importerId: path.join(tempDir, "entry.ts"),
+          },
+        ),
+      ).resolves.toEqual({ kind: "rootOnly" });
+    });
+  });
+
+  it("reports export patterns as complex", async () => {
+    await withTempDir(async (tempDir) => {
+      const packageJsonPath = await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            exports: {
+              ".": "./index.js",
+              "./*": "./*.js",
             },
           },
           null,
