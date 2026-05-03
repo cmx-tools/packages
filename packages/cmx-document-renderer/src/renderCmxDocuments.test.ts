@@ -82,7 +82,8 @@ describe("renderCmxDocuments", () => {
         entry: {
           result: "document",
           document: {
-            $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
+            $schema:
+              "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
             cmxVersion: 1,
             dependencies: [],
             tree: {
@@ -352,7 +353,8 @@ describe("renderCmxDocuments", () => {
         entry: {
           result: "document",
           document: {
-            $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
+            $schema:
+              "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
             cmxVersion: 1,
             dependencies: [],
             tree: "rendered",
