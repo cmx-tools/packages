@@ -1,6 +1,5 @@
 import { parseSync } from "rolldown/utils";
-import type { CmxExternalPolicy } from "./CmxExternalPolicy.js";
-import { matchesCmxExternalPolicy } from "./CmxExternalPolicy.js";
+import type { CmxResolvedExternalImport } from "./resolveCmxExternalImports.js";
 
 type UnsupportedExternalImport = {
   code: string;
@@ -23,9 +22,9 @@ type Scope = Set<string>;
 export function findUnsupportedExternalImport(
   source: string,
   id: string,
-  externalPolicy: CmxExternalPolicy,
+  externalImports: Map<string, CmxResolvedExternalImport>,
 ): UnsupportedExternalImport | undefined {
-  if (externalPolicy.contracts.length === 0) {
+  if (externalImports.size === 0) {
     return undefined;
   }
 
@@ -39,7 +38,7 @@ export function findUnsupportedExternalImport(
 
   for (const externalImport of parsed.module.staticImports) {
     const from = externalImport.moduleRequest.value;
-    if (!matchesCmxExternalPolicy(from, externalPolicy)) {
+    if (!externalImports.has(from)) {
       continue;
     }
 
@@ -66,7 +65,7 @@ export function findUnsupportedExternalImport(
 
   const externalBindings = externalValueBindings(
     parsed.module.staticImports,
-    externalPolicy,
+    externalImports,
   );
   if (externalBindings.size === 0) {
     return undefined;
@@ -266,16 +265,11 @@ function externalValueBindings(
       isType: boolean;
     }>;
   }>,
-  externalPolicy: CmxExternalPolicy,
+  externalImports: Map<string, CmxResolvedExternalImport>,
 ): Map<string, ExternalBinding> {
   const bindings = new Map<string, ExternalBinding>();
   for (const externalImport of staticImports) {
-    if (
-      !matchesCmxExternalPolicy(
-        externalImport.moduleRequest.value,
-        externalPolicy,
-      )
-    ) {
+    if (!externalImports.has(externalImport.moduleRequest.value)) {
       continue;
     }
 

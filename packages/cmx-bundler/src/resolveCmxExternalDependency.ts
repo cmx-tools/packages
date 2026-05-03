@@ -1,11 +1,10 @@
-import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
 import type { PluginContext } from "rolldown";
 import type { CmxDependency } from "cmx-contracts";
 import {
   findConsumerDependencySpecifier,
   type ConsumerPackageJson,
 } from "./consumerPackage.js";
+import { resolveCmxPackageIdentity } from "./resolveCmxPackageIdentity.js";
 
 export type CmxIntegrityContext = {
   importSpecifier: string;
@@ -31,19 +30,12 @@ export async function resolveAndRecordCmxExternalDependency(
     getIntegrity?: CmxGetIntegrity;
   },
 ): Promise<void> {
-  const resolved = await context.resolve(
-    input.importSpecifier,
-    input.importerId,
-    {
-      skipSelf: true,
-    },
-  );
+  const packageIdentity = await resolveCmxPackageIdentity(context, {
+    importSpecifier: input.importSpecifier,
+    importerId: input.importerId,
+  });
 
-  const unresolvedPackageJsonPath = !resolved
-    ? findNodeModulesPackageJson(input.importSpecifier, input.importerId)
-    : undefined;
-
-  if (!resolved && !unresolvedPackageJsonPath) {
+  if (packageIdentity.result === "unresolved") {
     context.error({
       code: "cmx-external-resolve-failed",
       message: `CMX could not resolve external import ${JSON.stringify(input.importSpecifier)}.`,
@@ -51,7 +43,7 @@ export async function resolveAndRecordCmxExternalDependency(
     return;
   }
 
-  if (resolved?.external) {
+  if (packageIdentity.result === "external") {
     context.error({
       code: "cmx-bundler-external-conflict",
       message: `CMX external ${JSON.stringify(input.importSpecifier)} is also marked as a Rolldown external. Use CMX "externals" for CMX externals; do not list the same module in Rolldown input.external.`,
@@ -59,10 +51,7 @@ export async function resolveAndRecordCmxExternalDependency(
     return;
   }
 
-  const packageJsonPath =
-    resolved?.packageJsonPath ?? unresolvedPackageJsonPath;
-
-  if (!packageJsonPath) {
+  if (packageIdentity.result === "missing-package-json") {
     context.error({
       code: "cmx-external-missing-package-json",
       message: `CMX could not determine a package for external import ${JSON.stringify(input.importSpecifier)}.`,
@@ -70,30 +59,23 @@ export async function resolveAndRecordCmxExternalDependency(
     return;
   }
 
-  const packageSource = readFileSync(packageJsonPath, "utf8");
-  const packageJson = JSON.parse(packageSource) as {
-    name?: unknown;
-    version?: unknown;
-  };
-  if (typeof packageJson.name !== "string" || packageJson.name.length === 0) {
+  if (packageIdentity.result === "invalid-package-name") {
     context.error({
       code: "cmx-external-invalid-package-name",
-      message: `Invalid package name in ${packageJsonPath}.`,
-    });
-    return;
-  }
-  if (
-    typeof packageJson.version !== "string" ||
-    packageJson.version.length === 0
-  ) {
-    context.error({
-      code: "cmx-external-invalid-package-version",
-      message: `Invalid version in ${packageJsonPath}.`,
+      message: `Invalid package name in ${packageIdentity.packageJsonPath}.`,
     });
     return;
   }
 
-  const packageName = packageJson.name;
+  if (packageIdentity.result === "invalid-package-version") {
+    context.error({
+      code: "cmx-external-invalid-package-version",
+      message: `Invalid version in ${packageIdentity.packageJsonPath}.`,
+    });
+    return;
+  }
+
+  const packageName = packageIdentity.packageName;
   const specifier = findConsumerDependencySpecifier(
     input.consumerPackage,
     packageName,
@@ -111,10 +93,10 @@ export async function resolveAndRecordCmxExternalDependency(
     const fromCallback = input.getIntegrity({
       importSpecifier: input.importSpecifier,
       importerId: input.importerId,
-      resolvedId: resolved?.id ?? packageJsonPath,
-      packageJsonPath,
+      resolvedId: packageIdentity.resolvedId,
+      packageJsonPath: packageIdentity.packageJsonPath,
       packageName,
-      packageVersion: packageJson.version,
+      packageVersion: packageIdentity.packageVersion,
       consumerPackageJsonPath: input.consumerPackageJsonPath,
       specifier,
     });
@@ -126,52 +108,8 @@ export async function resolveAndRecordCmxExternalDependency(
   const next: CmxDependency = {
     name: packageName,
     specifier,
-    version: packageJson.version,
+    version: packageIdentity.packageVersion,
     ...(integrity === undefined ? {} : { integrity }),
   };
   input.bundleDependencies.set(packageName, next);
-}
-
-function findNodeModulesPackageJson(
-  importSpecifier: string,
-  importerId: string,
-): string | undefined {
-  const packageName = packageNameFromImportSpecifier(importSpecifier);
-  if (!packageName) {
-    return undefined;
-  }
-
-  let currentDir = path.dirname(importerId);
-  while (true) {
-    const packageJsonPath = path.join(
-      currentDir,
-      "node_modules",
-      ...packageName.split("/"),
-      "package.json",
-    );
-    if (existsSync(packageJsonPath)) {
-      return packageJsonPath;
-    }
-
-    const parentDir = path.dirname(currentDir);
-    if (parentDir === currentDir) {
-      return undefined;
-    }
-    currentDir = parentDir;
-  }
-}
-
-function packageNameFromImportSpecifier(
-  importSpecifier: string,
-): string | undefined {
-  if (importSpecifier.startsWith(".") || path.isAbsolute(importSpecifier)) {
-    return undefined;
-  }
-
-  const parts = importSpecifier.split("/");
-  if (importSpecifier.startsWith("@")) {
-    return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : undefined;
-  }
-
-  return parts[0];
 }
