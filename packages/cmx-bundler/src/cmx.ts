@@ -1,5 +1,10 @@
 import path from "node:path";
-import type { InputOptions, Plugin, TransformPluginContext } from "rolldown";
+import type {
+  InputOptions,
+  Plugin,
+  PluginContext,
+  TransformPluginContext,
+} from "rolldown";
 import { parseSync, Visitor } from "rolldown/utils";
 import type { CmxDependency, CmxTypeRef } from "cmx-contracts";
 import { CMX_BUNDLE_FILE_NAME } from "cmx-contracts";
@@ -23,6 +28,7 @@ import {
   VIRTUAL_EXTERNAL_STUB_PREFIX,
   type ExternalStub,
 } from "./createExternalImportStubs.js";
+import { discoverImplementationPackageExports } from "./discoverImplementationPackageExports.js";
 import { extractCmxBundleMetaExport } from "./extractCmxBundleMetaExport.js";
 import { findUnsupportedExternalImport } from "./findUnsupportedExternalImport.js";
 import { normalizeModulePath } from "./normalizeModulePath.js";
@@ -39,6 +45,8 @@ const META_TYPE_UNSUPPORTED_MESSAGE =
   "CMX meta annotations must be simple non-generic type references.";
 const META_REQUIRED = "cmx-meta-required";
 const EXTERNAL_CONTRACT_INVALID = "cmx-external-contract-invalid";
+const EXTERNAL_IMPLEMENTATION_EXPORTS_COMPLEX =
+  "cmx-external-implementation-exports-complex";
 
 export type CmxPluginMetaType = CmxTypeRef & {
   optional?: boolean;
@@ -70,7 +78,7 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
   const metaTypesByModuleId = new Map<string, CmxTypeRef>();
   const bundleDependencies = new Map<string, CmxDependency>();
   const environmentDependencies = new Map<string, CmxDependency>();
-  const environmentEntries = toEnvironmentEntries(options.externals ?? []);
+  let environmentEntries: CmxEnvironmentEntry[] = [];
   let entryOrder = new Map<string, number>();
   let consumerPackageJsonPathResolved!: string;
   let consumerPackage!: ReturnType<typeof readConsumerPackageJson>;
@@ -101,6 +109,11 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
         const environmentImporterId = path.join(
           path.dirname(consumerPackageJsonPathResolved),
           "__cmx_environment__.ts",
+        );
+        environmentEntries = await toEnvironmentEntries(
+          this,
+          options.externals ?? [],
+          environmentImporterId,
         );
         for (const entry of environmentEntries) {
           const publicImportSpecifier = entry.contract;
@@ -337,39 +350,94 @@ function toCmxTypeRef(metaType: CmxPluginMetaType): CmxTypeRef {
   };
 }
 
-function toEnvironmentEntries(externals: CmxExternalEntry[]): Array<{
+type CmxEnvironmentEntry = {
   contract: string;
   implementation?: string;
-}> {
-  return externals
-    .flatMap((entry) => {
-      if (typeof entry === "string") {
-        return [{ contract: entry }];
-      }
+};
 
-      if (
-        typeof entry.contract === "string" &&
-        typeof entry.implementation === "string"
-      ) {
-        return [toEnvironmentEntry(entry.contract, entry.implementation)];
-      }
+async function toEnvironmentEntries(
+  context: PluginContext,
+  externals: CmxExternalEntry[],
+  importerId: string,
+): Promise<CmxEnvironmentEntry[]> {
+  const entries: CmxEnvironmentEntry[] = [];
 
-      if (
-        typeof entry.contract === "string" &&
-        isExactImplementationExportMap(entry.implementation)
-      ) {
-        return Object.entries(entry.implementation).map(
+  for (const entry of externals) {
+    if (typeof entry === "string") {
+      entries.push(
+        ...(await toEnvironmentEntriesForStringImplementation(
+          context,
+          entry,
+          entry,
+          importerId,
+        )),
+      );
+      continue;
+    }
+
+    if (
+      typeof entry.contract === "string" &&
+      typeof entry.implementation === "string"
+    ) {
+      entries.push(
+        ...(await toEnvironmentEntriesForStringImplementation(
+          context,
+          entry.contract,
+          entry.implementation,
+          importerId,
+        )),
+      );
+      continue;
+    }
+
+    if (
+      typeof entry.contract === "string" &&
+      isExactImplementationExportMap(entry.implementation)
+    ) {
+      entries.push(
+        ...Object.entries(entry.implementation).map(
           ([subpath, implementation]) =>
             toEnvironmentEntry(
               contractImportSpecifier(entry.contract, subpath),
               implementation,
             ),
-        );
-      }
+        ),
+      );
+    }
+  }
 
-      return [];
-    })
-    .filter((entry) => entry.contract.trim().length > 0);
+  return entries.filter((entry) => entry.contract.trim().length > 0);
+}
+
+async function toEnvironmentEntriesForStringImplementation(
+  context: PluginContext,
+  contract: string,
+  implementation: string,
+  importerId: string,
+): Promise<CmxEnvironmentEntry[]> {
+  const discovered = await discoverImplementationPackageExports(context, {
+    implementation,
+    importerId,
+  });
+
+  if (discovered.kind === "complex") {
+    context.error({
+      code: EXTERNAL_IMPLEMENTATION_EXPORTS_COMPLEX,
+      message: `CMX cannot derive environment imports from complex exports for implementation ${JSON.stringify(implementation)}. Use an exact implementation export map instead.`,
+    });
+    return [];
+  }
+
+  if (discovered.kind === "rootOnly") {
+    return [toEnvironmentEntry(contract, implementation)];
+  }
+
+  return discovered.subpaths.map((subpath) =>
+    toEnvironmentEntry(
+      contractImportSpecifier(contract, subpath),
+      implementationImportSpecifier(implementation, subpath),
+    ),
+  );
 }
 
 function toEnvironmentEntry(
@@ -386,6 +454,15 @@ function toEnvironmentEntry(
 
 function contractImportSpecifier(contract: string, subpath: string): string {
   return subpath === "." ? contract : `${contract}/${subpath.slice(2)}`;
+}
+
+function implementationImportSpecifier(
+  implementation: string,
+  subpath: string,
+): string {
+  return subpath === "."
+    ? implementation
+    : `${implementation}/${subpath.slice(2)}`;
 }
 
 function hasPackageName(importSpecifier: string): boolean {
