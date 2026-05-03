@@ -258,6 +258,57 @@ describe("cmx", () => {
     });
   });
 
+  it("materializes CMX nodes in prop slots before creating React elements", () => {
+    function Panel() {
+      return null;
+    }
+    const document = createDocument({
+      dependencies: [
+        {
+          name: "@site/theme",
+          specifier: "^1.0.0",
+          version: "1.2.3",
+        },
+      ],
+      tree: {
+        type: "component",
+        from: "@site/theme",
+        import: "Panel",
+        props: {
+          icon: {
+            type: "element",
+            tag: "strong",
+            children: ["Icon"],
+          },
+          tone: "info",
+        },
+        slots: [["icon"]],
+      },
+    });
+    const environment = createEnvironment({
+      dependencies: document.dependencies,
+      imports: {
+        "@site/theme": {
+          Panel,
+        },
+      },
+    });
+
+    const result = cmx(document, environment);
+
+    expect(isValidElement(result.children)).toBe(true);
+    if (!isValidElement(result.children)) {
+      throw new Error("CMX component did not materialize to a React element");
+    }
+
+    expect(result.children.props.tone).toBe("info");
+    expect(isValidElement(result.children.props.icon)).toBe(true);
+    expect(result.children.props.icon.type).toBe("strong");
+    expect(result.children.props.icon.props).toEqual({
+      children: "Icon",
+    });
+  });
+
   it("passes component implementations to React without pre-validation", () => {
     const invalidComponent = {};
     const document = createDocument({

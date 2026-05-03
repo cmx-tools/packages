@@ -8,6 +8,7 @@ import type {
   CmxNode,
 } from "cmx-contracts";
 import { verifyCmxDocumentEnvironment } from "cmx-contracts";
+import { resolveCmxSlots } from "cmx-reduce";
 import { CmxReactError } from "./CmxReactError.js";
 
 export type CmxResult<Meta = unknown> = {
@@ -75,7 +76,7 @@ function materializeElement(
 ): ReactNode {
   return createElement(
     node.tag,
-    node.props,
+    materializeProps(node, environment),
     ...materializeChildren(node, environment),
   );
 }
@@ -88,9 +89,22 @@ function materializeComponent(
 
   return createElement(
     component as never,
-    node.props,
+    materializeProps(node, environment),
     ...materializeChildren(node, environment),
   );
+}
+
+function materializeProps(
+  node: CmxElementNode | CmxComponentNode,
+  environment: CmxEnvironment | undefined,
+): Record<string, unknown> | undefined {
+  if (!node.props) {
+    return undefined;
+  }
+
+  return resolveCmxSlots(node.props, node.slots, (slotNode) => ({
+    value: materializeNode(slotNode, environment),
+  })) as Record<string, unknown>;
 }
 
 function materializeChildren(

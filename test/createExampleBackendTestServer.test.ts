@@ -18,6 +18,7 @@ describe("createExampleBackendTestServer", () => {
       const aboutHtml = await about.text();
       expect(aboutHtml).toContain("<title>About</title>");
       expect(aboutHtml).toContain("beautiful-header");
+      expect(aboutHtml).toContain("header-accessory");
       expect(aboutHtml).toContain("<p>About</p>");
       expect(aboutHtml).toContain("🧑‍🎤");
     } finally {

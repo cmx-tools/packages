@@ -167,6 +167,9 @@ importers:
       cmx-contracts:
         specifier: workspace:*
         version: link:../cmx-contracts
+      cmx-reduce:
+        specifier: workspace:*
+        version: link:../cmx-reduce
       react:
         specifier: ^19
         version: 19.2.5
@@ -174,6 +177,12 @@ importers:
       '@types/react':
         specifier: ^19
         version: 19.2.14
+
+  packages/cmx-reduce:
+    dependencies:
+      cmx-contracts:
+        specifier: workspace:*
+        version: link:../cmx-contracts
 
   packages/cmx-runtime: {}
 

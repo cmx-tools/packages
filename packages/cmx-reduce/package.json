@@ -1,5 +1,5 @@
 {
-  "name": "cmx-react",
+  "name": "cmx-reduce",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -19,13 +19,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "cmx-contracts": "workspace:*",
-    "cmx-reduce": "workspace:*"
-  },
-  "devDependencies": {
-    "@types/react": "^19"
-  },
-  "peerDependencies": {
-    "react": "^19"
+    "cmx-contracts": "workspace:*"
   }
 }

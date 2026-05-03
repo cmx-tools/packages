@@ -10,7 +10,10 @@ const UserProfile = __registerExternal({
 //#endregion
 //#region components/header.tsx
 function Header({ children }) {
-	return /* @__PURE__ */ jsxs(Header$1, { children: [children, /* @__PURE__ */ jsx(UserProfile, {})] });
+	return /* @__PURE__ */ jsx(Header$1, {
+		accessory: /* @__PURE__ */ jsx(UserProfile, {}),
+		children
+	});
 }
 //#endregion
 //#region pages/about.tsx
