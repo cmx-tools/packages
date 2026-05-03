@@ -668,6 +668,222 @@ describe("cmx", () => {
     });
   });
 
+  it("derives environment imports from simple implementation package exports", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "cmx-derived-environment-fixture",
+            private: true,
+            dependencies: {
+              "@runtime/ui": "^4.0.0",
+              "@theme/ui": "^4.0.0",
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeFixture(
+        tempDir,
+        "node_modules/@theme/ui/package.json",
+        `${JSON.stringify(
+          {
+            name: "@theme/ui",
+            version: "4.0.1",
+            main: "index.js",
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeFixture(
+        tempDir,
+        "node_modules/@theme/ui/index.js",
+        "export const Hero = () => null;\n",
+      );
+      await writeFixture(
+        tempDir,
+        "node_modules/@runtime/ui/package.json",
+        `${JSON.stringify(
+          {
+            name: "@runtime/ui",
+            version: "4.2.0",
+            exports: {
+              ".": "./index.js",
+              "./tokens": "./tokens.js",
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeFixture(
+        tempDir,
+        "node_modules/@runtime/ui/index.js",
+        "export const Hero = () => null;\n",
+      );
+      await writeFixture(
+        tempDir,
+        "node_modules/@runtime/ui/tokens.js",
+        "export const colors = {};\n",
+      );
+      const outDir = path.join(tempDir, "dist");
+      const envOnlyEntry = "virtual:cmx-derived-env-entry";
+      const bundle = await rolldown({
+        input: envOnlyEntry,
+        plugins: [
+          {
+            name: "cmx-derived-env-entry",
+            resolveId(source) {
+              if (source === envOnlyEntry) {
+                return source;
+              }
+            },
+            load(id) {
+              if (id === envOnlyEntry) {
+                return "export {};\n";
+              }
+            },
+          },
+          cmx({
+            cwd: tempDir,
+            externals: [
+              { contract: "@theme/ui", implementation: "@runtime/ui" },
+            ],
+            environment: {
+              fileName: "cmx-environment.ts",
+            },
+          }),
+        ],
+      });
+
+      try {
+        await bundle.write({
+          dir: outDir,
+          entryFileNames: "derived-env.js",
+        });
+
+        await expect(
+          readFile(path.join(outDir, "cmx-environment.ts"), "utf8"),
+        ).resolves.toEqual(
+          [
+            'import type { CmxEnvironment } from "cmx-contracts";',
+            'import * as CmxEnvironmentImport0 from "@runtime/ui";',
+            'import type * as CmxEnvironmentPublic0 from "@theme/ui";',
+            'import * as CmxEnvironmentImport1 from "@runtime/ui/tokens";',
+            'import type * as CmxEnvironmentPublic1 from "@theme/ui/tokens";',
+            "",
+            "export const environment: CmxEnvironment = {",
+            "  dependencies: [",
+            "    {",
+            '      name: "@theme/ui",',
+            '      specifier: "^4.0.0",',
+            '      version: "4.0.1",',
+            "    },",
+            "  ],",
+            "  imports: {",
+            '    "@theme/ui": CmxEnvironmentImport0 satisfies typeof CmxEnvironmentPublic0,',
+            '    "@theme/ui/tokens": CmxEnvironmentImport1 satisfies typeof CmxEnvironmentPublic1,',
+            "  },",
+            "};",
+            "",
+          ].join("\n"),
+        );
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("rejects derived environment imports from complex implementation package exports", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "cmx-complex-derived-environment-fixture",
+            private: true,
+            dependencies: {
+              "@runtime/ui": "^5.0.0",
+              "@theme/ui": "^5.0.0",
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeStubPackage(tempDir, "@theme/ui", "5.0.1");
+      await writeFixture(
+        tempDir,
+        "node_modules/@runtime/ui/package.json",
+        `${JSON.stringify(
+          {
+            name: "@runtime/ui",
+            version: "5.2.0",
+            exports: {
+              ".": {
+                import: "./index.js",
+              },
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeFixture(
+        tempDir,
+        "node_modules/@runtime/ui/index.js",
+        "export const Hero = () => null;\n",
+      );
+      const envOnlyEntry = "virtual:cmx-complex-derived-env-entry";
+      const bundle = await rolldown({
+        input: envOnlyEntry,
+        plugins: [
+          {
+            name: "cmx-complex-derived-env-entry",
+            resolveId(source) {
+              if (source === envOnlyEntry) {
+                return source;
+              }
+            },
+            load(id) {
+              if (id === envOnlyEntry) {
+                return "export {};\n";
+              }
+            },
+          },
+          cmx({
+            cwd: tempDir,
+            externals: [
+              { contract: "@theme/ui", implementation: "@runtime/ui" },
+            ],
+            environment: {
+              fileName: "cmx-environment.ts",
+            },
+          }),
+        ],
+      });
+
+      try {
+        await expect(
+          bundle.generate({ format: "esm", sourcemap: true }),
+        ).rejects.toMatchObject({
+          errors: [
+            {
+              pluginCode: "cmx-external-implementation-exports-complex",
+            },
+          ],
+        });
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
   it("rejects wildcard external package contracts", async () => {
     await withTempDir(async (tempDir) => {
       await writeFixture(
