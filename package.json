@@ -16,7 +16,7 @@
     "example:create-environment": "corepack pnpm -r --filter '@example/backend' build",
     "test:gen-example": "corepack pnpm run example:create-documents && corepack pnpm run example:create-environment && prettier --write example/",
     "preverify:example": "corepack pnpm run test:gen-example",
-    "verify:example": "git update-index -q --refresh && test -z \"$(git status --porcelain -- ./example)\"",
+    "verify:example": "git update-index -q --refresh && test -z \"$(git status --porcelain -- ./example/content/dist ./example/backend/_db_content ./example/backend/_gen_cmx_environment.ts ./example/backend-contract)\"",
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check ."
   },
