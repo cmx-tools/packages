@@ -41,24 +41,39 @@ export function createCmxExternalPolicy(
 }
 
 export function matchesCmxExternalPolicy(
-  canonicalId: string,
+  importSpecifier: string,
   policy: CmxExternalPolicy,
 ): boolean {
+  const packageName = packageNameFromImportSpecifier(importSpecifier);
+  if (!packageName) {
+    return false;
+  }
+
   for (const contract of policy.contracts) {
-    if (matchesExternalContract(canonicalId, contract)) {
+    if (packageName === contract) {
       return true;
     }
   }
   return false;
 }
 
-function matchesExternalContract(
-  canonicalId: string,
-  contract: string,
-): boolean {
-  return contract === canonicalId || canonicalId.startsWith(`${contract}/`);
+function isInvalidPackageContract(contract: string): boolean {
+  if (contract.includes("*") || contract === "<invalid object external>") {
+    return true;
+  }
+
+  return packageNameFromImportSpecifier(contract) !== contract;
 }
 
-function isInvalidPackageContract(contract: string): boolean {
-  return contract.includes("*") || contract === "<invalid object external>";
+function packageNameFromImportSpecifier(
+  importSpecifier: string,
+): string | undefined {
+  const parts = importSpecifier.split("/");
+  if (importSpecifier.startsWith("@")) {
+    return parts.length >= 2 && parts[1] !== ""
+      ? `${parts[0]}/${parts[1]}`
+      : undefined;
+  }
+
+  return parts[0] === "" ? undefined : parts[0];
 }

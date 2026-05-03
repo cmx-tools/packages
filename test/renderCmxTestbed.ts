@@ -225,20 +225,20 @@ function createExternalPackageFixtureFiles(
 }
 
 function packageNameFromExternal(external: string): string | undefined {
-  const normalized = external
-    .trim()
-    .replace(/\/\*\*?$/u, "")
-    .replace(/\/+$/u, "");
-  if (normalized.length === 0 || normalized.includes("*")) {
+  const normalized = external.trim().replace(/\/+$/u, "");
+  if (normalized.length === 0) {
     return undefined;
   }
 
   if (normalized.startsWith("@")) {
     const [scope, name] = normalized.split("/");
-    return scope && name ? `${scope}/${name}` : undefined;
+    const packageName = scope && name ? `${scope}/${name}` : undefined;
+    return packageName === normalized ? packageName : undefined;
   }
 
-  return normalized.split("/")[0];
+  return normalized.includes("/") || normalized.includes("*")
+    ? undefined
+    : normalized;
 }
 
 function packageFixturePath(packageName: string, fileName: string): string {
