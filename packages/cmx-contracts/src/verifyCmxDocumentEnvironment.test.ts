@@ -84,6 +84,38 @@ describe("verifyCmxDocumentEnvironment", () => {
     });
   });
 
+  it("accepts a dependency-free document without an environment", () => {
+    expect(verifyCmxDocumentEnvironment(createDocument())).toEqual({
+      valid: true,
+    });
+  });
+
+  it("reports missing dependencies without an environment", () => {
+    expect(
+      verifyCmxDocumentEnvironment(
+        createDocument({
+          dependencies: [
+            {
+              name: "@site/theme",
+              specifier: "^1.0.0",
+              version: "1.2.3",
+            },
+          ],
+        }),
+      ),
+    ).toEqual({
+      valid: false,
+      diagnostics: [
+        {
+          severity: "error",
+          code: "missing-environment-dependency",
+          message: "Environment dependency @site/theme is missing.",
+          dependency: "@site/theme",
+        },
+      ],
+    });
+  });
+
   it("reports a missing environment dependency", () => {
     expect(
       verifyCmxDocumentEnvironment(

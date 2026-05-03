@@ -6,6 +6,8 @@ import type {
   CmxFragmentNode,
   CmxNode,
 } from "cmx-contracts";
+import { verifyCmxDocumentEnvironment } from "cmx-contracts";
+import { CmxReactError } from "./CmxReactError.js";
 
 export type CmxResult<Meta = unknown> = {
   children: ReactNode;
@@ -14,8 +16,13 @@ export type CmxResult<Meta = unknown> = {
 
 export function cmx<Meta = unknown>(
   document: CmxDocument,
-  _environment?: CmxEnvironment<Meta>,
+  environment?: CmxEnvironment<Meta>,
 ): CmxResult<Meta> {
+  const verification = verifyCmxDocumentEnvironment(document, environment);
+  if (!verification.valid) {
+    throw new CmxReactError(verification.diagnostics);
+  }
+
   return {
     children: materializeNode(document.tree),
     ...(document.meta ? { meta: document.meta.data as Meta } : {}),

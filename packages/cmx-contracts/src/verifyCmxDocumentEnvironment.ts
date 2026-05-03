@@ -26,7 +26,7 @@ export type CmxDocumentEnvironmentVerificationResult =
 
 export function verifyCmxDocumentEnvironment(
   document: CmxDocument,
-  environment: CmxEnvironment,
+  environment?: CmxEnvironment,
 ): CmxDocumentEnvironmentVerificationResult {
   const diagnostics: CmxDocumentEnvironmentVerificationDiagnostic[] = [];
 
@@ -39,7 +39,10 @@ export function verifyCmxDocumentEnvironment(
   }
 
   const environmentDependencies = new Map(
-    environment.dependencies.map((dependency) => [dependency.name, dependency]),
+    environment?.dependencies.map((dependency) => [
+      dependency.name,
+      dependency,
+    ]) ?? [],
   );
 
   for (const documentDependency of document.dependencies) {
@@ -102,14 +105,14 @@ function verifyDependency(
 
 function verifyMetaType(
   documentMeta: CmxDocument["meta"],
-  environment: CmxEnvironment,
+  environment: CmxEnvironment | undefined,
 ): CmxDocumentEnvironmentVerificationDiagnostic | undefined {
   if (!documentMeta) {
     return undefined;
   }
 
   const documentMetaType = documentMeta.type;
-  const environmentMetaType = environment.metaType;
+  const environmentMetaType = environment?.metaType;
 
   if (!documentMetaType && !environmentMetaType) {
     return undefined;

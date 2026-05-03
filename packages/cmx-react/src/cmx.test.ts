@@ -1,7 +1,11 @@
 import { Fragment, isValidElement } from "react";
 import { describe, expect, it } from "vitest";
-import type { CmxDocument } from "cmx-contracts";
-import { cmx } from "cmx-react";
+import {
+  verifyCmxDocumentEnvironment,
+  type CmxDocument,
+  type CmxEnvironment,
+} from "cmx-contracts";
+import { CmxReactError, cmx } from "cmx-react";
 
 describe("cmx", () => {
   it.each([null, true, false, 7, "text"])(
@@ -54,6 +58,59 @@ describe("cmx", () => {
       children: "Not Found",
     });
   });
+
+  it("throws contract diagnostics before materializing incompatible documents", () => {
+    const document = {
+      ...createDocument(),
+      dependencies: [
+        {
+          name: "@site/theme",
+          specifier: "^1.0.0",
+          version: "1.2.3",
+        },
+      ],
+      get tree(): never {
+        throw new Error("tree was materialized");
+      },
+    } as CmxDocument;
+    const verification = verifyCmxDocumentEnvironment(document);
+    if (verification.valid) {
+      throw new Error("Expected document verification to fail");
+    }
+
+    expect(() => cmx(document)).toThrow(CmxReactError);
+
+    try {
+      cmx(document);
+    } catch (error) {
+      expect(error).toBeInstanceOf(CmxReactError);
+      expect((error as CmxReactError).diagnostics).toEqual([
+        {
+          severity: "error",
+          code: "missing-environment-dependency",
+          message: "Environment dependency @site/theme is missing.",
+          dependency: "@site/theme",
+        },
+      ]);
+      return;
+    }
+
+    throw new Error("Expected cmx to throw");
+  });
+
+  it("keeps native materialization errors unwrapped", () => {
+    const materializationError = new Error("tree failed");
+    const document = {
+      ...createDocument(),
+      get tree(): never {
+        throw materializationError;
+      },
+    } as CmxDocument;
+
+    expect(() => cmx(document, createEnvironment())).toThrow(
+      materializationError,
+    );
+  });
 });
 
 function createDocument(document: Partial<CmxDocument> = {}): CmxDocument {
@@ -63,5 +120,15 @@ function createDocument(document: Partial<CmxDocument> = {}): CmxDocument {
     dependencies: [],
     tree: null,
     ...document,
+  };
+}
+
+function createEnvironment(
+  environment: Partial<CmxEnvironment> = {},
+): CmxEnvironment {
+  return {
+    dependencies: [],
+    imports: {},
+    ...environment,
   };
 }
