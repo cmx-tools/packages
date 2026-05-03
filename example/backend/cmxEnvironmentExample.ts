@@ -29,7 +29,10 @@ export async function cmxEnvironmentExample(): Promise<void> {
       cmx({
         cwd: process.cwd(),
         externals: [
-          { from: "./api.js", as: "@example/backend-contract" },
+          {
+            contract: "@example/backend-contract",
+            implementation: "./api.js",
+          },
           "@example/ui-library",
         ],
         metaType: {

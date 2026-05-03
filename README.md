@@ -70,7 +70,10 @@ const build = await rolldown({
     cmx({
       cwd: "example/backend",
       externals: [
-        { from: "./api.js", as: "@example/backend-contract" },
+        {
+          contract: "@example/backend-contract",
+          implementation: "./api.js",
+        },
         "@example/ui-library",
       ],
       metaType: {
@@ -97,6 +100,8 @@ try {
 
 Do not pass an empty `input` object or omit `input`; Rolldown will not run plugin output hooks without a valid build input. The generated no-op JS entry can be ignored by templates that only publish `_gen_cmx_environment.ts`.
 
+Package-contract externals use package names as the public contract. A string external such as `"@example/ui-library"` means the contract and runtime implementation are the same package. Use `{ contract, implementation }` when the runtime module differs from the public contract package. CMX records documents and generated environments against the contract package. Bundle-side substitutes belong to the caller package or workspace setup, not CMX external config.
+
 Smoke path:
 
 ```sh
@@ -107,4 +112,4 @@ corepack pnpm --filter cmx-bundler test -- -t "emits an environment module from 
 
 `cmxGenerateEnvironmentSource`, `CmxGenerateEnvironmentSourceInput`, and `CmxGenerateEnvironmentSourceResult` are removed from `cmx-bundler`. Use Rolldown with `cmx({ environment: { fileName } })` instead.
 
-Environment generation now uses `cmx()` options. Replace generator `entries` with plugin `externals`, using `{ from, as }` when a local implementation satisfies a public package contract. Configure `metaType`, `cwd`, and `getIntegrity` on the same `cmx()` call used for content bundling or environment-only generation.
+Environment generation now uses `cmx()` options. Replace generator `entries` with plugin `externals`, using `{ contract, implementation }` when a local implementation satisfies a public package contract. Configure `metaType`, `cwd`, and `getIntegrity` on the same `cmx()` call used for content bundling or environment-only generation.
