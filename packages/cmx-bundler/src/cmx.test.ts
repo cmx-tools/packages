@@ -95,6 +95,40 @@ async function writeStubPackageWithSubpath(
   );
 }
 
+async function writeAliasedStubPackageWithSubpath(
+  rootDir: string,
+  aliasName: string,
+  packageName: string,
+  subpath: string,
+  version: string,
+): Promise<void> {
+  const aliasSegments = aliasName.startsWith("@")
+    ? ["node_modules", ...aliasName.split("/")]
+    : ["node_modules", aliasName];
+  const pkgDir = path.join(rootDir, ...aliasSegments);
+  await mkdir(pkgDir, { recursive: true });
+  await writeFile(
+    path.join(pkgDir, "package.json"),
+    `${JSON.stringify(
+      {
+        name: packageName,
+        version,
+        exports: {
+          [`./${subpath}`]: `./${subpath}.js`,
+        },
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+  await writeFile(
+    path.join(pkgDir, `${subpath}.js`),
+    "export const Widget = () => null;\nexport default Widget;\n",
+    "utf8",
+  );
+}
+
 describe("cmx", () => {
   it("emits ESM, external sourcemap, and minimal CMX bundle for TSX entry", async () => {
     await withTempDir(async (tempDir) => {
@@ -1639,6 +1673,72 @@ describe("cmx", () => {
         await expect(
           readFile(path.join(outDir, "entry.js"), "utf8"),
         ).resolves.toContain('from: "@acme/widgets/button"');
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("matches external imports by resolved package identity", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "alias-fixture",
+            private: true,
+            dependencies: { "@theme/ui": "^2.0.0" },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeAliasedStubPackageWithSubpath(
+        tempDir,
+        "@alias/ui",
+        "@theme/ui",
+        "button",
+        "2.1.0",
+      );
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        [
+          'import Button from "@alias/ui/button";',
+          "export default <Button />;",
+        ].join("\n"),
+      );
+      const outDir = path.join(tempDir, "dist");
+      const bundle = await rolldown({
+        input: entryFile,
+        plugins: [
+          cmx({
+            externals: ["@theme/ui"],
+            cwd: tempDir,
+          }),
+        ],
+      });
+
+      try {
+        await bundle.write({
+          dir: outDir,
+          entryFileNames: "entry.js",
+        });
+        const cmxBundle = await readBundle(outDir);
+        expect(cmxBundle.dependencies).toEqual([
+          {
+            name: "@theme/ui",
+            specifier: "^2.0.0",
+            version: "2.1.0",
+          },
+        ]);
+        const entrySource = await readFile(
+          path.join(outDir, "entry.js"),
+          "utf8",
+        );
+        expect(entrySource).toContain('from: "@theme/ui/button"');
+        expect(entrySource).not.toContain("@alias/ui");
       } finally {
         await bundle.close();
       }

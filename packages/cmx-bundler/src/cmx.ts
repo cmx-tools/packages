@@ -37,6 +37,7 @@ import {
   type CmxGetIntegrity,
   type CmxIntegrityContext,
 } from "./resolveCmxExternalDependency.js";
+import { resolveCmxExternalImports } from "./resolveCmxExternalImports.js";
 
 const RUNTIME_IMPORT_SOURCE = "cmx-runtime";
 const DYNAMIC_IMPORT_UNSUPPORTED = "dynamic-import-unsupported";
@@ -228,10 +229,16 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
         );
       }
 
-      const unsupportedExternalImport = findUnsupportedExternalImport(
+      const externalImports = await resolveCmxExternalImports(
+        this,
         source,
         id,
         externalPolicy,
+      );
+      const unsupportedExternalImport = findUnsupportedExternalImport(
+        source,
+        id,
+        externalImports,
       );
       if (unsupportedExternalImport) {
         this.error(
@@ -265,7 +272,7 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
         this,
         source,
         id,
-        externalPolicy,
+        externalImports,
         externalStubs,
         resolveRecorder,
       );

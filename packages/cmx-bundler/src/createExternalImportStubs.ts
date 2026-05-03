@@ -1,7 +1,6 @@
 import type { TransformPluginContext } from "rolldown";
 import { parseSync } from "rolldown/utils";
-import type { CmxExternalPolicy } from "./CmxExternalPolicy.js";
-import { matchesCmxExternalPolicy } from "./CmxExternalPolicy.js";
+import type { CmxResolvedExternalImport } from "./resolveCmxExternalImports.js";
 
 const EXTERNAL_STUB_PREFIX = "cmx-external:";
 
@@ -48,7 +47,7 @@ export async function transformExternalImports(
   context: TransformPluginContext,
   source: string,
   id: string,
-  externalPolicy: CmxExternalPolicy,
+  externalImports: Map<string, CmxResolvedExternalImport>,
   externalStubs: Map<string, ExternalStub>,
   resolveExternalImport?: (
     context: TransformPluginContext,
@@ -56,7 +55,7 @@ export async function transformExternalImports(
     importerId: string,
   ) => Promise<void>,
 ): Promise<{ code: string; map: null } | null> {
-  if (externalPolicy.contracts.length === 0) {
+  if (externalImports.size === 0) {
     return null;
   }
 
@@ -71,17 +70,25 @@ export async function transformExternalImports(
   const replacements: Array<{ start: number; end: number; value: string }> = [];
   for (const externalImport of parsed.module.staticImports) {
     const from = externalImport.moduleRequest.value;
-    if (!matchesCmxExternalPolicy(from, externalPolicy)) {
+    const resolvedExternalImport = externalImports.get(from);
+    if (!resolvedExternalImport) {
       continue;
     }
 
-    const stub = externalStubFromImport(from, externalImport.entries);
+    const stub = externalStubFromImport(
+      resolvedExternalImport.publicImportSpecifier,
+      externalImport.entries,
+    );
     if (!stub) {
       continue;
     }
 
     if (resolveExternalImport) {
-      await resolveExternalImport(context, from, id);
+      await resolveExternalImport(
+        context,
+        resolvedExternalImport.importSpecifier,
+        id,
+      );
     }
 
     const stubId = createExternalStubId(id, from);
