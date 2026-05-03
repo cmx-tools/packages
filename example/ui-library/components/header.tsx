@@ -11,6 +11,7 @@ export default function Header({
     className: "beautiful-header",
     children: [
       children,
+      " ",
       accessory
         ? jsx("span", { className: "header-accessory", children: accessory })
         : null,
