@@ -9,15 +9,15 @@ describe("createExampleBackendTestServer", () => {
       const fallback = await fetch(new URL("/", server.url));
       const about = await fetch(new URL("/about", server.url));
 
-      expect(fallback.status).toBe(500);
+      expect(fallback.status).toBe(200);
       expect(fallback.headers.get("content-type")).toContain("text/html");
-      expect(await fallback.text()).toContain(
-        "renderCmxReact is a contract stub",
-      );
+      expect(await fallback.text()).toContain("<h1>Not Found</h1>");
 
       expect(about.status).toBe(500);
       expect(about.headers.get("content-type")).toContain("text/html");
-      expect(await about.text()).toContain("renderCmxReact is a contract stub");
+      expect(await about.text()).toContain(
+        "CMX component nodes are not supported yet.",
+      );
     } finally {
       await server.close();
     }

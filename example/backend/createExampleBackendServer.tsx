@@ -3,7 +3,7 @@ import { StrictMode } from "react";
 import { renderToString } from "react-dom/server";
 import { environment } from "./_gen_cmx_environment.js";
 import type { Meta } from "@example/backend-contract";
-import { renderCmxReact } from "cmx-react";
+import { cmx } from "cmx-react";
 
 type AppProps = {
   children: React.ReactNode;
@@ -15,7 +15,7 @@ export function createExampleBackendServer(): Server {
     try {
       const route = req.url?.includes("/about") ? "about" : "404";
       const { default: document } = await import(`./_db_content/${route}.json`);
-      const { children, meta } = renderCmxReact(document, environment);
+      const { children, meta } = cmx<Meta>(document, environment);
 
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       res.end(renderHtml(<App children={children} meta={meta} />));
