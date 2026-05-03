@@ -37,6 +37,7 @@ const META_TYPE_UNSUPPORTED = "meta-type-unsupported";
 const META_TYPE_UNSUPPORTED_MESSAGE =
   "CMX meta annotations must be simple non-generic type references.";
 const META_REQUIRED = "cmx-meta-required";
+const EXTERNAL_CONTRACT_INVALID = "cmx-external-contract-invalid";
 
 export type CmxPluginMetaType = CmxTypeRef & {
   optional?: boolean;
@@ -114,6 +115,12 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
             getIntegrity: options.getIntegrity,
           });
         }
+      }
+      if (externalPolicy.invalidContracts.length > 0) {
+        this.error({
+          code: EXTERNAL_CONTRACT_INVALID,
+          message: `CMX external contracts must be exact package contracts. Invalid externals: ${externalPolicy.invalidContracts.map((contract) => JSON.stringify(contract)).join(", ")}.`,
+        });
       }
     },
     outputOptions(outputOptions) {
@@ -223,7 +230,7 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
       }
 
       const resolveRecorder =
-        externalPolicy.patterns.length > 0
+        externalPolicy.contracts.length > 0
           ? async (
               context: TransformPluginContext,
               importSpecifier: string,
@@ -334,9 +341,20 @@ function toEnvironmentEntries(externals: CmxExternalEntry[]): Array<{
   as?: string;
 }> {
   return externals
-    .map((entry) =>
-      typeof entry === "string" ? { from: entry } : { ...entry },
-    )
+    .flatMap((entry) => {
+      if (typeof entry === "string") {
+        return [{ from: entry }];
+      }
+
+      if (
+        typeof entry.contract === "string" &&
+        typeof entry.implementation === "string"
+      ) {
+        return [{ from: entry.implementation, as: entry.contract }];
+      }
+
+      return [];
+    })
     .filter((entry) => entry.from.trim().length > 0);
 }
 

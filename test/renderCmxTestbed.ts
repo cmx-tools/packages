@@ -181,7 +181,7 @@ function createExternalPackageFixtureFiles(
     ...new Set(
       externals
         .map((external) =>
-          typeof external === "string" ? external : external.from,
+          typeof external === "string" ? external : external.contract,
         )
         .map(packageNameFromExternal)
         .filter(isString),

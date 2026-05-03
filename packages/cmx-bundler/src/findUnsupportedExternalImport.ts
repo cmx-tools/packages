@@ -25,7 +25,7 @@ export function findUnsupportedExternalImport(
   id: string,
   externalPolicy: CmxExternalPolicy,
 ): UnsupportedExternalImport | undefined {
-  if (externalPolicy.patterns.length === 0) {
+  if (externalPolicy.contracts.length === 0) {
     return undefined;
   }
 

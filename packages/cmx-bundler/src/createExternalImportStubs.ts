@@ -56,7 +56,7 @@ export async function transformExternalImports(
     importerId: string,
   ) => Promise<void>,
 ): Promise<{ code: string; map: null } | null> {
-  if (externalPolicy.patterns.length === 0) {
+  if (externalPolicy.contracts.length === 0) {
     return null;
   }
 
