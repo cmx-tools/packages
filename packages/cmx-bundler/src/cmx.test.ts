@@ -8,7 +8,7 @@ import {
   parseCmxBundleJson,
   type CmxBundle,
 } from "cmx-contracts";
-import { cmx } from "./cmx.js";
+import { cmx, type CmxPluginOptions } from "./cmx.js";
 
 async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundler-"));
@@ -343,7 +343,7 @@ describe("cmx", () => {
         input: entryFile,
         plugins: [
           cmx({
-            externals: [{ from: "@theme/ui" }],
+            externals: [{ contract: "@theme/ui", implementation: "@theme/ui" }],
             cwd: tempDir,
           }),
         ],
@@ -480,8 +480,8 @@ describe("cmx", () => {
           cmx({
             cwd: tempDir,
             externals: [
-              { from: "./theme-ui.ts", as: "@theme/ui" },
-              { from: "@theme/content" },
+              { contract: "@theme/ui", implementation: "./theme-ui.ts" },
+              "@theme/content",
             ],
             metaType: {
               from: "@theme/content",
@@ -541,6 +541,105 @@ describe("cmx", () => {
             "",
           ].join("\n"),
         );
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("rejects wildcard external package contracts", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "cmx-external-wildcard-fixture",
+            private: true,
+            dependencies: { "@theme/ui": "^1.0.0" },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeStubPackage(tempDir, "@theme/ui", "1.0.0");
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        ['import Hero from "@theme/ui";', "export default <Hero />;"].join(
+          "\n",
+        ),
+      );
+      const bundle = await rolldown({
+        input: entryFile,
+        plugins: [
+          cmx({
+            externals: ["@theme/ui/*"],
+            cwd: tempDir,
+          }),
+        ],
+      });
+
+      try {
+        await expect(
+          bundle.generate({ format: "esm", sourcemap: true }),
+        ).rejects.toMatchObject({
+          errors: [
+            {
+              pluginCode: "cmx-external-contract-invalid",
+            },
+          ],
+        });
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("rejects object external package contracts without an implementation", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "cmx-external-object-fixture",
+            private: true,
+            dependencies: { "@theme/ui": "^1.0.0" },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        ['import Hero from "@theme/ui";', "export default <Hero />;"].join(
+          "\n",
+        ),
+      );
+      const bundle = await rolldown({
+        input: entryFile,
+        plugins: [
+          cmx({
+            externals: [
+              { contract: "@theme/ui" },
+            ] as unknown as CmxPluginOptions["externals"],
+            cwd: tempDir,
+          }),
+        ],
+      });
+
+      try {
+        await expect(
+          bundle.generate({ format: "esm", sourcemap: true }),
+        ).rejects.toMatchObject({
+          errors: [
+            {
+              pluginCode: "cmx-external-contract-invalid",
+            },
+          ],
+        });
       } finally {
         await bundle.close();
       }
@@ -1055,7 +1154,7 @@ describe("cmx", () => {
         input: entryFile,
         plugins: [
           cmx({
-            externals: ["@acme/widgets/**"],
+            externals: ["@acme/widgets"],
             cwd: tempDir,
           }),
         ],

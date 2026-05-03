@@ -1,32 +1,42 @@
 export type CmxExternalPolicy = {
-  patterns: string[];
+  contracts: string[];
+  invalidContracts: string[];
 };
 
 export type CmxExternalEntry = string | CmxStructuredExternalEntry;
 
 export type CmxStructuredExternalEntry = {
-  from: string;
-  as?: string;
+  contract: string;
+  implementation: string;
 };
 
 export function createCmxExternalPolicy(
   externals: CmxExternalEntry[],
 ): CmxExternalPolicy {
+  const normalizedContracts = externals.flatMap((entry) => {
+    if (typeof entry === "string") {
+      return [entry.trim()];
+    }
+
+    if (
+      typeof entry.contract === "string" &&
+      typeof entry.implementation === "string"
+    ) {
+      return [entry.contract.trim()];
+    }
+
+    return ["<invalid object external>"];
+  });
+
   return {
-    patterns: externals
-      .map((entry) => (typeof entry === "string" ? entry : entry.from).trim())
+    contracts: normalizedContracts
       .filter((entry) => entry.length > 0)
-      .map((entry) => {
-        if (entry.endsWith("/**")) {
-          const base = entry.slice(0, -3).replace(/\/+$/u, "");
-          return `${base}/**`;
-        }
-        if (entry.endsWith("/*")) {
-          const base = entry.slice(0, -2).replace(/\/+$/u, "");
-          return `${base}/*`;
-        }
-        return entry.replace(/\/+$/u, "");
-      }),
+      .map((entry) => entry.replace(/\/+$/u, ""))
+      .filter((contract) => !isInvalidPackageContract(contract)),
+    invalidContracts: normalizedContracts
+      .filter((entry) => entry.length > 0)
+      .map((entry) => entry.replace(/\/+$/u, ""))
+      .filter(isInvalidPackageContract),
   };
 }
 
@@ -34,29 +44,21 @@ export function matchesCmxExternalPolicy(
   canonicalId: string,
   policy: CmxExternalPolicy,
 ): boolean {
-  for (const pattern of policy.patterns) {
-    if (matchesExternalPattern(canonicalId, pattern)) {
+  for (const contract of policy.contracts) {
+    if (matchesExternalContract(canonicalId, contract)) {
       return true;
     }
   }
   return false;
 }
 
-function matchesExternalPattern(canonicalId: string, pattern: string): boolean {
-  if (pattern.endsWith("/**")) {
-    const base = pattern.slice(0, -3);
-    return canonicalId === base || canonicalId.startsWith(`${base}/`);
-  }
+function matchesExternalContract(
+  canonicalId: string,
+  contract: string,
+): boolean {
+  return contract === canonicalId || canonicalId.startsWith(`${contract}/`);
+}
 
-  if (pattern.endsWith("/*")) {
-    const base = pattern.slice(0, -2);
-    if (!canonicalId.startsWith(`${base}/`)) {
-      return false;
-    }
-
-    const remainder = canonicalId.slice(base.length + 1);
-    return remainder.length > 0 && !remainder.includes("/");
-  }
-
-  return pattern === canonicalId || canonicalId.startsWith(`${pattern}/`);
+function isInvalidPackageContract(contract: string): boolean {
+  return contract.includes("*") || contract === "<invalid object external>";
 }
