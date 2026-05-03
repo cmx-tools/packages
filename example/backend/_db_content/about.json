@@ -42,9 +42,7 @@
       {
         "type": "element",
         "tag": "p",
-        "children": [
-          "About"
-        ]
+        "children": ["About"]
       }
     ]
   }

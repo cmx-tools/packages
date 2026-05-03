@@ -14,7 +14,7 @@
     "typecheck": "corepack pnpm run build && corepack pnpm -r --filter './packages/*' typecheck && tsc --noEmit",
     "example:create-documents": "corepack pnpm -r --filter '@example/content' build",
     "example:create-environment": "corepack pnpm -r --filter '@example/backend' build",
-    "test:gen-example": "corepack pnpm run example:create-documents && corepack pnpm run example:create-environment",
+    "test:gen-example": "corepack pnpm run example:create-documents && corepack pnpm run example:create-environment && prettier --write example/",
     "preverify:example": "corepack pnpm run test:gen-example",
     "verify:example": "git update-index -q --refresh && test -z \"$(git status --porcelain -- ./example)\"",
     "fmt": "prettier --write .",
