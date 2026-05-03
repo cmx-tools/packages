@@ -1,8 +1,8 @@
 import type { Meta } from "@example/backend-contract";
 import type { CmxEnvironment } from "cmx-contracts";
-import * as CmxEnvironmentImport0 from "./api.js";
-import type * as CmxEnvironmentPublic0 from "@example/backend-contract";
-import * as CmxEnvironmentImport1 from "@example/ui-library";
+import * as Api from "./api.js";
+import type * as ExampleBackendContract from "@example/backend-contract";
+import * as ExampleUiLibrary from "@example/ui-library";
 
 export const environment: CmxEnvironment<Meta> = {
   dependencies: [
@@ -18,9 +18,8 @@ export const environment: CmxEnvironment<Meta> = {
     },
   ],
   imports: {
-    "@example/backend-contract":
-      CmxEnvironmentImport0 satisfies typeof CmxEnvironmentPublic0,
-    "@example/ui-library": CmxEnvironmentImport1,
+    "@example/backend-contract": Api satisfies typeof ExampleBackendContract,
+    "@example/ui-library": ExampleUiLibrary,
   },
   metaType: {
     from: "@example/backend-contract",

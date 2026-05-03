@@ -7,12 +7,16 @@
   "scripts": {
     "verify": "corepack pnpm run fmt:check && corepack pnpm run typecheck && corepack pnpm run test",
     "build": "corepack pnpm -r --filter './packages/*' build",
-    "pretest:unit": "corepack pnpm run build",
     "test:unit": "vitest run --dir packages",
     "pretest:integration": "corepack pnpm run build",
     "test:integration": "vitest run --dir test",
-    "test": "corepack pnpm run test:unit && corepack pnpm run test:integration",
+    "test": "corepack pnpm run test:unit && corepack pnpm run test:integration && corepack pnpm run verify:example",
     "typecheck": "corepack pnpm run build && corepack pnpm -r --filter './packages/*' typecheck && tsc --noEmit",
+    "example:create-documents": "corepack pnpm -r --filter '@example/content' build",
+    "example:create-environment": "corepack pnpm -r --filter '@example/backend' build",
+    "test:gen-example": "corepack pnpm run example:create-documents && corepack pnpm run example:create-environment",
+    "preverify:example": "corepack pnpm run test:gen-example",
+    "verify:example": "git update-index -q --refresh && test -z \"$(git status --porcelain -- ./example)\"",
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check ."
   },
