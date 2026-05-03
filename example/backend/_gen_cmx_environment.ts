@@ -4,7 +4,7 @@ import * as Api from "./api.js";
 import type * as ExampleBackendContract from "@example/backend-contract";
 import * as ExampleUiLibrary from "@example/ui-library";
 
-export const environment: CmxEnvironment<Meta> = {
+export const environment: CmxEnvironment<Meta | undefined> = {
   dependencies: [
     {
       name: "@example/backend-contract",
@@ -24,5 +24,6 @@ export const environment: CmxEnvironment<Meta> = {
   metaType: {
     from: "@example/backend-contract",
     import: "Meta",
+    optional: true,
   },
 };

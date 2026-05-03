@@ -16,7 +16,8 @@
   "meta": {
     "type": {
       "from": "@example/backend-contract",
-      "import": "Meta"
+      "import": "Meta",
+      "optional": true
     },
     "data": {
       "title": "About"

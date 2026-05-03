@@ -22,7 +22,7 @@ export async function cmxEnvironmentExample(): Promise<void> {
         },
         load(id) {
           if (id === ENV_ONLY_ENTRY) {
-            return "export {};\n";
+            return "export const meta = {};\nexport default {};\n";
           }
         },
       },

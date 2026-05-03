@@ -10,6 +10,10 @@ export type CmxTypeRef = {
   import?: string;
 };
 
+export type CmxMetaType = CmxTypeRef & {
+  optional?: boolean;
+};
+
 export type CmxEnvironmentEntry = {
   contract: string;
   implementation?: string;
@@ -29,7 +33,7 @@ export type CmxBundleEntry = {
 };
 
 export type CmxBundleEntryMeta = {
-  type?: CmxTypeRef;
+  type?: CmxMetaType;
 };
 
 export type CmxBundle = {
@@ -98,11 +102,11 @@ function parseEntryMeta(value: unknown): CmxBundleEntryMeta {
   }
 
   return {
-    ...(value.type === undefined ? {} : { type: parseMetaTypeRef(value.type) }),
+    ...(value.type === undefined ? {} : { type: parseMetaType(value.type) }),
   };
 }
 
-function parseMetaTypeRef(value: unknown): CmxTypeRef {
+function parseMetaType(value: unknown): CmxMetaType {
   if (!isRecord(value) || typeof value.from !== "string") {
     throw invalidBundle();
   }
@@ -110,10 +114,14 @@ function parseMetaTypeRef(value: unknown): CmxTypeRef {
   if (value.import !== undefined && typeof value.import !== "string") {
     throw invalidBundle();
   }
+  if (value.optional !== undefined && typeof value.optional !== "boolean") {
+    throw invalidBundle();
+  }
 
   return {
     from: value.from,
     ...(value.import === undefined ? {} : { import: value.import }),
+    ...(value.optional === undefined ? {} : { optional: value.optional }),
   };
 }
 

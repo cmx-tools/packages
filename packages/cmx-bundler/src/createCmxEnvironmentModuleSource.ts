@@ -1,13 +1,13 @@
 import type {
   CmxDependency,
   CmxEnvironmentEntry,
-  CmxTypeRef,
+  CmxMetaType,
 } from "cmx-contracts";
 
 export function createCmxEnvironmentModuleSource(input: {
   entries: CmxEnvironmentEntry[];
   dependencies: CmxDependency[];
-  metaType?: CmxTypeRef;
+  metaType?: CmxMetaType;
 }): string {
   const localNames = toEnvironmentLocalNames(input.entries);
   const sortedDependencies = [...input.dependencies].sort((left, right) =>
@@ -30,8 +30,11 @@ export function createCmxEnvironmentModuleSource(input: {
         : []),
     ]),
   ];
-  const exportOpen = metaTypeName
-    ? `export const environment: CmxEnvironment<${metaTypeName}> = {`
+  const metaGeneric = metaTypeName
+    ? `${metaTypeName}${input.metaType?.optional ? " | undefined" : ""}`
+    : undefined;
+  const exportOpen = metaGeneric
+    ? `export const environment: CmxEnvironment<${metaGeneric}> = {`
     : "export const environment: CmxEnvironment = {";
 
   return [
@@ -120,7 +123,7 @@ function formatDependencies(dependencies: CmxDependency[]): string {
   ].join("\n");
 }
 
-function formatMetaType(metaType: CmxTypeRef | undefined): string[] {
+function formatMetaType(metaType: CmxMetaType | undefined): string[] {
   if (!metaType) {
     return [];
   }
@@ -131,6 +134,7 @@ function formatMetaType(metaType: CmxTypeRef | undefined): string[] {
     ...(metaType.import
       ? [`    import: ${JSON.stringify(metaType.import)},`]
       : []),
+    `    optional: ${metaType.optional === true ? "true" : "false"},`,
     "  },",
   ];
 }

@@ -225,6 +225,7 @@ describe("verifyCmxDocumentEnvironment", () => {
       document: createDocument({
         meta: {
           type: {
+            optional: true,
             from: "@site/content",
             import: "PageMeta",
           },
@@ -244,6 +245,7 @@ describe("verifyCmxDocumentEnvironment", () => {
         metaType: {
           from: "@site/content",
           import: "PageMeta",
+          optional: true,
         },
       }),
     },
@@ -252,6 +254,7 @@ describe("verifyCmxDocumentEnvironment", () => {
       document: createDocument({
         meta: {
           type: {
+            optional: true,
             from: "@site/content",
             import: "PageMeta",
           },
@@ -262,6 +265,7 @@ describe("verifyCmxDocumentEnvironment", () => {
         metaType: {
           from: "@site/content",
           import: "OtherMeta",
+          optional: true,
         },
       }),
     },
@@ -275,6 +279,29 @@ describe("verifyCmxDocumentEnvironment", () => {
           severity: "error",
           code: "meta-type-mismatch",
           message: "Document meta type is not compatible with the environment.",
+        },
+      ],
+    });
+  });
+
+  it("reports missing required meta", () => {
+    expect(
+      verifyCmxDocumentEnvironment(
+        createDocument(),
+        createEnvironment({
+          metaType: {
+            from: "@site/content",
+            import: "PageMeta",
+          },
+        }),
+      ),
+    ).toEqual({
+      valid: false,
+      diagnostics: [
+        {
+          severity: "error",
+          code: "missing-required-meta",
+          message: "Document meta is required but missing.",
         },
       ],
     });
@@ -309,6 +336,7 @@ describe("verifyCmxDocumentEnvironment", () => {
       metaType: {
         from: "@site/content",
         import: "PageMeta",
+        optional: true,
       },
     } as CmxEnvironment;
 

@@ -1,5 +1,5 @@
 import type { CmxDependency } from "./cmxDependency.js";
-import type { CmxTypeRef, CmxVersion } from "./cmxBundle.js";
+import type { CmxMetaType, CmxVersion } from "./cmxBundle.js";
 
 export type SlotPath = Array<string | number>;
 
@@ -37,7 +37,7 @@ export type CmxNode =
   | CmxComponentNode;
 
 export type CmxMeta = {
-  type?: CmxTypeRef;
+  type?: CmxMetaType;
   data: unknown;
   slots?: SlotPath[];
 };

@@ -10,6 +10,7 @@ export type CmxDocumentEnvironmentVerificationDiagnostic = {
     | "missing-environment-dependency"
     | "dependency-version-mismatch"
     | "dependency-integrity-mismatch"
+    | "missing-required-meta"
     | "meta-type-mismatch";
   message: string;
   dependency?: string;
@@ -58,6 +59,13 @@ export function verifyCmxDocumentEnvironment(
   const metaDiagnostic = verifyMetaType(document.meta, environment);
   if (metaDiagnostic) {
     diagnostics.push(metaDiagnostic);
+  }
+  const missingRequiredMetaDiagnostic = verifyRequiredMeta(
+    document.meta,
+    environment,
+  );
+  if (missingRequiredMetaDiagnostic) {
+    diagnostics.push(missingRequiredMetaDiagnostic);
   }
 
   return diagnostics.length === 0
@@ -122,7 +130,9 @@ function verifyMetaType(
     documentMetaType &&
     environmentMetaType &&
     documentMetaType.from === environmentMetaType.from &&
-    documentMetaType.import === environmentMetaType.import
+    documentMetaType.import === environmentMetaType.import &&
+    (documentMetaType.optional ?? false) ===
+      (environmentMetaType.optional ?? false)
   ) {
     return undefined;
   }
@@ -131,5 +141,24 @@ function verifyMetaType(
     severity: "error",
     code: "meta-type-mismatch",
     message: "Document meta type is not compatible with the environment.",
+  };
+}
+
+function verifyRequiredMeta(
+  documentMeta: CmxDocument["meta"],
+  environment: CmxEnvironment | undefined,
+): CmxDocumentEnvironmentVerificationDiagnostic | undefined {
+  if (
+    !environment ||
+    !environment.metaType ||
+    environment.metaType.optional === true ||
+    documentMeta
+  ) {
+    return undefined;
+  }
+  return {
+    severity: "error",
+    code: "missing-required-meta",
+    message: "Document meta is required but missing.",
   };
 }

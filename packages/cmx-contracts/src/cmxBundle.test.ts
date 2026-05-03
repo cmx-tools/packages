@@ -29,6 +29,7 @@ describe("parseCmxBundleJson", () => {
                 type: {
                   from: "@site/types",
                   import: "PageMeta",
+                  optional: true,
                   extra: true,
                 },
                 extra: true,
@@ -69,6 +70,7 @@ describe("parseCmxBundleJson", () => {
             type: {
               from: "@site/types",
               import: "PageMeta",
+              optional: true,
             },
           },
         },

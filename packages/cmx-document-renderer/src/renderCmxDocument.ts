@@ -1,7 +1,7 @@
 import type {
   CmxDependency,
   CmxDiagnostic,
-  CmxTypeRef,
+  CmxMetaType,
   CmxComponentNode,
   CmxDocument,
   CmxElementNode,
@@ -50,7 +50,7 @@ type RenderContext = {
   runtime: RuntimeProtocol;
   dependencies: CmxDependency[];
   usedDependencyNames: Set<string>;
-  metaType?: CmxTypeRef;
+  metaType?: CmxMetaType;
 };
 
 export type RenderCmxDocumentInput = {
@@ -58,7 +58,7 @@ export type RenderCmxDocumentInput = {
   runtime?: RuntimeProtocol;
   unsupportedValues?: UnsupportedValuesPolicy;
   dependencies?: CmxDependency[];
-  metaType?: CmxTypeRef;
+  metaType?: CmxMetaType;
 };
 
 export class CmxRenderError extends Error {
@@ -475,7 +475,7 @@ function createRenderContext(options: {
   runtime: RuntimeProtocol;
   unsupportedValues?: UnsupportedValuesPolicy;
   dependencies?: CmxDependency[];
-  metaType?: CmxTypeRef;
+  metaType?: CmxMetaType;
 }): RenderContext {
   return {
     runtime: options.runtime,

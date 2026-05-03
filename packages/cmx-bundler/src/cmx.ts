@@ -6,7 +6,7 @@ import type {
   TransformPluginContext,
 } from "rolldown";
 import { parseSync, Visitor } from "rolldown/utils";
-import type { CmxDependency, CmxTypeRef } from "cmx-contracts";
+import type { CmxDependency, CmxMetaType } from "cmx-contracts";
 import { CMX_BUNDLE_FILE_NAME } from "cmx-contracts";
 import {
   createCmxBundleArtifact,
@@ -49,13 +49,9 @@ const EXTERNAL_CONTRACT_INVALID = "cmx-external-contract-invalid";
 const EXTERNAL_IMPLEMENTATION_EXPORTS_COMPLEX =
   "cmx-external-implementation-exports-complex";
 
-export type CmxPluginMetaType = CmxTypeRef & {
-  optional?: boolean;
-};
-
 export type CmxPluginOptions = {
   externals?: CmxExternalEntry[];
-  metaType?: CmxPluginMetaType;
+  metaType?: CmxMetaType;
   environment?: CmxEnvironmentEmission;
   cwd?: string;
   getIntegrity?: CmxGetIntegrity;
@@ -66,17 +62,15 @@ export type CmxEnvironmentEmission = {
 };
 
 export type { CmxGetIntegrity, CmxIntegrityContext };
-export type { CmxExternalEntry };
+export type { CmxExternalEntry, CmxMetaType };
 
 export function cmx(options: CmxPluginOptions = {}): Plugin {
   const jsxRuntimeModuleId = `${RUNTIME_IMPORT_SOURCE}/jsx-runtime`;
   const jsxDevRuntimeModuleId = `${RUNTIME_IMPORT_SOURCE}/jsx-dev-runtime`;
   const externalPolicy = createCmxExternalPolicy(options.externals ?? []);
-  const configuredMetaType = options.metaType
-    ? toCmxTypeRef(options.metaType)
-    : undefined;
+  const configuredMetaType = options.metaType;
   const externalStubs = new Map<string, ExternalStub>();
-  const metaTypesByModuleId = new Map<string, CmxTypeRef>();
+  const metaTypesByModuleId = new Map<string, CmxMetaType>();
   const bundleDependencies = new Map<string, CmxDependency>();
   const environmentDependencies = new Map<string, CmxDependency>();
   let environmentEntries: CmxEnvironmentEntry[] = [];
@@ -347,13 +341,6 @@ function withCmxJsxRuntime(inputOptions: InputOptions): InputOptions {
         importSource: RUNTIME_IMPORT_SOURCE,
       },
     },
-  };
-}
-
-function toCmxTypeRef(metaType: CmxPluginMetaType): CmxTypeRef {
-  return {
-    from: metaType.from,
-    ...(metaType.import === undefined ? {} : { import: metaType.import }),
   };
 }
 

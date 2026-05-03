@@ -575,6 +575,7 @@ describe("cmx", () => {
             "  metaType: {",
             '    from: "@example/ui-library",',
             '    import: "PageMeta",',
+            "    optional: false,",
             "  },",
             "};",
             "",
@@ -1355,6 +1356,7 @@ describe("cmx", () => {
                 type: {
                   from: "@theme/content",
                   import: "PageMeta",
+                  optional: true,
                 },
               },
             },

@@ -4,7 +4,7 @@ import {
   type CmxBundle,
   type CmxBundleChunk,
   type CmxDependency,
-  type CmxTypeRef,
+  type CmxMetaType,
 } from "cmx-contracts";
 import { normalizeModulePath } from "./normalizeModulePath.js";
 
@@ -36,7 +36,7 @@ export function createCmxBundleArtifact(input: {
   outputBundle: OutputBundle;
   entryOrder: Map<string, number>;
   runtimeImportSource: string;
-  metaTypesByModuleId: Map<string, CmxTypeRef>;
+  metaTypesByModuleId: Map<string, CmxMetaType>;
   dependencies: CmxDependency[];
 }): CmxBundle {
   const chunks = getOutputChunks(input.outputBundle);

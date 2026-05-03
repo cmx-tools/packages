@@ -1,3 +1,4 @@
+/** @jsxImportSource react */
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { CmxDocument, CmxEnvironment } from "cmx-contracts";

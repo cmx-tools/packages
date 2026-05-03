@@ -1,13 +1,13 @@
 import { createServer } from "node:http";
 import { StrictMode } from "react";
 import { renderToString } from "react-dom/server";
+import type { InferCmxMeta } from "cmx-contracts";
 import { environment } from "./_gen_cmx_environment.js";
-import type { Meta } from "@example/backend-contract";
 import { cmx } from "cmx-react";
 
 type AppProps = {
   children: React.ReactNode;
-  meta?: Meta;
+  meta?: InferCmxMeta<typeof environment>;
 };
 
 const port = Number(process.env.PORT) || 3000;
@@ -16,7 +16,7 @@ const server = createServer(async (req, res) => {
   try {
     const route = req.url?.includes("/about") ? "about" : "404";
     const { default: document } = await import(`./_db_content/${route}.json`);
-    const { children, meta } = cmx<Meta>(document, environment);
+    const { children, meta } = cmx(document, environment);
     const html = renderHtml(<App children={children} meta={meta} />);
 
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });

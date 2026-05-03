@@ -45,7 +45,7 @@
         }
       }
     },
-    "typeRef": {
+    "metaType": {
       "type": "object",
       "additionalProperties": false,
       "required": ["from"],
@@ -55,6 +55,9 @@
         },
         "import": {
           "type": "string"
+        },
+        "optional": {
+          "type": "boolean"
         }
       }
     },
@@ -64,7 +67,7 @@
       "required": ["data"],
       "properties": {
         "type": {
-          "$ref": "#/definitions/typeRef"
+          "$ref": "#/definitions/metaType"
         },
         "data": {
           "description": "Opaque meta payload. Shape is defined by the referenced meta type."

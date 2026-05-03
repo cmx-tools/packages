@@ -13,7 +13,7 @@ import { CmxReactError } from "./CmxReactError.js";
 
 export type CmxResult<Meta = unknown> = {
   children: ReactNode;
-  meta?: Meta;
+  meta: Meta;
 };
 
 export function cmx<Meta = unknown>(
@@ -27,9 +27,9 @@ export function cmx<Meta = unknown>(
 
   return {
     children: materializeNode(document.tree, environment),
-    ...(document.meta
-      ? { meta: materializeMeta(document.meta, environment) as Meta }
-      : {}),
+    ...((document.meta
+      ? { meta: materializeMeta(document.meta, environment) }
+      : {}) as { meta: Meta }),
   };
 }
 
