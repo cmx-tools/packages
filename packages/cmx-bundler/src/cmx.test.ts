@@ -487,16 +487,16 @@ describe("cmx", () => {
             name: "cmx-environment-fixture",
             private: true,
             dependencies: {
-              "@theme/content": "workspace:*",
-              "@theme/ui": "^2.0.0",
+              "@example/backend-contract": "^2.0.0",
+              "@example/ui-library": "workspace:*",
             },
           },
           null,
           2,
         )}\n`,
       );
-      await writeStubPackage(tempDir, "@theme/content", "1.1.0");
-      await writeStubPackage(tempDir, "@theme/ui", "2.3.0");
+      await writeStubPackage(tempDir, "@example/backend-contract", "2.3.0");
+      await writeStubPackage(tempDir, "@example/ui-library", "1.1.0");
       const entryFile = await writeFixture(
         tempDir,
         "entry.tsx",
@@ -504,7 +504,7 @@ describe("cmx", () => {
       );
       await writeFixture(
         tempDir,
-        "theme-ui.ts",
+        "api.ts",
         "export const Hero = () => null;\nexport default Hero;\n",
       );
       const outDir = path.join(tempDir, "dist");
@@ -514,18 +514,23 @@ describe("cmx", () => {
           cmx({
             cwd: tempDir,
             externals: [
-              { contract: "@theme/ui", implementation: "./theme-ui.ts" },
-              "@theme/content",
+              {
+                contract: "@example/backend-contract",
+                implementation: "./api.ts",
+              },
+              "@example/ui-library",
             ],
             metaType: {
-              from: "@theme/content",
+              from: "@example/ui-library",
               import: "PageMeta",
             },
             environment: {
               fileName: "cmx-environment.ts",
             },
             getIntegrity: ({ packageName }) =>
-              packageName === "@theme/ui" ? "sha512-ui" : null,
+              packageName === "@example/backend-contract"
+                ? "sha512-backend"
+                : null,
           }),
         ],
       });
@@ -543,32 +548,32 @@ describe("cmx", () => {
           readFile(path.join(outDir, "cmx-environment.ts"), "utf8"),
         ).resolves.toEqual(
           [
-            'import type { PageMeta } from "@theme/content";',
+            'import type { PageMeta } from "@example/ui-library";',
             'import type { CmxEnvironment } from "cmx-contracts";',
-            'import * as CmxEnvironmentImport0 from "./theme-ui.ts";',
-            'import type * as CmxEnvironmentPublic0 from "@theme/ui";',
-            'import * as CmxEnvironmentImport1 from "@theme/content";',
+            'import * as Api from "./api.ts";',
+            'import type * as ExampleBackendContract from "@example/backend-contract";',
+            'import * as ExampleUiLibrary from "@example/ui-library";',
             "",
             "export const environment: CmxEnvironment<PageMeta> = {",
             "  dependencies: [",
             "    {",
-            '      name: "@theme/content",',
+            '      name: "@example/backend-contract",',
+            '      specifier: "^2.0.0",',
+            '      version: "2.3.0",',
+            '      integrity: "sha512-backend",',
+            "    },",
+            "    {",
+            '      name: "@example/ui-library",',
             '      specifier: "workspace:*",',
             '      version: "1.1.0",',
             "    },",
-            "    {",
-            '      name: "@theme/ui",',
-            '      specifier: "^2.0.0",',
-            '      version: "2.3.0",',
-            '      integrity: "sha512-ui",',
-            "    },",
             "  ],",
             "  imports: {",
-            '    "@theme/ui": CmxEnvironmentImport0 satisfies typeof CmxEnvironmentPublic0,',
-            '    "@theme/content": CmxEnvironmentImport1,',
+            '    "@example/backend-contract": Api satisfies typeof ExampleBackendContract,',
+            '    "@example/ui-library": ExampleUiLibrary,',
             "  },",
             "  metaType: {",
-            '    from: "@theme/content",',
+            '    from: "@example/ui-library",',
             '    import: "PageMeta",',
             "  },",
             "};",
@@ -676,9 +681,9 @@ describe("cmx", () => {
         ).resolves.toEqual(
           [
             'import type { CmxEnvironment } from "cmx-contracts";',
-            'import * as CmxEnvironmentImport0 from "./theme-ui.ts";',
-            'import type * as CmxEnvironmentPublic0 from "@theme/ui";',
-            'import * as CmxEnvironmentImport1 from "@theme/ui/tokens";',
+            'import * as ThemeUi from "./theme-ui.ts";',
+            'import type * as ThemeUi1 from "@theme/ui";',
+            'import * as ThemeUiTokens from "@theme/ui/tokens";',
             "",
             "export const environment: CmxEnvironment = {",
             "  dependencies: [",
@@ -689,8 +694,8 @@ describe("cmx", () => {
             "    },",
             "  ],",
             "  imports: {",
-            '    "@theme/ui": CmxEnvironmentImport0 satisfies typeof CmxEnvironmentPublic0,',
-            '    "@theme/ui/tokens": CmxEnvironmentImport1,',
+            '    "@theme/ui": ThemeUi satisfies typeof ThemeUi1,',
+            '    "@theme/ui/tokens": ThemeUiTokens,',
             "  },",
             "};",
             "",
@@ -809,10 +814,10 @@ describe("cmx", () => {
         ).resolves.toEqual(
           [
             'import type { CmxEnvironment } from "cmx-contracts";',
-            'import * as CmxEnvironmentImport0 from "@runtime/ui";',
-            'import type * as CmxEnvironmentPublic0 from "@theme/ui";',
-            'import * as CmxEnvironmentImport1 from "@runtime/ui/tokens";',
-            'import type * as CmxEnvironmentPublic1 from "@theme/ui/tokens";',
+            'import * as RuntimeUi from "@runtime/ui";',
+            'import type * as ThemeUi from "@theme/ui";',
+            'import * as RuntimeUiTokens from "@runtime/ui/tokens";',
+            'import type * as ThemeUiTokens from "@theme/ui/tokens";',
             "",
             "export const environment: CmxEnvironment = {",
             "  dependencies: [",
@@ -823,8 +828,8 @@ describe("cmx", () => {
             "    },",
             "  ],",
             "  imports: {",
-            '    "@theme/ui": CmxEnvironmentImport0 satisfies typeof CmxEnvironmentPublic0,',
-            '    "@theme/ui/tokens": CmxEnvironmentImport1 satisfies typeof CmxEnvironmentPublic1,',
+            '    "@theme/ui": RuntimeUi satisfies typeof ThemeUi,',
+            '    "@theme/ui/tokens": RuntimeUiTokens satisfies typeof ThemeUiTokens,',
             "  },",
             "};",
             "",
@@ -1184,7 +1189,7 @@ describe("cmx", () => {
         ).resolves.toEqual(
           [
             'import type { CmxEnvironment } from "cmx-contracts";',
-            'import * as CmxEnvironmentImport0 from "@theme/ui";',
+            'import * as ThemeUi from "@theme/ui";',
             "",
             "export const environment: CmxEnvironment = {",
             "  dependencies: [",
@@ -1195,7 +1200,7 @@ describe("cmx", () => {
             "    },",
             "  ],",
             "  imports: {",
-            '    "@theme/ui": CmxEnvironmentImport0,',
+            '    "@theme/ui": ThemeUi,',
             "  },",
             "};",
             "",
