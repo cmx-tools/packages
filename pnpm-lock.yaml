@@ -123,6 +123,10 @@ importers:
         version: 4.21.0
 
   example/ui-library:
+    dependencies:
+      react:
+        specifier: ^19.2.5
+        version: 19.2.5
     devDependencies:
       '@types/react':
         specifier: ^19

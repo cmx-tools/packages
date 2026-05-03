@@ -98,6 +98,201 @@ describe("cmx", () => {
     throw new Error("Expected cmx to throw");
   });
 
+  it("materializes component nodes from named environment imports", () => {
+    function Header() {
+      return null;
+    }
+    const document = createDocument({
+      dependencies: [
+        {
+          name: "@site/theme",
+          specifier: "^1.0.0",
+          version: "1.2.3",
+        },
+      ],
+      tree: {
+        type: "component",
+        from: "@site/theme",
+        import: "Header",
+      },
+    });
+    const environment = createEnvironment({
+      dependencies: document.dependencies,
+      imports: {
+        "@site/theme": {
+          Header,
+        },
+      },
+    });
+
+    const result = cmx(document, environment);
+
+    expect(isValidElement(result.children)).toBe(true);
+    if (!isValidElement(result.children)) {
+      throw new Error("CMX component did not materialize to a React element");
+    }
+
+    expect(result.children.type).toBe(Header);
+  });
+
+  it("materializes component nodes from default environment imports", () => {
+    function Card() {
+      return null;
+    }
+    const document = createDocument({
+      dependencies: [
+        {
+          name: "@site/theme",
+          specifier: "^1.0.0",
+          version: "1.2.3",
+        },
+      ],
+      tree: {
+        type: "component",
+        from: "@site/theme",
+      },
+    });
+    const environment = createEnvironment({
+      dependencies: document.dependencies,
+      imports: {
+        "@site/theme": {
+          default: Card,
+        },
+      },
+    });
+
+    const result = cmx(document, environment);
+
+    expect(isValidElement(result.children)).toBe(true);
+    if (!isValidElement(result.children)) {
+      throw new Error("CMX component did not materialize to a React element");
+    }
+
+    expect(result.children.type).toBe(Card);
+  });
+
+  it("passes CMX node children as React children", () => {
+    function Panel() {
+      return null;
+    }
+    const document = createDocument({
+      dependencies: [
+        {
+          name: "@site/theme",
+          specifier: "^1.0.0",
+          version: "1.2.3",
+        },
+      ],
+      tree: {
+        type: "component",
+        from: "@site/theme",
+        import: "Panel",
+        props: {
+          children: "prop child",
+          tone: "info",
+        },
+        children: ["node child"],
+      },
+    });
+    const environment = createEnvironment({
+      dependencies: document.dependencies,
+      imports: {
+        "@site/theme": {
+          Panel,
+        },
+      },
+    });
+
+    const result = cmx(document, environment);
+
+    expect(isValidElement(result.children)).toBe(true);
+    if (!isValidElement(result.children)) {
+      throw new Error("CMX component did not materialize to a React element");
+    }
+
+    expect(result.children.props).toEqual({
+      children: "node child",
+      tone: "info",
+    });
+  });
+
+  it("keeps props.children as a normal prop when node children are absent", () => {
+    function Panel() {
+      return null;
+    }
+    const document = createDocument({
+      dependencies: [
+        {
+          name: "@site/theme",
+          specifier: "^1.0.0",
+          version: "1.2.3",
+        },
+      ],
+      tree: {
+        type: "component",
+        from: "@site/theme",
+        import: "Panel",
+        props: {
+          children: "prop child",
+        },
+      },
+    });
+    const environment = createEnvironment({
+      dependencies: document.dependencies,
+      imports: {
+        "@site/theme": {
+          Panel,
+        },
+      },
+    });
+
+    const result = cmx(document, environment);
+
+    expect(isValidElement(result.children)).toBe(true);
+    if (!isValidElement(result.children)) {
+      throw new Error("CMX component did not materialize to a React element");
+    }
+
+    expect(result.children.props).toEqual({
+      children: "prop child",
+    });
+  });
+
+  it("passes component implementations to React without pre-validation", () => {
+    const invalidComponent = {};
+    const document = createDocument({
+      dependencies: [
+        {
+          name: "@site/theme",
+          specifier: "^1.0.0",
+          version: "1.2.3",
+        },
+      ],
+      tree: {
+        type: "component",
+        from: "@site/theme",
+        import: "InvalidComponent",
+      },
+    });
+    const environment = createEnvironment({
+      dependencies: document.dependencies,
+      imports: {
+        "@site/theme": {
+          InvalidComponent: invalidComponent,
+        },
+      },
+    });
+
+    const result = cmx(document, environment);
+
+    expect(isValidElement(result.children)).toBe(true);
+    if (!isValidElement(result.children)) {
+      throw new Error("CMX component did not materialize to a React element");
+    }
+
+    expect(result.children.type).toBe(invalidComponent);
+  });
+
   it("keeps native materialization errors unwrapped", () => {
     const materializationError = new Error("tree failed");
     const document = {

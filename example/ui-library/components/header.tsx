@@ -1,3 +1,5 @@
+import { jsx } from "react/jsx-runtime";
+
 export default function Header({ children }: { children: React.ReactNode }) {
-  return <header className="beautiful-header">{children}</header>;
+  return jsx("header", { className: "beautiful-header", children });
 }

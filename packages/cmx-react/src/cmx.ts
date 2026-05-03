@@ -1,6 +1,7 @@
 import { createElement, Fragment, type ReactNode } from "react";
 import type {
   CmxDocument,
+  CmxComponentNode,
   CmxElementNode,
   CmxEnvironment,
   CmxFragmentNode,
@@ -24,12 +25,15 @@ export function cmx<Meta = unknown>(
   }
 
   return {
-    children: materializeNode(document.tree),
+    children: materializeNode(document.tree, environment),
     ...(document.meta ? { meta: document.meta.data as Meta } : {}),
   };
 }
 
-function materializeNode(node: CmxNode): ReactNode {
+function materializeNode(
+  node: CmxNode,
+  environment: CmxEnvironment | undefined,
+): ReactNode {
   if (
     node === null ||
     typeof node === "boolean" ||
@@ -40,26 +44,60 @@ function materializeNode(node: CmxNode): ReactNode {
   }
 
   if (node.type === "fragment") {
-    return materializeFragment(node);
+    return materializeFragment(node, environment);
   }
 
   if (node.type === "element") {
-    return materializeElement(node);
+    return materializeElement(node, environment);
+  }
+
+  if (node.type === "component") {
+    return materializeComponent(node, environment);
   }
 
   throw new Error("CMX component nodes are not supported yet.");
 }
 
-function materializeFragment(node: CmxFragmentNode): ReactNode {
-  return createElement(Fragment, undefined, ...materializeChildren(node));
+function materializeFragment(
+  node: CmxFragmentNode,
+  environment: CmxEnvironment | undefined,
+): ReactNode {
+  return createElement(
+    Fragment,
+    undefined,
+    ...materializeChildren(node, environment),
+  );
 }
 
-function materializeElement(node: CmxElementNode): ReactNode {
-  return createElement(node.tag, node.props, ...materializeChildren(node));
+function materializeElement(
+  node: CmxElementNode,
+  environment: CmxEnvironment | undefined,
+): ReactNode {
+  return createElement(
+    node.tag,
+    node.props,
+    ...materializeChildren(node, environment),
+  );
+}
+
+function materializeComponent(
+  node: CmxComponentNode,
+  environment: CmxEnvironment | undefined,
+): ReactNode {
+  const component = environment?.imports[node.from]?.[node.import ?? "default"];
+
+  return createElement(
+    component as never,
+    node.props,
+    ...materializeChildren(node, environment),
+  );
 }
 
 function materializeChildren(
-  node: CmxFragmentNode | CmxElementNode,
+  node: CmxFragmentNode | CmxElementNode | CmxComponentNode,
+  environment: CmxEnvironment | undefined,
 ): ReactNode[] {
-  return node.children?.map(materializeNode) ?? [];
+  return (
+    node.children?.map((child) => materializeNode(child, environment)) ?? []
+  );
 }

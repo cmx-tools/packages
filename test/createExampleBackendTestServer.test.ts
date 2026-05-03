@@ -13,11 +13,13 @@ describe("createExampleBackendTestServer", () => {
       expect(fallback.headers.get("content-type")).toContain("text/html");
       expect(await fallback.text()).toContain("<h1>Not Found</h1>");
 
-      expect(about.status).toBe(500);
+      expect(about.status).toBe(200);
       expect(about.headers.get("content-type")).toContain("text/html");
-      expect(await about.text()).toContain(
-        "CMX component nodes are not supported yet.",
-      );
+      const aboutHtml = await about.text();
+      expect(aboutHtml).toContain("<title>About</title>");
+      expect(aboutHtml).toContain("beautiful-header");
+      expect(aboutHtml).toContain("<p>About</p>");
+      expect(aboutHtml).toContain("🧑‍🎤");
     } finally {
       await server.close();
     }

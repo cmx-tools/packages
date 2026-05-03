@@ -5,6 +5,9 @@
   "exports": {
     ".": "./components/index.js"
   },
+  "dependencies": {
+    "react": "^19.2.5"
+  },
   "devDependencies": {
     "@types/react": "^19",
     "@types/react-dom": "^19"

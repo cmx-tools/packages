@@ -16,9 +16,10 @@ export function createExampleBackendServer(): Server {
       const route = req.url?.includes("/about") ? "about" : "404";
       const { default: document } = await import(`./_db_content/${route}.json`);
       const { children, meta } = cmx<Meta>(document, environment);
+      const html = renderHtml(<App children={children} meta={meta} />);
 
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(renderHtml(<App children={children} meta={meta} />));
+      res.end(html);
     } catch (error) {
       res.writeHead(500, { "Content-Type": "text/html; charset=utf-8" });
       res.end(renderHtml(<App>{errorMessage(error)}</App>));
