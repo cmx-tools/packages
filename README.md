@@ -1,6 +1,6 @@
 # content-management-jsx
 
-JSX content compiles to CMX through a **bundler plugin** and a **document renderer**. The current pipeline stops at CMX documents. React rendering and HTML output are downstream app concerns.
+JSX content compiles to CMX through a **bundler plugin** and a **document renderer**. React DOM and HTML output are downstream app concerns.
 
 ## Quick start
 
@@ -16,7 +16,7 @@ pnpm test
 | `cmx-contracts`         | Bundle, document, environment, dependency, parse, diagnostic, and verifier contracts.                     |
 | `cmx-bundler`           | Rolldown/Rollup-compatible `cmx()` plugin; emits ESM chunks, sourcemaps, and `cmx-bundle.json` metadata.  |
 | `cmx-document-renderer` | Reads a bundle directory, executes emitted artifacts with the CMX JSX runtime, and returns CMX documents. |
-| `cmx-react`             | Contract stub for later React rendering; not part of the non-React bundle-to-document path.               |
+| `cmx-react`             | Materializes CMX documents into React values with `cmx`; React DOM and server rendering stay in the app.  |
 | `cmx-runtime`           | Runtime protocol and JSX runtime subpath exports expected by compiled artifacts.                          |
 
 ## Bundle-to-document flow
@@ -29,6 +29,10 @@ pnpm test
 The `example/content` package shows one app-specific orchestration: build a bundle directory, render documents, then write JSON files into `example/backend/_db_content`. That filesystem handoff is example glue, not a package API. Other apps can store the returned documents in a database, forward them to a service, or keep them in memory.
 
 `cmx-contracts` exposes the bundle, document, and environment artifact contracts so custom pipelines can inspect or validate handoffs without depending on package internals.
+
+## React materialization
+
+`cmx-react` exposes `cmx(document, environment)` for materializing a CMX document into React values. The result contains `children` and optional typed `meta`. Apps pass those values into their own React tree and choose how to render it, such as with `react-dom/server`.
 
 ## Render results
 
