@@ -7,8 +7,10 @@ export type CmxExternalEntry = string | CmxStructuredExternalEntry;
 
 export type CmxStructuredExternalEntry = {
   contract: string;
-  implementation: string;
+  implementation: string | CmxExactImplementationExportMap;
 };
+
+export type CmxExactImplementationExportMap = Record<string, string>;
 
 export function createCmxExternalPolicy(
   externals: CmxExternalEntry[],
@@ -20,7 +22,8 @@ export function createCmxExternalPolicy(
 
     if (
       typeof entry.contract === "string" &&
-      typeof entry.implementation === "string"
+      (typeof entry.implementation === "string" ||
+        isExactImplementationExportMap(entry.implementation))
     ) {
       return [entry.contract.trim()];
     }
@@ -63,6 +66,38 @@ function isInvalidPackageContract(contract: string): boolean {
   }
 
   return packageNameFromImportSpecifier(contract) !== contract;
+}
+
+export function isExactImplementationExportMap(
+  implementation: unknown,
+): implementation is CmxExactImplementationExportMap {
+  if (
+    typeof implementation !== "object" ||
+    implementation === null ||
+    Array.isArray(implementation)
+  ) {
+    return false;
+  }
+
+  const entries = Object.entries(implementation);
+  return (
+    entries.length > 0 &&
+    entries.every(
+      ([key, value]) =>
+        isExactImplementationExportMapKey(key) &&
+        typeof value === "string" &&
+        value.trim().length > 0 &&
+        !value.includes("*"),
+    )
+  );
+}
+
+function isExactImplementationExportMapKey(key: string): boolean {
+  if (key.includes("*")) {
+    return false;
+  }
+
+  return key === "." || (key.startsWith("./") && key.length > 2);
 }
 
 function packageNameFromImportSpecifier(

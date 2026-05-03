@@ -12,6 +12,7 @@ import { createCmxEnvironmentModuleSource } from "./createCmxEnvironmentModuleSo
 import { readConsumerPackageJson } from "./consumerPackage.js";
 import {
   createCmxExternalPolicy,
+  isExactImplementationExportMap,
   matchesCmxExternalPolicy,
   type CmxExternalEntry,
 } from "./CmxExternalPolicy.js";
@@ -350,14 +351,41 @@ function toEnvironmentEntries(externals: CmxExternalEntry[]): Array<{
         typeof entry.contract === "string" &&
         typeof entry.implementation === "string"
       ) {
-        return [
-          { contract: entry.contract, implementation: entry.implementation },
-        ];
+        return [toEnvironmentEntry(entry.contract, entry.implementation)];
+      }
+
+      if (
+        typeof entry.contract === "string" &&
+        isExactImplementationExportMap(entry.implementation)
+      ) {
+        return Object.entries(entry.implementation).map(
+          ([subpath, implementation]) =>
+            toEnvironmentEntry(
+              contractImportSpecifier(entry.contract, subpath),
+              implementation,
+            ),
+        );
       }
 
       return [];
     })
     .filter((entry) => entry.contract.trim().length > 0);
+}
+
+function toEnvironmentEntry(
+  contract: string,
+  implementation: string,
+): {
+  contract: string;
+  implementation?: string;
+} {
+  return implementation === contract
+    ? { contract }
+    : { contract, implementation };
+}
+
+function contractImportSpecifier(contract: string, subpath: string): string {
+  return subpath === "." ? contract : `${contract}/${subpath.slice(2)}`;
 }
 
 function hasPackageName(importSpecifier: string): boolean {

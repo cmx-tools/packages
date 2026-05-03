@@ -547,6 +547,127 @@ describe("cmx", () => {
     });
   });
 
+  it("emits exact implementation export map entries for configured externals", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "cmx-environment-map-fixture",
+            private: true,
+            dependencies: {
+              "@theme/ui": "^3.0.0",
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeFixture(
+        tempDir,
+        "node_modules/@theme/ui/package.json",
+        `${JSON.stringify(
+          {
+            name: "@theme/ui",
+            version: "3.1.0",
+            exports: {
+              ".": "./index.js",
+              "./tokens": "./tokens.js",
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeFixture(
+        tempDir,
+        "node_modules/@theme/ui/index.js",
+        "export const Hero = () => null;\n",
+      );
+      await writeFixture(
+        tempDir,
+        "node_modules/@theme/ui/tokens.js",
+        "export const colors = {};\n",
+      );
+      await writeFixture(
+        tempDir,
+        "theme-ui.ts",
+        "export const Hero = () => null;\n",
+      );
+      const outDir = path.join(tempDir, "dist");
+      const envOnlyEntry = "virtual:cmx-env-map-entry";
+      const bundle = await rolldown({
+        input: envOnlyEntry,
+        plugins: [
+          {
+            name: "cmx-env-map-entry",
+            resolveId(source) {
+              if (source === envOnlyEntry) {
+                return source;
+              }
+            },
+            load(id) {
+              if (id === envOnlyEntry) {
+                return "export {};\n";
+              }
+            },
+          },
+          cmx({
+            cwd: tempDir,
+            externals: [
+              {
+                contract: "@theme/ui",
+                implementation: {
+                  ".": "./theme-ui.ts",
+                  "./tokens": "@theme/ui/tokens",
+                },
+              },
+            ],
+            environment: {
+              fileName: "cmx-environment.ts",
+            },
+          }),
+        ],
+      });
+
+      try {
+        await bundle.write({
+          dir: outDir,
+          entryFileNames: "env-map.js",
+        });
+
+        await expect(
+          readFile(path.join(outDir, "cmx-environment.ts"), "utf8"),
+        ).resolves.toEqual(
+          [
+            'import type { CmxEnvironment } from "cmx-contracts";',
+            'import * as CmxEnvironmentImport0 from "./theme-ui.ts";',
+            'import type * as CmxEnvironmentPublic0 from "@theme/ui";',
+            'import * as CmxEnvironmentImport1 from "@theme/ui/tokens";',
+            "",
+            "export const environment: CmxEnvironment = {",
+            "  dependencies: [",
+            "    {",
+            '      name: "@theme/ui",',
+            '      specifier: "^3.0.0",',
+            '      version: "3.1.0",',
+            "    },",
+            "  ],",
+            "  imports: {",
+            '    "@theme/ui": CmxEnvironmentImport0 satisfies typeof CmxEnvironmentPublic0,',
+            '    "@theme/ui/tokens": CmxEnvironmentImport1,',
+            "  },",
+            "};",
+            "",
+          ].join("\n"),
+        );
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
   it("rejects wildcard external package contracts", async () => {
     await withTempDir(async (tempDir) => {
       await writeFixture(
@@ -694,6 +815,64 @@ describe("cmx", () => {
       }
     });
   });
+
+  it.each([
+    ["pattern keys", { "./*": "@theme/ui/*" }],
+    ["condition keys", { import: "@theme/ui" }],
+    ["array values", { ".": ["@theme/ui"] }],
+    ["nested values", { ".": { import: "@theme/ui" } }],
+  ])(
+    "rejects implementation export maps with %s",
+    async (_name, implementation) => {
+      await withTempDir(async (tempDir) => {
+        await writeFixture(
+          tempDir,
+          "package.json",
+          `${JSON.stringify(
+            {
+              name: "cmx-external-map-fixture",
+              private: true,
+              dependencies: { "@theme/ui": "^1.0.0" },
+            },
+            null,
+            2,
+          )}\n`,
+        );
+        const entryFile = await writeFixture(
+          tempDir,
+          "entry.tsx",
+          ['import Hero from "@theme/ui";', "export default <Hero />;"].join(
+            "\n",
+          ),
+        );
+        const bundle = await rolldown({
+          input: entryFile,
+          plugins: [
+            cmx({
+              externals: [
+                { contract: "@theme/ui", implementation },
+              ] as unknown as CmxPluginOptions["externals"],
+              cwd: tempDir,
+            }),
+          ],
+        });
+
+        try {
+          await expect(
+            bundle.generate({ format: "esm", sourcemap: true }),
+          ).rejects.toMatchObject({
+            errors: [
+              {
+                pluginCode: "cmx-external-contract-invalid",
+              },
+            ],
+          });
+        } finally {
+          await bundle.close();
+        }
+      });
+    },
+  );
 
   it("emits an environment module from a virtual env-only entry", async () => {
     await withTempDir(async (tempDir) => {
