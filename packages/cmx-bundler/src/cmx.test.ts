@@ -746,8 +746,12 @@ describe("cmx", () => {
             name: "@runtime/ui",
             version: "4.2.0",
             exports: {
-              ".": "./index.js",
-              "./tokens": "./tokens.js",
+              ".": {
+                import: "./index.js",
+              },
+              "./tokens": {
+                import: "./tokens.js",
+              },
             },
           },
           null,
@@ -859,9 +863,8 @@ describe("cmx", () => {
             name: "@runtime/ui",
             version: "5.2.0",
             exports: {
-              ".": {
-                import: "./index.js",
-              },
+              ".": "./index.js",
+              "./*": "./*.js",
             },
           },
           null,

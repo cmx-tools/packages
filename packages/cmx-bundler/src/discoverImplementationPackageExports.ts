@@ -35,8 +35,7 @@ export async function discoverImplementationPackageExports(
     return { kind: "rootOnly" };
   }
 
-  const subpaths = simpleExportSubpaths(packageJson.exports);
-  return subpaths ? { kind: "simple", subpaths } : { kind: "complex" };
+  return packageExportSubpaths(packageJson.exports);
 }
 
 async function resolveImplementationPackageJsonPath(
@@ -83,9 +82,11 @@ function findLocalPackageJson(
   return candidates.find((candidate) => existsSync(candidate));
 }
 
-function simpleExportSubpaths(exportsValue: unknown): string[] | undefined {
+function packageExportSubpaths(
+  exportsValue: unknown,
+): CmxImplementationPackageExports {
   if (typeof exportsValue === "string") {
-    return ["."];
+    return { kind: "simple", subpaths: ["."] };
   }
 
   if (
@@ -93,22 +94,23 @@ function simpleExportSubpaths(exportsValue: unknown): string[] | undefined {
     exportsValue === null ||
     Array.isArray(exportsValue)
   ) {
-    return undefined;
+    return { kind: "complex" };
   }
 
   const entries = Object.entries(exportsValue);
   if (entries.length === 0) {
-    return undefined;
+    return { kind: "complex" };
   }
 
-  const subpaths: string[] = [];
-  for (const [key, value] of entries) {
-    if (!isExactPackageExportKey(key) || !isSimplePackageExportValue(value)) {
-      return undefined;
-    }
-    subpaths.push(key);
+  if (entries.every(([key]) => isExactPackageExportKey(key))) {
+    return { kind: "simple", subpaths: entries.map(([key]) => key) };
   }
-  return subpaths;
+
+  if (entries.every(([key]) => isRootOnlyConditionalExportKey(key))) {
+    return { kind: "rootOnly" };
+  }
+
+  return { kind: "complex" };
 }
 
 function isExactPackageExportKey(key: string): boolean {
@@ -119,8 +121,6 @@ function isExactPackageExportKey(key: string): boolean {
   return key === "." || (key.startsWith("./") && key.length > 2);
 }
 
-function isSimplePackageExportValue(value: unknown): value is string {
-  return (
-    typeof value === "string" && value.trim().length > 0 && !value.includes("*")
-  );
+function isRootOnlyConditionalExportKey(key: string): boolean {
+  return !key.startsWith(".") && !key.includes("*") && key.trim().length > 0;
 }
