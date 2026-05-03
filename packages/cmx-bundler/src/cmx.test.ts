@@ -596,6 +596,55 @@ describe("cmx", () => {
     });
   });
 
+  it("rejects scoped external contracts without a package name", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "cmx-external-scope-fixture",
+            private: true,
+            dependencies: { "@theme/ui": "^1.0.0" },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeStubPackage(tempDir, "@theme/ui", "1.0.0");
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        ['import { Hero } from "@theme/ui";', "export default <Hero />;"].join(
+          "\n",
+        ),
+      );
+      const bundle = await rolldown({
+        input: entryFile,
+        plugins: [
+          cmx({
+            externals: ["@theme"],
+            cwd: tempDir,
+          }),
+        ],
+      });
+
+      try {
+        await expect(
+          bundle.generate({ format: "esm", sourcemap: true }),
+        ).rejects.toMatchObject({
+          errors: [
+            {
+              pluginCode: "cmx-external-contract-invalid",
+            },
+          ],
+        });
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
   it("rejects object external package contracts without an implementation", async () => {
     await withTempDir(async (tempDir) => {
       await writeFixture(
