@@ -749,7 +749,26 @@ describe("cmx", () => {
 
         await expect(
           readFile(path.join(outDir, "cmx-environment.ts"), "utf8"),
-        ).resolves.toContain('"@theme/ui": CmxEnvironmentImport0');
+        ).resolves.toEqual(
+          [
+            'import type { CmxEnvironment } from "cmx-contracts";',
+            'import * as CmxEnvironmentImport0 from "@theme/ui";',
+            "",
+            "export const environment: CmxEnvironment = {",
+            "  dependencies: [",
+            "    {",
+            '      name: "@theme/ui",',
+            '      specifier: "^2.0.0",',
+            '      version: "2.3.0",',
+            "    },",
+            "  ],",
+            "  imports: {",
+            '    "@theme/ui": CmxEnvironmentImport0,',
+            "  },",
+            "};",
+            "",
+          ].join("\n"),
+        );
       } finally {
         await bundle.close();
       }

@@ -21,10 +21,10 @@ export function createCmxEnvironmentModuleSource(input: {
       : []),
     'import type { CmxEnvironment } from "cmx-contracts";',
     ...input.entries.flatMap((entry, index) => [
-      `import * as CmxEnvironmentImport${index} from ${JSON.stringify(entry.from)};`,
-      ...(entry.as
+      `import * as CmxEnvironmentImport${index} from ${JSON.stringify(entry.implementation ?? entry.contract)};`,
+      ...(entry.implementation
         ? [
-            `import type * as CmxEnvironmentPublic${index} from ${JSON.stringify(entry.as)};`,
+            `import type * as CmxEnvironmentPublic${index} from ${JSON.stringify(entry.contract)};`,
           ]
         : []),
     ]),
@@ -40,9 +40,9 @@ export function createCmxEnvironmentModuleSource(input: {
     `  dependencies: ${formatDependencies(sortedDependencies)},`,
     "  imports: {",
     ...input.entries.map((entry, index) =>
-      entry.as
-        ? `    ${JSON.stringify(entry.as)}: CmxEnvironmentImport${index} satisfies typeof CmxEnvironmentPublic${index},`
-        : `    ${JSON.stringify(entry.from)}: CmxEnvironmentImport${index},`,
+      entry.implementation
+        ? `    ${JSON.stringify(entry.contract)}: CmxEnvironmentImport${index} satisfies typeof CmxEnvironmentPublic${index},`
+        : `    ${JSON.stringify(entry.contract)}: CmxEnvironmentImport${index},`,
     ),
     "  },",
     ...formatMetaType(input.metaType),

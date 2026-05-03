@@ -11,8 +11,8 @@ export type CmxTypeRef = {
 };
 
 export type CmxEnvironmentEntry = {
-  from: string;
-  as?: string;
+  contract: string;
+  implementation?: string;
 };
 
 export type CmxBundleChunk = {

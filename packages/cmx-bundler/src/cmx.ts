@@ -102,7 +102,7 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
           "__cmx_environment__.ts",
         );
         for (const entry of environmentEntries) {
-          const publicImportSpecifier = entry.as ?? entry.from;
+          const publicImportSpecifier = entry.contract;
           if (!hasPackageName(publicImportSpecifier)) {
             continue;
           }
@@ -337,25 +337,27 @@ function toCmxTypeRef(metaType: CmxPluginMetaType): CmxTypeRef {
 }
 
 function toEnvironmentEntries(externals: CmxExternalEntry[]): Array<{
-  from: string;
-  as?: string;
+  contract: string;
+  implementation?: string;
 }> {
   return externals
     .flatMap((entry) => {
       if (typeof entry === "string") {
-        return [{ from: entry }];
+        return [{ contract: entry }];
       }
 
       if (
         typeof entry.contract === "string" &&
         typeof entry.implementation === "string"
       ) {
-        return [{ from: entry.implementation, as: entry.contract }];
+        return [
+          { contract: entry.contract, implementation: entry.implementation },
+        ];
       }
 
       return [];
     })
-    .filter((entry) => entry.from.trim().length > 0);
+    .filter((entry) => entry.contract.trim().length > 0);
 }
 
 function hasPackageName(importSpecifier: string): boolean {
