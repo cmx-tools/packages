@@ -309,6 +309,94 @@ describe("cmx", () => {
     });
   });
 
+  it("materializes explicit CMX node meta slots without inferring plain meta data", () => {
+    function Badge() {
+      return null;
+    }
+    const fakeNode = {
+      type: "component",
+      from: "@fake/ui",
+      import: "Fake",
+    };
+    const document = createDocument({
+      dependencies: [
+        {
+          name: "@site/theme",
+          specifier: "^1.0.0",
+          version: "1.2.3",
+        },
+      ],
+      meta: {
+        data: {
+          title: "About",
+          badge: {
+            type: "component",
+            from: "@site/theme",
+            import: "Badge",
+            props: {
+              label: "New",
+            },
+          },
+          fakeNode,
+        },
+        slots: [["badge"]],
+      },
+    });
+    const environment = createEnvironment({
+      dependencies: document.dependencies,
+      imports: {
+        "@site/theme": {
+          Badge,
+        },
+      },
+    });
+
+    const result = cmx<{
+      title: string;
+      badge: React.ReactNode;
+      fakeNode: typeof fakeNode;
+    }>(document, environment);
+
+    expect(result.meta?.title).toBe("About");
+    expect(isValidElement(result.meta?.badge)).toBe(true);
+    if (!isValidElement(result.meta?.badge)) {
+      throw new Error("CMX meta slot did not materialize to a React element");
+    }
+
+    expect(result.meta.badge.type).toBe(Badge);
+    expect(result.meta.badge.props).toEqual({
+      label: "New",
+    });
+    expect(result.meta.fakeNode).toBe(fakeNode);
+  });
+
+  it("materializes root meta slots", () => {
+    const document = createDocument({
+      meta: {
+        data: {
+          type: "element",
+          tag: "strong",
+          children: ["Featured"],
+        },
+        slots: [[]],
+      },
+    });
+
+    const result = cmx<React.ReactNode>(document);
+
+    expect(isValidElement(result.meta)).toBe(true);
+    if (!isValidElement(result.meta)) {
+      throw new Error(
+        "CMX root meta slot did not materialize to a React element",
+      );
+    }
+
+    expect(result.meta.type).toBe("strong");
+    expect(result.meta.props).toEqual({
+      children: "Featured",
+    });
+  });
+
   it("passes component implementations to React without pre-validation", () => {
     const invalidComponent = {};
     const document = createDocument({

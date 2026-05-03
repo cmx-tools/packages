@@ -27,8 +27,19 @@ export function cmx<Meta = unknown>(
 
   return {
     children: materializeNode(document.tree, environment),
-    ...(document.meta ? { meta: document.meta.data as Meta } : {}),
+    ...(document.meta
+      ? { meta: materializeMeta(document.meta, environment) as Meta }
+      : {}),
   };
+}
+
+function materializeMeta(
+  meta: NonNullable<CmxDocument["meta"]>,
+  environment: CmxEnvironment | undefined,
+): unknown {
+  return resolveCmxSlots(meta.data, meta.slots, (slotNode) => ({
+    value: materializeNode(slotNode, environment),
+  }));
 }
 
 function materializeNode(
