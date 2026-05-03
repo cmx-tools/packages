@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "runtime": {
+    "importSource": "cmx-runtime"
+  },
+  "dependencies": [
+    {
+      "name": "@example/backend-contract",
+      "specifier": "workspace:*",
+      "version": "0.1.0"
+    },
+    {
+      "name": "@example/ui-library",
+      "specifier": "workspace:*",
+      "version": "0.1.0"
+    }
+  ],
+  "entries": [
+    {
+      "name": "404",
+      "file": "404.js",
+      "sourcemap": "404.js.map"
+    },
+    {
+      "name": "about",
+      "file": "about.js",
+      "sourcemap": "about.js.map",
+      "meta": {
+        "type": {
+          "from": "@example/backend-contract",
+          "import": "Meta"
+        }
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "file": "404.js",
+      "sourcemap": "404.js.map",
+      "isEntry": true
+    },
+    {
+      "file": "about.js",
+      "sourcemap": "about.js.map",
+      "isEntry": true
+    }
+  ]
+}

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx server.tsx",
-    "gen:cmx-env": "tsx cmxEnvironmentExample.ts"
+    "build": "tsx cmxEnvironmentExample.ts"
   },
   "dependencies": {
     "@example/backend-contract": "workspace:*",
