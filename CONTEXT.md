@@ -1,47 +1,43 @@
 # CMX context
 
-Shared vocabulary for this repo.
-
-Normative machine-readable shape details may live in issues or implementation specs. This file captures compact language for discussing CMX concepts. See `specs/cmx-concept-spec.md` for the fuller concept specification.
+Shared language for this repo. This file is intentionally compact; use `specs/cmx-concept-spec.md` when a term needs full context or examples.
 
 ## Language
 
-### CMX
+**CMX** is a document model and toolchain for content authored as TSX/JSX-like modules. It renders authored program semantics into stable static Documents and hydrates those Documents back into framework-native values.
 
-**CMX** is a document model and toolchain for content authored as TSX/JSX-like modules. It preserves rich authored semantics in stable, static Documents and lets applications hydrate those Documents back into framework-native values.
+CMX language spans three layers:
 
-CMX has three layers:
-
-- **Document Model** — the stable, static rich document format.
-- **Toolchain** — the transitions from authored source to Bundle to Document, and from Document to hydrated runtime values.
+- **Document Model** — stable static rich Documents.
+- **Toolchain** — transitions from source to Bundle to Document, and from Document to hydrated runtime values.
 - **Profiles** — opinionated conventions for specific use-cases.
 
 ### Authoring
 
-- **Content Project** — The local authoring workspace where authored content, colocated Assets, package configuration, scripts, and supporting files live.
-- **Content Repository** — The source-side location, often a Git remote, that the build side watches or checks out.
-- **Content Source** — The authored modules selected for CMX processing.
-- **Asset** — Non-code content such as images, blobs, media, or files colocated with Content Source.
-- **Asset Reference** — A Document Content value that points to an Asset distributed by the host architecture.
+- **Content Project** — Local authoring workspace.
+- **Content Repository** — Source-side location the build side watches or checks out.
+- **Content Source** — Authored modules selected for CMX processing.
+- **Asset** — Non-code content colocated with Content Source.
+- **Asset Reference** — Document Content value that points to a host-distributed Asset.
 
 ### Build
 
-- **Bundler** — The CMX toolchain role that turns Content Source into a Bundle.
+- **Bundler** — Toolchain role that turns Content Source into a Bundle.
 - **Compile** — Transform authored source semantics into executable CMX program material.
-- **Bundle** — A portable render artifact produced by the Bundler. A Bundle is still program material and may contain compiled modules, chunks, runtime calls, sourcemaps, and references to Assets.
-- **CMX Runtime** — CMX-owned runtime code used by compiled Bundles during Document Rendering. It belongs to the build/toolchain side, not Hydration.
-- **Document Rendering** — The build-side operation that renders selected exports from a Bundle into a CMX Document.
+- **Bundle** — Portable render artifact produced by the Bundler. Still program material.
+- **CMX Runtime** — CMX-owned runtime code used by compiled Bundles during Document Rendering.
+- **Document Rendering** — Build-side operation that renders selected exports from a Bundle into a CMX Document.
 
 ### Document Model
 
-- **CMX Document** — A stable, static render of content authored in CMX. A Document is data, not program code.
-- **Document Interface** — The declared boundary of a Document. It describes what the Document imports, what it exports, and contract-relevant information needed for Hydration.
-- **Document Content** — The stable static values rendered from selected source exports.
-- **Export** — A rendered value exposed by a CMX Document. The source module's default export is represented by the `default` key.
-- **Selected Export** — A source-module export chosen by Document Rendering to be included in the Document.
-- **Document Import** — A component requirement declared in the Document Interface. It identifies a component source used by Document Content and carries compatibility information for Contract Verification. It does not contain the implementation.
-- **Component Reference** — A value inside Document Content that points to a component source and export.
-- **Contract** — The shared compatibility agreement between the Build side and the Application side. Document Rendering writes document-side contract information into the Document Interface. Application Build writes application-side contract information into the Environment.
+- **CMX Document** — Stable static render of content authored in CMX. Data, not program code.
+- **Document Interface** — Declared boundary of a Document: imports, exports, and contract-relevant information for Hydration.
+- **Document Content** — Stable static values rendered from selected source exports.
+- **Export** — Rendered value exposed by a CMX Document. The source module's default export uses the `default` key.
+- **Selected Export** — Source-module export chosen by Document Rendering for inclusion in the Document.
+- **Document Import** — Component requirement declared in the Document Interface. Carries compatibility information, not implementation.
+- **Component Reference** — Document Content value pointing to a component source and export.
+- **Contract** — Shared compatibility agreement between Build and Application. The Document Interface carries the document side; the Environment carries the application side.
 
 Conceptual Document shape:
 
@@ -63,74 +59,49 @@ This is concept language, not a final machine format.
 
 ### Hydration and rendering
 
-- **Environment** — The hydration-side context owned by the application. It proves compatibility with a Document and provides implementations for Document Imports.
-- **Environment Import** — A component implementation supplied by the Environment.
-- **CMX Hydration** — The runtime-side step that turns a static CMX Document into framework-native values by verifying the Document against an Environment and binding component references to implementations.
-- **Contract Verification** — The Hydration phase that compares the Document Interface with the Environment.
-- **Import Binding** — The Hydration phase that binds Component References in Document Content to component implementations supplied by Environment Imports.
-- **Framework Rendering** — What the host framework does after CMX Hydration. It renders hydrated framework-native values to UI, HTML, a stream, a DOM tree, or another framework-specific output.
+- **Environment** — Hydration-side application context that proves compatibility with a Document and provides implementations for Document Imports.
+- **Environment Import** — Component implementation supplied by the Environment.
+- **CMX Hydration** — Runtime-side operation that verifies a Document against an Environment and binds Component References to implementations.
+- **Contract Verification** — Hydration phase that compares the Document Interface with the Environment.
+- **Import Binding** — Hydration phase that binds Component References to Environment Imports.
+- **Framework Rendering** — Host framework operation that renders hydrated framework-native values to UI, HTML, a stream, DOM tree, or another framework-specific output.
 
-`render` is contextual language:
+`render` and `hydrate` are contextual terms:
 
-- In the CMX build context, **Document Rendering** renders Bundles into Documents.
-- In the framework context, **Framework Rendering** renders hydrated framework values into UI or HTML.
-
-`hydrate` is contextual language:
-
-- In the CMX context, **CMX Hydration** binds a CMX Document to an Environment.
-- In a browser/framework context, hydration may mean attaching client runtime behavior to existing HTML or DOM output.
+- **Document Rendering** renders Bundles into Documents.
+- **Framework Rendering** renders hydrated framework values into UI or HTML.
+- **CMX Hydration** binds a CMX Document to an Environment.
+- Framework/browser hydration may mean attaching client runtime behavior to existing HTML or DOM output.
 
 ### Profiles
 
-- **Profile** — An opinionated convention for how Documents are shaped, validated, rendered, and hydrated for a use-case.
+- **Profile** — Opinionated convention for how Documents are shaped, validated, rendered, and hydrated for a use-case.
 
 Profiles are not core Document fields. They may influence selected exports, validation rules, expected interface/content shape, Contract strictness, Hydration behavior, and framework adapter defaults.
 
 ### Host architecture
 
-- **Host Architecture** — The overall system that adopts CMX for content management.
-- **Host Role** — A responsibility in the Host Architecture. A Host Architecture may group multiple roles into one system or split one role across multiple systems.
+- **Host Architecture** — Overall system that adopts CMX for content management.
+- **Host Role** — Responsibility in a Host Architecture. Roles may be grouped into one system or split across systems.
 - **Source Host** — Owns or exposes the Content Repository.
-- **Build Host** — Runs the CMX toolchain. It compiles Content Source into Bundles and performs Document Rendering.
+- **Build Host** — Runs the CMX toolchain: compile Content Source into Bundles, then render Bundles into Documents.
 - **Document Host** — Persists or serves CMX Documents.
 - **Asset Host** — Distributes Assets referenced by Documents.
-- **Application Build** — The app or website build process that creates the Environment and encodes the application-side Contract.
-- **Application Host** — The app or website runtime that loads Documents, uses the Environment, performs CMX Hydration, and hands hydrated values to the framework for rendering.
+- **Application Build** — App/website build process that creates the Environment and encodes the application-side Contract.
+- **Application Host** — App/website runtime that loads Documents, uses the Environment, performs CMX Hydration, and hands hydrated values to the framework.
 
-### Pipeline summary
+## Pipeline summary
 
 ```txt
-Authoring
 Content Project
 → Content Repository
-→ Content Source
-
-Build
-Content Source + Assets
+→ Content Source + Assets
 → Compile
 → Bundle
 → Document Rendering
 → CMX Document
-
-Document Model
-CMX Document
-→ Document Interface
-→ Document Content
-
-Application
-Application Build
-→ Environment
-
-Runtime
-CMX Document + Environment
-→ Contract Verification
-→ Import Binding
+→ CMX Hydration with Environment
 → Framework-native values
 → Framework Rendering
 → UI / HTML
 ```
-
-## Glossary
-
-- **Hop** — Handoff between layers: one part produces a value, another stores or routes it, another operates and may return. Process term, not a network hop.
-- **Leaf** — A part of the system's responsibility tree that no longer delegates to other parts.
