@@ -1,6 +1,6 @@
 # Your content is JSX
 
-We believe that working with JSX is simpler and more rewarding then dealing with any existing CMS user interface.
+We believe that working with JSX is simpler and more rewarding than dealing with any existing CMS user interface.
 
 ---
 
@@ -58,13 +58,13 @@ A good decision makes the system feel more like:
 - code in Git
 - explicit types
 - safe hosted execution
-- branch based workflow
+- branch-based workflow
 - inspectable contracts
 
 A bad decision makes the system feel more like:
 
 - hidden state
 - proprietary editor logic
-- schema first modeling
+- schema-first modeling
 - implicit theme contracts
 - runtime magic
