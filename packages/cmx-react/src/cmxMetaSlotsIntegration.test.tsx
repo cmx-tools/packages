@@ -68,7 +68,7 @@ describe("cmx React export slots", () => {
     const page = cmx(document, environment);
     const html = renderToString(
       <App title={(page.meta as { title: string }).title}>
-        {page.default}
+        {page.default as React.ReactNode}
         {(page.meta as { badge: React.ReactNode }).badge}
       </App>,
     );
