@@ -13,7 +13,7 @@ describe("cmx", () => {
   it.each([null, true, false, 7, "text"])(
     "hydrates primitive default export %s",
     (defaultExport) => {
-      expect(cmx(createDocument({ defaultExport })).children).toBe(
+      expect(cmx(createDocument({ defaultExport })).default).toBe(
         defaultExport,
       );
     },
@@ -39,13 +39,13 @@ describe("cmx", () => {
 
     const result = cmx(document);
 
-    expect(isValidElement(result.children)).toBe(true);
-    if (!isValidElement(result.children)) {
+    expect(isValidElement(result.default)).toBe(true);
+    if (!isValidElement(result.default)) {
       throw new Error("CMX fragment did not hydrate to a React element");
     }
 
-    expect(result.children.type).toBe(Fragment);
-    const fragmentProps = result.children.props as { children: unknown[] };
+    expect(result.default.type).toBe(Fragment);
+    const fragmentProps = result.default.props as { children: unknown[] };
     const fragmentChildren = fragmentProps.children;
     const heading = fragmentChildren[1];
     expect(fragmentChildren[0]).toBe("prefix");
@@ -118,12 +118,12 @@ describe("cmx", () => {
 
     const result = cmx(document, environment);
 
-    expect(isValidElement(result.children)).toBe(true);
-    if (!isValidElement(result.children)) {
+    expect(isValidElement(result.default)).toBe(true);
+    if (!isValidElement(result.default)) {
       throw new Error("CMX component did not hydrate to a React element");
     }
 
-    expect(result.children.type).toBe(Header);
+    expect(result.default.type).toBe(Header);
   });
 
   it("hydrates component nodes from default environment imports", () => {
@@ -148,12 +148,12 @@ describe("cmx", () => {
 
     const result = cmx(document, environment);
 
-    expect(isValidElement(result.children)).toBe(true);
-    if (!isValidElement(result.children)) {
+    expect(isValidElement(result.default)).toBe(true);
+    if (!isValidElement(result.default)) {
       throw new Error("CMX component did not hydrate to a React element");
     }
 
-    expect(result.children.type).toBe(Card);
+    expect(result.default.type).toBe(Card);
   });
 
   it("passes CMX node children as React children", () => {
@@ -184,12 +184,12 @@ describe("cmx", () => {
 
     const result = cmx(document, environment);
 
-    expect(isValidElement(result.children)).toBe(true);
-    if (!isValidElement(result.children)) {
+    expect(isValidElement(result.default)).toBe(true);
+    if (!isValidElement(result.default)) {
       throw new Error("CMX component did not hydrate to a React element");
     }
 
-    expect(result.children.props).toEqual({
+    expect(result.default.props).toEqual({
       children: "node child",
       tone: "info",
     });
@@ -221,12 +221,12 @@ describe("cmx", () => {
 
     const result = cmx(document, environment);
 
-    expect(isValidElement(result.children)).toBe(true);
-    if (!isValidElement(result.children)) {
+    expect(isValidElement(result.default)).toBe(true);
+    if (!isValidElement(result.default)) {
       throw new Error("CMX component did not hydrate to a React element");
     }
 
-    expect(result.children.props).toEqual({
+    expect(result.default.props).toEqual({
       children: "prop child",
     });
   });
@@ -263,12 +263,12 @@ describe("cmx", () => {
 
     const result = cmx(document, environment);
 
-    expect(isValidElement(result.children)).toBe(true);
-    if (!isValidElement(result.children)) {
+    expect(isValidElement(result.default)).toBe(true);
+    if (!isValidElement(result.default)) {
       throw new Error("CMX component did not hydrate to a React element");
     }
 
-    const slotProps = result.children.props as {
+    const slotProps = result.default.props as {
       tone: string;
       icon: unknown;
     };
@@ -295,15 +295,15 @@ describe("cmx", () => {
 
     const result = cmx(document);
 
-    expect(isValidElement(result.children)).toBe(true);
-    if (!isValidElement(result.children)) {
+    expect(isValidElement(result.default)).toBe(true);
+    if (!isValidElement(result.default)) {
       throw new Error(
         "CMX root default slot did not hydrate to a React element",
       );
     }
 
-    expect(result.children.type).toBe("strong");
-    expect(result.children.props).toEqual({
+    expect(result.default.type).toBe("strong");
+    expect(result.default.props).toEqual({
       children: "Featured",
     });
   });
@@ -329,12 +329,12 @@ describe("cmx", () => {
 
     const result = cmx(document, environment);
 
-    expect(isValidElement(result.children)).toBe(true);
-    if (!isValidElement(result.children)) {
+    expect(isValidElement(result.default)).toBe(true);
+    if (!isValidElement(result.default)) {
       throw new Error("CMX component did not hydrate to a React element");
     }
 
-    expect(result.children.type).toBe(invalidComponent);
+    expect(result.default.type).toBe(invalidComponent);
   });
 
   it("keeps native hydration errors unwrapped", () => {

@@ -14,8 +14,8 @@ const server = createServer(async (req, res) => {
   try {
     const route = req.url?.includes("/about") ? "about" : "404";
     const { default: document } = await import(`./_db_content/${route}.json`);
-    const { children } = cmx(document, environment);
-    const html = renderHtml(<App>{children}</App>);
+    const page = cmx(document, environment);
+    const html = renderHtml(<App>{page.default}</App>);
 
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(html);
