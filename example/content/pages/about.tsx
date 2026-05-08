@@ -1,7 +1,10 @@
-import type { Meta } from "@example/backend-contract";
+import { UserProfile, type Meta } from "@example/backend-contract";
 import Header from "../components/header.js";
 
-export const meta: Meta = { title: "About" };
+export const meta: Meta = {
+  title: "About",
+  accessory: <UserProfile />,
+};
 
 export default async function About() {
   return (

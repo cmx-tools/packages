@@ -40,6 +40,7 @@ describe("createExampleBackendTestServer", () => {
             <title>About</title>
           </head>
           <body>
+            <div>🧑‍🎤</div>
             <div>
               <header class="beautiful-header">
                 About<!-- -->
