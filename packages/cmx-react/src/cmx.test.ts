@@ -49,11 +49,16 @@ describe("cmx", () => {
     }
 
     expect(result.children.type).toBe(Fragment);
-    const fragmentChildren = result.children.props.children;
+    const fragmentProps = result.children.props as { children: unknown[] };
+    const fragmentChildren = fragmentProps.children;
+    const heading = fragmentChildren[1];
     expect(fragmentChildren[0]).toBe("prefix");
-    expect(isValidElement(fragmentChildren[1])).toBe(true);
-    expect(fragmentChildren[1].type).toBe("h1");
-    expect(fragmentChildren[1].props).toEqual({
+    expect(isValidElement(heading)).toBe(true);
+    if (!isValidElement(heading)) {
+      throw new Error("CMX heading did not materialize to a React element");
+    }
+    expect(heading.type).toBe("h1");
+    expect(heading.props).toEqual({
       className: "title",
       children: "Not Found",
     });
@@ -301,10 +306,17 @@ describe("cmx", () => {
       throw new Error("CMX component did not materialize to a React element");
     }
 
-    expect(result.children.props.tone).toBe("info");
-    expect(isValidElement(result.children.props.icon)).toBe(true);
-    expect(result.children.props.icon.type).toBe("strong");
-    expect(result.children.props.icon.props).toEqual({
+    const slotProps = result.children.props as {
+      tone: string;
+      icon: unknown;
+    };
+    expect(slotProps.tone).toBe("info");
+    expect(isValidElement(slotProps.icon)).toBe(true);
+    if (!isValidElement(slotProps.icon)) {
+      throw new Error("CMX slot did not materialize to a React element");
+    }
+    expect(slotProps.icon.type).toBe("strong");
+    expect(slotProps.icon.props).toEqual({
       children: "Icon",
     });
   });
@@ -342,7 +354,11 @@ describe("cmx", () => {
         slots: [["badge"]],
       },
     });
-    const environment = createEnvironment({
+    const environment = createEnvironment<{
+      title: string;
+      badge: React.ReactNode;
+      fakeNode: typeof fakeNode;
+    }>({
       dependencies: document.dependencies,
       imports: {
         "@site/theme": {
@@ -457,9 +473,9 @@ function createDocument(document: Partial<CmxDocument> = {}): CmxDocument {
   };
 }
 
-function createEnvironment(
-  environment: Partial<CmxEnvironment> = {},
-): CmxEnvironment {
+function createEnvironment<Meta = unknown>(
+  environment: Partial<CmxEnvironment<Meta>> = {},
+): CmxEnvironment<Meta> {
   return {
     dependencies: [],
     imports: {},
