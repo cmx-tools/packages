@@ -187,7 +187,7 @@ describe("renderCmxDocuments", () => {
     const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
     await writeFile(
       path.join(outDir, "entry.js"),
-      `export default "rendered";\n`,
+      `export default { kind: "element", tag: "main", children: ["rendered"] };\n`,
       "utf8",
     );
 
@@ -231,7 +231,11 @@ describe("renderCmxDocuments", () => {
               },
             },
             content: {
-              default: "rendered",
+              default: {
+                kind: "element",
+                tag: "main",
+                children: ["rendered"],
+              },
             },
           },
         },
@@ -343,7 +347,7 @@ describe("renderCmxDocuments", () => {
       outDir,
       "home.js",
       "../home.tsx",
-      "export default 'Home';",
+      `export default { kind: "element", tag: "main", children: ["Home"] };`,
     );
     await writeCompiledEntry(
       outDir,
@@ -387,7 +391,11 @@ describe("renderCmxDocuments", () => {
           result: "document",
           document: {
             content: {
-              default: "Home",
+              default: {
+                kind: "element",
+                tag: "main",
+                children: ["Home"],
+              },
             },
           },
         },
@@ -617,6 +625,17 @@ async function renderCmxBundle(input: {
     unsupportedValues: "error",
     unverifiedOptionalExports: "error",
     ...input.bundle,
+    entries: (input.bundle.entries ?? []).map((entry) => ({
+      ...entry,
+      sourceExports: entry.sourceExports ?? {
+        default: {
+          type: {
+            from: "cmx-contracts",
+            import: "CmxNode",
+          },
+        },
+      },
+    })),
   };
   await writeFile(
     path.join(input.bundleDir, CMX_BUNDLE_FILE_NAME),

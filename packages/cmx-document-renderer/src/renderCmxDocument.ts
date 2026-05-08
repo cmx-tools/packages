@@ -6,7 +6,9 @@ import type {
   CmxElementNode,
   CmxNode,
   CmxExportConfig,
+  CmxTypeRef,
   SlotPath,
+  UnverifiedOptionalExportsPolicy,
 } from "cmx-contracts";
 import { CMX_DOCUMENT_VERSION } from "cmx-contracts";
 
@@ -46,6 +48,7 @@ type KeepResult = { keep: true; value: unknown };
 type DropResult = { keep: false };
 type RenderContext = {
   unsupportedValues: UnsupportedValuesPolicy;
+  unverifiedOptionalExports: UnverifiedOptionalExportsPolicy;
   runtime: RuntimeProtocol;
   dependencies: CmxDependency[];
   usedDependencyNames: Set<string>;
@@ -54,8 +57,10 @@ type RenderContext = {
 export type RenderCmxDocumentInput = {
   moduleUrl: string | URL;
   exports: Record<string, CmxExportConfig>;
+  sourceExports?: Record<string, { type?: CmxTypeRef }>;
   runtime?: RuntimeProtocol;
   unsupportedValues?: UnsupportedValuesPolicy;
+  unverifiedOptionalExports?: UnverifiedOptionalExportsPolicy;
   dependencies?: CmxDependency[];
 };
 
@@ -111,9 +116,25 @@ export async function renderCmxDocument(
       continue;
     }
 
+    const verifiedType = resolveVerifiedType({
+      configuredType: config.type,
+      sourceType: input.sourceExports?.[name]?.type,
+      rootIsCmxNode: rendered.rootIsCmxNode,
+    });
+    if (config.type && !verifiedType) {
+      if (config.required || context.unverifiedOptionalExports === "error") {
+        throw new CmxRenderError({
+          severity: "error",
+          code: "render-error",
+          message: `Configured type for ${name} export could not be verified.`,
+        });
+      }
+      continue;
+    }
+
     content[name] = rendered.value;
     documentExports[name] = {
-      ...(config.type === undefined ? {} : { type: config.type }),
+      ...(verifiedType === undefined ? {} : { type: verifiedType }),
       ...(rendered.slots.length === 0 ? {} : { slots: rendered.slots }),
     };
   }
@@ -145,6 +166,7 @@ type NormalizeExportResult =
       keep: true;
       value: unknown;
       slots: SlotPath[];
+      rootIsCmxNode: boolean;
     };
 
 async function normalizeExportValue(
@@ -153,7 +175,15 @@ async function normalizeExportValue(
   context: RenderContext,
 ): Promise<NormalizeExportResult> {
   const slots: SlotPath[] = [];
-  const result = await normalizeValue(value, pathLabel, [], slots, context);
+  const resolvedValue = await value;
+  const rootIsCmxNode = context.runtime.isRuntimeNode(resolvedValue);
+  const result = await normalizeValue(
+    resolvedValue,
+    pathLabel,
+    [],
+    slots,
+    context,
+  );
   if (!result.keep) {
     return { keep: false };
   }
@@ -162,6 +192,7 @@ async function normalizeExportValue(
     keep: true,
     value: result.value,
     slots,
+    rootIsCmxNode,
   };
 }
 
@@ -502,14 +533,50 @@ function unsupportedValue(
 function createRenderContext(options: {
   runtime: RuntimeProtocol;
   unsupportedValues?: UnsupportedValuesPolicy;
+  unverifiedOptionalExports?: UnverifiedOptionalExportsPolicy;
   dependencies?: CmxDependency[];
 }): RenderContext {
   return {
     runtime: options.runtime,
     unsupportedValues: options.unsupportedValues ?? "error",
+    unverifiedOptionalExports: options.unverifiedOptionalExports ?? "error",
     dependencies: options.dependencies ?? [],
     usedDependencyNames: new Set(),
   };
+}
+
+function resolveVerifiedType(input: {
+  configuredType: CmxTypeRef | undefined;
+  sourceType: CmxTypeRef | undefined;
+  rootIsCmxNode: boolean;
+}): CmxTypeRef | undefined {
+  if (!input.configuredType) {
+    return undefined;
+  }
+
+  if (sameTypeRef(input.configuredType, input.sourceType)) {
+    return input.configuredType;
+  }
+
+  if (
+    input.rootIsCmxNode &&
+    sameTypeRef(input.configuredType, {
+      from: "cmx-contracts",
+      import: "CmxNode",
+    })
+  ) {
+    return input.configuredType;
+  }
+
+  return undefined;
+}
+
+function sameTypeRef(left: CmxTypeRef, right: CmxTypeRef | undefined): boolean {
+  return (
+    right !== undefined &&
+    left.from === right.from &&
+    left.import === right.import
+  );
 }
 
 function registerDependencyRef(

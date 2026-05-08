@@ -38,6 +38,11 @@ export type CmxBundleEntry = {
   name: string;
   file: string;
   sourcemap: string;
+  sourceExports: Record<string, CmxSourceExportContract>;
+};
+
+export type CmxSourceExportContract = {
+  type?: CmxTypeRef;
 };
 
 export type CmxBundle = {
@@ -96,7 +101,8 @@ function parseEntry(value: unknown): CmxBundleEntry {
     !isRecord(value) ||
     typeof value.name !== "string" ||
     typeof value.file !== "string" ||
-    typeof value.sourcemap !== "string"
+    typeof value.sourcemap !== "string" ||
+    !isRecord(value.sourceExports)
   ) {
     throw invalidBundle();
   }
@@ -105,6 +111,22 @@ function parseEntry(value: unknown): CmxBundleEntry {
     name: value.name,
     file: value.file,
     sourcemap: value.sourcemap,
+    sourceExports: Object.fromEntries(
+      Object.entries(value.sourceExports).map(([name, sourceExport]) => [
+        name,
+        parseSourceExportContract(sourceExport),
+      ]),
+    ),
+  };
+}
+
+function parseSourceExportContract(value: unknown): CmxSourceExportContract {
+  if (!isRecord(value)) {
+    throw invalidBundle();
+  }
+
+  return {
+    ...(value.type === undefined ? {} : { type: parseTypeRef(value.type) }),
   };
 }
 

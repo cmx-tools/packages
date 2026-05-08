@@ -37,12 +37,24 @@
     {
       "name": "404",
       "file": "404.js",
-      "sourcemap": "404.js.map"
+      "sourcemap": "404.js.map",
+      "sourceExports": {
+        "default": {}
+      }
     },
     {
       "name": "about",
       "file": "about.js",
-      "sourcemap": "about.js.map"
+      "sourcemap": "about.js.map",
+      "sourceExports": {
+        "meta": {
+          "type": {
+            "from": "@example/backend-contract",
+            "import": "Meta"
+          }
+        },
+        "default": {}
+      }
     }
   ],
   "chunks": [
