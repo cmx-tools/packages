@@ -5,7 +5,7 @@ import { environment } from "./_gen_cmx_environment.js";
 import { cmx } from "cmx-react";
 
 type AppProps = {
-  title: string;
+  title?: string;
   accessory?: React.ReactNode;
   children: React.ReactNode;
 };
@@ -17,13 +17,7 @@ const server = createServer(async (req, res) => {
     const route = req.url?.includes("/about") ? "about" : "404";
     const { default: document } = await import(`./_db_content/${route}.json`);
     const page = cmx(document, environment);
-    const title = page.meta?.title ?? "example";
-    const accessory = page.meta?.accessory;
-    const html = renderHtml(
-      <App title={title} accessory={accessory}>
-        {page.default}
-      </App>,
-    );
+    const html = renderHtml(<App {...page.meta}>{page.default}</App>);
 
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(html);
@@ -42,7 +36,7 @@ function App({ title, accessory, children }: AppProps) {
     <html lang="en">
       <head>
         <meta charSet="utf-8" />
-        <title>{title}</title>
+        <title>{title ?? "example"}</title>
       </head>
       <body>
         {accessory}
