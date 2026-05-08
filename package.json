@@ -11,7 +11,7 @@
     "pretest:integration": "corepack pnpm run build",
     "test:integration": "vitest run --dir test",
     "test": "corepack pnpm run test:unit && corepack pnpm run test:integration && corepack pnpm run verify:example",
-    "typecheck": "corepack pnpm run build && corepack pnpm -r --filter './packages/*' typecheck && tsc --noEmit",
+    "typecheck": "tsgo --noEmit",
     "example:create-documents": "corepack pnpm -r --filter '@example/content' build",
     "example:create-environment": "corepack pnpm -r --filter '@example/backend' build",
     "test:gen-example": "corepack pnpm run example:create-documents && corepack pnpm run example:create-environment && prettier --write example/",
@@ -24,6 +24,7 @@
     "@ai-hero/sandcastle": "^0.5.10",
     "@jridgewell/trace-mapping": "^0.3.31",
     "@types/node": "^24.12.2",
+    "@typescript/native-preview": "7.0.0-dev.20260421.2",
     "cmx-bundler": "workspace:*",
     "cmx-contracts": "workspace:*",
     "cmx-document-renderer": "workspace:*",
@@ -32,7 +33,6 @@
     "prettier": "^3.8.3",
     "rolldown": "^1.0.0",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.3",
     "vitest": "^4.1.5"
   }
 }

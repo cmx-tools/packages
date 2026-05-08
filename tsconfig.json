@@ -9,5 +9,6 @@
     "noUnusedLocals": true,
     "types": ["node", "vitest/globals"]
   },
-  "include": ["src/**/*", "test/**/*"]
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["**/dist/**"]
 }
