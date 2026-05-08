@@ -7,7 +7,7 @@ async function formatHtml(response: Response): Promise<string> {
 }
 
 describe("createExampleBackendTestServer", () => {
-  it("serves example fallback and about routes over HTTP", async () => {
+  it("renders export-map page output for fallback and about routes", async () => {
     const server = await createExampleBackendTestServer();
 
     try {
@@ -16,11 +16,24 @@ describe("createExampleBackendTestServer", () => {
 
       expect(fallback.status).toBe(200);
       expect(fallback.headers.get("content-type")).toContain("text/html");
-      expect(await formatHtml(fallback)).toMatchInlineSnapshot(`
+      const fallbackHtml = await formatHtml(fallback);
+      expect(fallbackHtml).toContain("<title>example</title>");
+      expect(fallbackHtml).toContain("<h1>Not Found</h1>");
+
+      expect(about.status).toBe(200);
+      expect(about.headers.get("content-type")).toContain("text/html");
+      const aboutHtml = await formatHtml(about);
+      expect(aboutHtml).toContain("<title>About</title>");
+      expect(aboutHtml).toContain(
+        '<span class="header-accessory"><div>🧑‍🎤</div></span>',
+      );
+      expect(aboutHtml).toContain("<p>About</p>");
+
+      expect(fallbackHtml).toMatchInlineSnapshot(`
         "<!DOCTYPE html>
-        <html lang="en">
+        <html lang=\"en\">
           <head>
-            <meta charset="utf-8" />
+            <meta charset=\"utf-8\" />
             <title>example</title>
           </head>
           <body>
@@ -30,21 +43,19 @@ describe("createExampleBackendTestServer", () => {
         "
       `);
 
-      expect(about.status).toBe(200);
-      expect(about.headers.get("content-type")).toContain("text/html");
-      expect(await formatHtml(about)).toMatchInlineSnapshot(`
+      expect(aboutHtml).toMatchInlineSnapshot(`
         "<!DOCTYPE html>
-        <html lang="en">
+        <html lang=\"en\">
           <head>
-            <meta charset="utf-8" />
+            <meta charset=\"utf-8\" />
             <title>About</title>
           </head>
           <body>
             <div>🧑‍🎤</div>
             <div>
-              <header class="beautiful-header">
+              <header class=\"beautiful-header\">
                 About<!-- -->
-                <span class="header-accessory"><div>🧑‍🎤</div></span>
+                <span class=\"header-accessory\"><div>🧑‍🎤</div></span>
               </header>
               <p>About</p>
             </div>
