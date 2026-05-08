@@ -94,8 +94,10 @@ export async function renderCmxDocuments(
           moduleUrl: pathToFileURL(path.join(input.bundleDir, entry.file)),
           runtime: runtimeProtocol.protocol,
           exports: bundle.exports,
+          sourceExports: entry.sourceExports,
           dependencies: bundle.dependencies,
           unsupportedValues: bundle.unsupportedValues,
+          unverifiedOptionalExports: bundle.unverifiedOptionalExports,
         });
         return [
           entry.name,

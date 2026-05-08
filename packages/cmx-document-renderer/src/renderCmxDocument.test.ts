@@ -63,6 +63,14 @@ describe("cmx-document-renderer", () => {
             },
           },
         },
+        sourceExports: {
+          teaser: {
+            type: {
+              from: "@example/backend-contract",
+              import: "Teaser",
+            },
+          },
+        },
       }),
     ).resolves.toEqual({
       document: {
@@ -120,6 +128,14 @@ describe("cmx-document-renderer", () => {
             },
           },
         },
+        sourceExports: {
+          meta: {
+            type: {
+              from: "@example/backend-contract",
+              import: "Meta",
+            },
+          },
+        },
       }),
     ).resolves.toEqual({
       document: {
@@ -159,6 +175,57 @@ describe("cmx-document-renderer", () => {
             },
           },
         },
+      },
+    });
+  });
+
+  it("fails required typed export when configured type cannot be verified", async () => {
+    await expect(
+      renderCmxDocument({
+        moduleUrl: new URL("./prepared-bundle.fixture.ts", import.meta.url),
+        exports: {
+          teaser: {
+            required: true,
+            type: {
+              from: "@example/backend-contract",
+              import: "Teaser",
+            },
+          },
+        },
+      }),
+    ).rejects.toMatchObject({
+      diagnostic: {
+        severity: "error",
+        code: "render-error",
+        message: "Configured type for teaser export could not be verified.",
+      },
+    });
+  });
+
+  it("omits optional typed export when unverifiedOptionalExports is omit", async () => {
+    await expect(
+      renderCmxDocument({
+        moduleUrl: new URL("./prepared-bundle.fixture.ts", import.meta.url),
+        exports: {
+          teaser: {
+            required: false,
+            type: {
+              from: "@example/backend-contract",
+              import: "Teaser",
+            },
+          },
+        },
+        unverifiedOptionalExports: "omit",
+      }),
+    ).resolves.toEqual({
+      document: {
+        $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
+        cmxVersion: 1,
+        interface: {
+          imports: {},
+          exports: {},
+        },
+        content: {},
       },
     });
   });

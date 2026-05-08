@@ -335,11 +335,17 @@ describe("renderCmxTestbed", () => {
           name: "home",
           file: "home.js",
           sourcemap: "home.js.map",
+          sourceExports: {
+            default: {},
+          },
         },
         {
           name: "about",
           file: "about.js",
           sourcemap: "about.js.map",
+          sourceExports: {
+            default: {},
+          },
         },
       ]),
     );
@@ -452,6 +458,11 @@ describe("renderCmxTestbed", () => {
                 files: {
                   [entry]: source,
                 },
+                exports: {
+                  default: {
+                    required: false,
+                  },
+                },
               }),
             ).document.content.default,
         ),
@@ -467,6 +478,11 @@ describe("renderCmxTestbed", () => {
             "const chunks = [['before'], [[<strong key='deep'>deep</strong>]], 'after'];",
             "export default [<h1 key='a'>A</h1>, <p key='p'>{chunks}</p>, 'tail'];",
           ].join("\n"),
+        },
+        exports: {
+          default: {
+            required: false,
+          },
         },
       }),
     );
@@ -702,8 +718,9 @@ describe("renderCmxTestbed", () => {
       await renderCmxTestbed({
         files: {
           "entry.tsx": [
+            "import type { Teaser } from '@site/content';",
             "export default <main>Hello</main>;",
-            "export const teaser = () => ({ title: 'About' });",
+            "export const teaser = (): Teaser => ({ title: 'About' });",
             "export const optionalData = undefined;",
           ].join("\n"),
         },
@@ -885,6 +902,11 @@ describe("renderCmxTestbed", () => {
       renderCmxTestbed({
         files: {
           "entry.tsx": "export default { hello: 'world' };\n",
+        },
+        exports: {
+          default: {
+            required: false,
+          },
         },
       }),
     ).resolves.toMatchObject({

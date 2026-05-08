@@ -9,6 +9,7 @@ import { parseSync, Visitor } from "rolldown/utils";
 import type {
   CmxDependency,
   CmxExportConfig,
+  CmxTypeRef,
   UnverifiedOptionalExportsPolicy,
   UnsupportedValuesPolicy,
 } from "cmx-contracts";
@@ -17,6 +18,8 @@ import {
   createCmxBundleArtifact,
   createEntryOrder,
 } from "./createCmxBundleArtifact.js";
+import { detectConfiguredExportTypeRefs } from "./detectConfiguredExportTypeRefs.js";
+import { normalizeModulePath } from "./normalizeModulePath.js";
 import { createCmxEnvironmentModuleSource } from "./createCmxEnvironmentModuleSource.js";
 import { readConsumerPackageJson } from "./consumerPackage.js";
 import {
@@ -71,6 +74,10 @@ export function cmx(options: CmxPluginOptions): Plugin {
   const externalStubs = new Map<string, ExternalStub>();
   const bundleDependencies = new Map<string, CmxDependency>();
   const environmentDependencies = new Map<string, CmxDependency>();
+  const sourceExportTypesByEntry = new Map<
+    string,
+    Record<string, CmxTypeRef | undefined>
+  >();
   let environmentEntries: CmxEnvironmentEntry[] = [];
   let entryOrder = new Map<string, number>();
   let consumerPackageJsonPathResolved!: string;
@@ -91,6 +98,7 @@ export function cmx(options: CmxPluginOptions): Plugin {
       }
       bundleDependencies.clear();
       environmentDependencies.clear();
+      sourceExportTypesByEntry.clear();
       consumerPackageJsonPathResolved = path.resolve(
         path.join(options.cwd ?? process.cwd(), "package.json"),
       );
@@ -185,6 +193,15 @@ export function cmx(options: CmxPluginOptions): Plugin {
         );
       }
 
+      const entryTypeRefs = detectConfiguredExportTypeRefs({
+        source,
+        id,
+        exports: options.exports,
+      });
+      if (Object.keys(entryTypeRefs).length > 0) {
+        sourceExportTypesByEntry.set(normalizeModulePath(id), entryTypeRefs);
+      }
+
       const externalImports = await resolveCmxExternalImports(
         this,
         source,
@@ -242,6 +259,7 @@ export function cmx(options: CmxPluginOptions): Plugin {
         unsupportedValues: options.unsupportedValues ?? "error",
         unverifiedOptionalExports: options.unverifiedOptionalExports ?? "error",
         dependencies: [...bundleDependencies.values()],
+        sourceExportTypesByEntry,
       });
 
       this.emitFile({

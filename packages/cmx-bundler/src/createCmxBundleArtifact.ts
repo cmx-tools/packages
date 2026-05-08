@@ -5,6 +5,7 @@ import {
   type CmxBundleChunk,
   type CmxDependency,
   type CmxExportConfig,
+  type CmxTypeRef,
   type UnverifiedOptionalExportsPolicy,
   type UnsupportedValuesPolicy,
 } from "cmx-contracts";
@@ -42,6 +43,7 @@ export function createCmxBundleArtifact(input: {
   unsupportedValues: UnsupportedValuesPolicy;
   unverifiedOptionalExports: UnverifiedOptionalExportsPolicy;
   dependencies: CmxDependency[];
+  sourceExportTypesByEntry: Map<string, Record<string, CmxTypeRef | undefined>>;
 }): CmxBundle {
   const chunks = getOutputChunks(input.outputBundle);
   const bundleChunks = chunks.map(toBundleChunk);
@@ -66,10 +68,19 @@ export function createCmxBundleArtifact(input: {
       )
       .map((chunk) => {
         const bundleChunk = toBundleChunk(chunk);
+        const sourceExports = input.sourceExportTypesByEntry.get(
+          normalizeModulePath(chunk.facadeModuleId ?? ""),
+        );
         return {
           name: chunk.name,
           file: bundleChunk.file,
           sourcemap: bundleChunk.sourcemap,
+          sourceExports: Object.fromEntries(
+            Object.entries(sourceExports ?? {}).map(([name, type]) => [
+              name,
+              type === undefined ? {} : { type },
+            ]),
+          ),
         };
       }),
     chunks: bundleChunks,

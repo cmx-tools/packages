@@ -190,6 +190,9 @@ describe("cmx", () => {
               name: "entry",
               file: "entry.js",
               sourcemap: "entry.js.map",
+              sourceExports: {
+                default: {},
+              },
             },
           ],
           chunks: [
@@ -314,11 +317,17 @@ describe("cmx", () => {
               name: "home",
               file: "home.js",
               sourcemap: "home.js.map",
+              sourceExports: {
+                default: {},
+              },
             },
             {
               name: "about",
               file: "about.js",
               sourcemap: "about.js.map",
+              sourceExports: {
+                default: {},
+              },
             },
           ]),
         );
@@ -444,6 +453,9 @@ describe("cmx", () => {
             name: "entry",
             file: "entry.js",
             sourcemap: "entry.js.map",
+            sourceExports: {
+              default: {},
+            },
           },
         ]);
         await expect(

@@ -38,6 +38,14 @@ describe("parseCmxBundleJson", () => {
               name: "home",
               file: "home.js",
               sourcemap: "home.js.map",
+              sourceExports: {
+                default: {
+                  type: {
+                    from: "cmx-contracts",
+                    import: "CmxNode",
+                  },
+                },
+              },
               extra: true,
             },
           ],
@@ -81,6 +89,14 @@ describe("parseCmxBundleJson", () => {
           name: "home",
           file: "home.js",
           sourcemap: "home.js.map",
+          sourceExports: {
+            default: {
+              type: {
+                from: "cmx-contracts",
+                import: "CmxNode",
+              },
+            },
+          },
         },
       ],
       chunks: [
