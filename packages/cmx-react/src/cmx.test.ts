@@ -367,7 +367,63 @@ describe("cmx", () => {
 
     expect(() => cmx(document, createEnvironment())).toThrow(hydrationError);
   });
+
+  it("infers hydrated export map type from environment exports", () => {
+    type PageMeta = {
+      title: string;
+      accessory?: CmxNode;
+    };
+    const document = createDocument({
+      optionalExportName: "meta",
+      optionalExportType: {
+        from: "@site/content",
+        import: "PageMeta",
+      },
+      optionalExportValue: {
+        title: "About",
+        accessory: {
+          type: "element",
+          tag: "span",
+          children: ["Featured"],
+        },
+      },
+    });
+    const environment = createEnvironment<{
+      default: CmxNode;
+      meta?: PageMeta;
+      teaser?: unknown;
+    }>({
+      dependencies: Object.values(document.interface.imports),
+    });
+
+    const page = cmx(document, environment);
+
+    const _defaultType: Assert<IsEqual<typeof page.default, React.ReactNode>> =
+      true;
+    const _metaType: Assert<
+      IsEqual<
+        typeof page.meta,
+        | {
+            title: string;
+            accessory?: React.ReactNode;
+          }
+        | undefined
+      >
+    > = true;
+    const _teaserType: Assert<IsEqual<typeof page.teaser, unknown>> = true;
+
+    expect(_defaultType).toBe(true);
+    expect(_metaType).toBe(true);
+    expect(_teaserType).toBe(true);
+  });
 });
+
+type Assert<T extends true> = T;
+
+type IsEqual<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
+    ? true
+    : false;
 
 type TestDocumentInput = {
   defaultExport?: CmxNode;
@@ -419,9 +475,9 @@ function createDocument(input: TestDocumentInput = {}): CmxDocument {
   };
 }
 
-function createEnvironment<Meta = unknown>(
-  environment: Partial<CmxEnvironment<Meta>> = {},
-): CmxEnvironment<Meta> {
+function createEnvironment<
+  Exports extends Record<string, unknown> = Record<string, unknown>,
+>(environment: Partial<CmxEnvironment<Exports>> = {}): CmxEnvironment<Exports> {
   return {
     dependencies: [],
     imports: {},

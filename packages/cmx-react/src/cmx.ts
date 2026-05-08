@@ -15,6 +15,22 @@ export type CmxResult = {
   default: ReactNode;
 } & Record<string, unknown>;
 
+export type HydratedCmxExportValue<T> = T extends CmxNode
+  ? ReactNode
+  : T extends readonly (infer Item)[]
+    ? HydratedCmxExportValue<Item>[]
+    : T extends Record<string, unknown>
+      ? { [Key in keyof T]: HydratedCmxExportValue<T[Key]> }
+      : T;
+
+export type HydratedCmxExports<Exports extends Record<string, unknown>> = {
+  [Key in keyof Exports]: HydratedCmxExportValue<Exports[Key]>;
+};
+
+export function cmx<Exports extends Record<string, unknown>>(
+  document: CmxDocument,
+  environment: CmxEnvironment<Exports>,
+): HydratedCmxExports<Exports>;
 export function cmx(
   document: CmxDocument,
   environment?: CmxEnvironment,

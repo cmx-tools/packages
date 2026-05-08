@@ -11,6 +11,7 @@ type AppProps = {
 };
 
 const port = Number(process.env.PORT) || 3000;
+type Page = ReturnType<typeof cmx>;
 
 const server = createServer(async (req, res) => {
   try {
@@ -60,31 +61,10 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unexpected error";
 }
 
-function toPageTitle(page: unknown): string {
-  if (
-    typeof page === "object" &&
-    page !== null &&
-    "meta" in page &&
-    typeof page.meta === "object" &&
-    page.meta !== null &&
-    "title" in page.meta &&
-    typeof page.meta.title === "string"
-  ) {
-    return page.meta.title;
-  }
-  return "example";
+function toPageTitle(page: Page): string {
+  return page.meta?.title ?? "example";
 }
 
-function toPageAccessory(page: unknown): React.ReactNode | undefined {
-  if (
-    typeof page === "object" &&
-    page !== null &&
-    "meta" in page &&
-    typeof page.meta === "object" &&
-    page.meta !== null &&
-    "accessory" in page.meta
-  ) {
-    return (page.meta as { accessory?: React.ReactNode }).accessory;
-  }
-  return undefined;
+function toPageAccessory(page: Page): React.ReactNode | undefined {
+  return page.meta?.accessory;
 }
