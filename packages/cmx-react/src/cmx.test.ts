@@ -2,27 +2,26 @@ import { Fragment, isValidElement } from "react";
 import { describe, expect, it } from "vitest";
 import {
   verifyCmxDocumentEnvironment,
+  type CmxDependency,
   type CmxDocument,
   type CmxEnvironment,
+  type CmxNode,
 } from "cmx-contracts";
 import { CmxReactError, cmx } from "cmx-react";
 
 describe("cmx", () => {
   it.each([null, true, false, 7, "text"])(
-    "materializes primitive node %s",
-    (tree) => {
-      expect(cmx(createDocument({ tree })).children).toBe(tree);
+    "hydrates primitive default export %s",
+    (defaultExport) => {
+      expect(cmx(createDocument({ defaultExport })).children).toBe(
+        defaultExport,
+      );
     },
   );
 
-  it("materializes a pure CMX document into React values", () => {
+  it("hydrates a pure CMX document default export into React values", () => {
     const document = createDocument({
-      meta: {
-        data: {
-          title: "Fallback",
-        },
-      },
-      tree: {
+      defaultExport: {
         type: "fragment",
         children: [
           "prefix",
@@ -40,12 +39,9 @@ describe("cmx", () => {
 
     const result = cmx(document);
 
-    expect(result.meta).toEqual({
-      title: "Fallback",
-    });
     expect(isValidElement(result.children)).toBe(true);
     if (!isValidElement(result.children)) {
-      throw new Error("CMX fragment did not materialize to a React element");
+      throw new Error("CMX fragment did not hydrate to a React element");
     }
 
     expect(result.children.type).toBe(Fragment);
@@ -64,18 +60,14 @@ describe("cmx", () => {
     });
   });
 
-  it("throws contract diagnostics before materializing incompatible documents", () => {
+  it("throws contract diagnostics before hydrating incompatible documents", () => {
+    const dependency = themeDependency();
     const document = {
-      ...createDocument(),
-      dependencies: [
-        {
-          name: "@site/theme",
-          specifier: "^1.0.0",
-          version: "1.2.3",
-        },
-      ],
-      get tree(): never {
-        throw new Error("tree was materialized");
+      ...createDocument({
+        imports: [dependency],
+      }),
+      get content(): never {
+        throw new Error("content was hydrated");
       },
     } as CmxDocument;
     const verification = verifyCmxDocumentEnvironment(document);
@@ -103,26 +95,20 @@ describe("cmx", () => {
     throw new Error("Expected cmx to throw");
   });
 
-  it("materializes component nodes from named environment imports", () => {
+  it("hydrates component nodes from named environment imports", () => {
     function Header() {
       return null;
     }
     const document = createDocument({
-      dependencies: [
-        {
-          name: "@site/theme",
-          specifier: "^1.0.0",
-          version: "1.2.3",
-        },
-      ],
-      tree: {
+      imports: [themeDependency()],
+      defaultExport: {
         type: "component",
         from: "@site/theme",
         import: "Header",
       },
     });
     const environment = createEnvironment({
-      dependencies: document.dependencies,
+      dependencies: Object.values(document.interface.imports),
       imports: {
         "@site/theme": {
           Header,
@@ -134,31 +120,25 @@ describe("cmx", () => {
 
     expect(isValidElement(result.children)).toBe(true);
     if (!isValidElement(result.children)) {
-      throw new Error("CMX component did not materialize to a React element");
+      throw new Error("CMX component did not hydrate to a React element");
     }
 
     expect(result.children.type).toBe(Header);
   });
 
-  it("materializes component nodes from default environment imports", () => {
+  it("hydrates component nodes from default environment imports", () => {
     function Card() {
       return null;
     }
     const document = createDocument({
-      dependencies: [
-        {
-          name: "@site/theme",
-          specifier: "^1.0.0",
-          version: "1.2.3",
-        },
-      ],
-      tree: {
+      imports: [themeDependency()],
+      defaultExport: {
         type: "component",
         from: "@site/theme",
       },
     });
     const environment = createEnvironment({
-      dependencies: document.dependencies,
+      dependencies: Object.values(document.interface.imports),
       imports: {
         "@site/theme": {
           default: Card,
@@ -170,7 +150,7 @@ describe("cmx", () => {
 
     expect(isValidElement(result.children)).toBe(true);
     if (!isValidElement(result.children)) {
-      throw new Error("CMX component did not materialize to a React element");
+      throw new Error("CMX component did not hydrate to a React element");
     }
 
     expect(result.children.type).toBe(Card);
@@ -181,14 +161,8 @@ describe("cmx", () => {
       return null;
     }
     const document = createDocument({
-      dependencies: [
-        {
-          name: "@site/theme",
-          specifier: "^1.0.0",
-          version: "1.2.3",
-        },
-      ],
-      tree: {
+      imports: [themeDependency()],
+      defaultExport: {
         type: "component",
         from: "@site/theme",
         import: "Panel",
@@ -200,7 +174,7 @@ describe("cmx", () => {
       },
     });
     const environment = createEnvironment({
-      dependencies: document.dependencies,
+      dependencies: Object.values(document.interface.imports),
       imports: {
         "@site/theme": {
           Panel,
@@ -212,7 +186,7 @@ describe("cmx", () => {
 
     expect(isValidElement(result.children)).toBe(true);
     if (!isValidElement(result.children)) {
-      throw new Error("CMX component did not materialize to a React element");
+      throw new Error("CMX component did not hydrate to a React element");
     }
 
     expect(result.children.props).toEqual({
@@ -226,14 +200,8 @@ describe("cmx", () => {
       return null;
     }
     const document = createDocument({
-      dependencies: [
-        {
-          name: "@site/theme",
-          specifier: "^1.0.0",
-          version: "1.2.3",
-        },
-      ],
-      tree: {
+      imports: [themeDependency()],
+      defaultExport: {
         type: "component",
         from: "@site/theme",
         import: "Panel",
@@ -243,7 +211,7 @@ describe("cmx", () => {
       },
     });
     const environment = createEnvironment({
-      dependencies: document.dependencies,
+      dependencies: Object.values(document.interface.imports),
       imports: {
         "@site/theme": {
           Panel,
@@ -255,7 +223,7 @@ describe("cmx", () => {
 
     expect(isValidElement(result.children)).toBe(true);
     if (!isValidElement(result.children)) {
-      throw new Error("CMX component did not materialize to a React element");
+      throw new Error("CMX component did not hydrate to a React element");
     }
 
     expect(result.children.props).toEqual({
@@ -263,19 +231,13 @@ describe("cmx", () => {
     });
   });
 
-  it("materializes CMX nodes in prop slots before creating React elements", () => {
+  it("hydrates CMX nodes in prop slots before creating React elements", () => {
     function Panel() {
       return null;
     }
     const document = createDocument({
-      dependencies: [
-        {
-          name: "@site/theme",
-          specifier: "^1.0.0",
-          version: "1.2.3",
-        },
-      ],
-      tree: {
+      imports: [themeDependency()],
+      defaultExport: {
         type: "component",
         from: "@site/theme",
         import: "Panel",
@@ -291,7 +253,7 @@ describe("cmx", () => {
       },
     });
     const environment = createEnvironment({
-      dependencies: document.dependencies,
+      dependencies: Object.values(document.interface.imports),
       imports: {
         "@site/theme": {
           Panel,
@@ -303,7 +265,7 @@ describe("cmx", () => {
 
     expect(isValidElement(result.children)).toBe(true);
     if (!isValidElement(result.children)) {
-      throw new Error("CMX component did not materialize to a React element");
+      throw new Error("CMX component did not hydrate to a React element");
     }
 
     const slotProps = result.children.props as {
@@ -321,94 +283,27 @@ describe("cmx", () => {
     });
   });
 
-  it("materializes explicit CMX node meta slots without inferring plain meta data", () => {
-    function Badge() {
-      return null;
-    }
-    const fakeNode = {
-      type: "component",
-      from: "@fake/ui",
-      import: "Fake",
-    };
+  it("hydrates root default export slot", () => {
     const document = createDocument({
-      dependencies: [
-        {
-          name: "@site/theme",
-          specifier: "^1.0.0",
-          version: "1.2.3",
-        },
-      ],
-      meta: {
-        data: {
-          title: "About",
-          badge: {
-            type: "component",
-            from: "@site/theme",
-            import: "Badge",
-            props: {
-              label: "New",
-            },
-          },
-          fakeNode,
-        },
-        slots: [["badge"]],
+      defaultExport: {
+        type: "element",
+        tag: "strong",
+        children: ["Featured"],
       },
-    });
-    const environment = createEnvironment<{
-      title: string;
-      badge: React.ReactNode;
-      fakeNode: typeof fakeNode;
-    }>({
-      dependencies: document.dependencies,
-      imports: {
-        "@site/theme": {
-          Badge,
-        },
-      },
+      defaultSlots: [[]],
     });
 
-    const result = cmx<{
-      title: string;
-      badge: React.ReactNode;
-      fakeNode: typeof fakeNode;
-    }>(document, environment);
+    const result = cmx(document);
 
-    expect(result.meta?.title).toBe("About");
-    expect(isValidElement(result.meta?.badge)).toBe(true);
-    if (!isValidElement(result.meta?.badge)) {
-      throw new Error("CMX meta slot did not materialize to a React element");
-    }
-
-    expect(result.meta.badge.type).toBe(Badge);
-    expect(result.meta.badge.props).toEqual({
-      label: "New",
-    });
-    expect(result.meta.fakeNode).toBe(fakeNode);
-  });
-
-  it("materializes root meta slots", () => {
-    const document = createDocument({
-      meta: {
-        data: {
-          type: "element",
-          tag: "strong",
-          children: ["Featured"],
-        },
-        slots: [[]],
-      },
-    });
-
-    const result = cmx<React.ReactNode>(document);
-
-    expect(isValidElement(result.meta)).toBe(true);
-    if (!isValidElement(result.meta)) {
+    expect(isValidElement(result.children)).toBe(true);
+    if (!isValidElement(result.children)) {
       throw new Error(
-        "CMX root meta slot did not materialize to a React element",
+        "CMX root default slot did not hydrate to a React element",
       );
     }
 
-    expect(result.meta.type).toBe("strong");
-    expect(result.meta.props).toEqual({
+    expect(result.children.type).toBe("strong");
+    expect(result.children.props).toEqual({
       children: "Featured",
     });
   });
@@ -416,21 +311,15 @@ describe("cmx", () => {
   it("passes component implementations to React without pre-validation", () => {
     const invalidComponent = {};
     const document = createDocument({
-      dependencies: [
-        {
-          name: "@site/theme",
-          specifier: "^1.0.0",
-          version: "1.2.3",
-        },
-      ],
-      tree: {
+      imports: [themeDependency()],
+      defaultExport: {
         type: "component",
         from: "@site/theme",
         import: "InvalidComponent",
       },
     });
     const environment = createEnvironment({
-      dependencies: document.dependencies,
+      dependencies: Object.values(document.interface.imports),
       imports: {
         "@site/theme": {
           InvalidComponent: invalidComponent,
@@ -442,34 +331,55 @@ describe("cmx", () => {
 
     expect(isValidElement(result.children)).toBe(true);
     if (!isValidElement(result.children)) {
-      throw new Error("CMX component did not materialize to a React element");
+      throw new Error("CMX component did not hydrate to a React element");
     }
 
     expect(result.children.type).toBe(invalidComponent);
   });
 
-  it("keeps native materialization errors unwrapped", () => {
-    const materializationError = new Error("tree failed");
+  it("keeps native hydration errors unwrapped", () => {
+    const hydrationError = new Error("content failed");
     const document = {
       ...createDocument(),
-      get tree(): never {
-        throw materializationError;
+      get content(): never {
+        throw hydrationError;
       },
     } as CmxDocument;
 
-    expect(() => cmx(document, createEnvironment())).toThrow(
-      materializationError,
-    );
+    expect(() => cmx(document, createEnvironment())).toThrow(hydrationError);
   });
 });
 
-function createDocument(document: Partial<CmxDocument> = {}): CmxDocument {
+type TestDocumentInput = {
+  defaultExport?: CmxNode;
+  defaultSlots?: CmxDocument["interface"]["exports"]["default"]["slots"];
+  imports?: CmxDependency[];
+};
+
+function createDocument(input: TestDocumentInput = {}): CmxDocument {
   return {
     $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
     cmxVersion: 1,
-    dependencies: [],
-    tree: null,
-    ...document,
+    interface: {
+      imports: Object.fromEntries(
+        (input.imports ?? []).map((dependency) => [
+          dependency.name,
+          dependency,
+        ]),
+      ),
+      exports: {
+        default: {
+          type: {
+            from: "cmx-contracts",
+            import: "CmxNode",
+          },
+          slots: input.defaultSlots ?? [[]],
+        },
+      },
+    },
+    content: {
+      default: input.defaultExport ?? null,
+    },
   };
 }
 
@@ -480,5 +390,13 @@ function createEnvironment<Meta = unknown>(
     dependencies: [],
     imports: {},
     ...environment,
+  };
+}
+
+function themeDependency(): CmxDependency {
+  return {
+    name: "@site/theme",
+    specifier: "^1.0.0",
+    version: "1.2.3",
   };
 }

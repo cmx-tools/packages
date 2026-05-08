@@ -14,7 +14,6 @@ import {
   type RenderCmxDocumentsErrorResult,
   type RenderCmxDocumentsPartialResult,
   type CmxRenderDiagnostic,
-  type UnsupportedValuesPolicy,
 } from "cmx-document-renderer";
 import { createCmxTestbedWorkspace } from "./createCmxTestbedWorkspace.js";
 import { toCmxTestbedBuildDiagnostic } from "./toCmxTestbedBuildDiagnostic.js";
@@ -24,8 +23,8 @@ export type RenderCmxTestbedInput = {
   entry?: string;
   entries?: string[];
   externals?: CmxPluginOptions["externals"];
-  metaType?: CmxPluginOptions["metaType"];
-  unsupportedValues?: UnsupportedValuesPolicy;
+  exports?: CmxPluginOptions["exports"];
+  unsupportedValues?: CmxPluginOptions["unsupportedValues"];
 };
 
 export type RenderCmxTestbedBundles = {
@@ -98,7 +97,8 @@ export async function renderCmxTestbed(
     plugins: [
       cmx({
         externals: input.externals,
-        metaType: input.metaType,
+        exports: input.exports ?? defaultExports,
+        unsupportedValues: input.unsupportedValues,
         ...(hasConsumerPackageJson ? { cwd: rootDir } : {}),
       }),
     ],
@@ -130,10 +130,7 @@ export async function renderCmxTestbed(
       outDir,
     };
 
-    const renderedDocuments = await renderCmxDocuments({
-      bundleDir: outDir,
-      unsupportedValues: input.unsupportedValues,
-    });
+    const renderedDocuments = await renderCmxDocuments({ bundleDir: outDir });
 
     if (input.entries) {
       return {
@@ -248,6 +245,16 @@ function packageFixturePath(packageName: string, fileName: string): string {
 function isString(value: string | undefined): value is string {
   return typeof value === "string";
 }
+
+const defaultExports: CmxPluginOptions["exports"] = {
+  default: {
+    required: true,
+    type: {
+      from: "cmx-contracts",
+      import: "CmxNode",
+    },
+  },
+};
 
 class CmxTestbedBuildError extends Error {
   diagnostic: CmxDiagnostic;

@@ -10,9 +10,18 @@ export type CmxTypeRef = {
   import?: string;
 };
 
-export type CmxMetaType = CmxTypeRef & {
-  optional?: boolean;
-};
+export type CmxExportConfig =
+  | {
+      required: true;
+      type: CmxTypeRef;
+    }
+  | {
+      required: false;
+      type?: CmxTypeRef;
+    };
+
+export type UnsupportedValuesPolicy = "error" | "omit";
+export type UnverifiedOptionalExportsPolicy = "error" | "omit";
 
 export type CmxEnvironmentEntry = {
   contract: string;
@@ -29,11 +38,6 @@ export type CmxBundleEntry = {
   name: string;
   file: string;
   sourcemap: string;
-  meta?: CmxBundleEntryMeta;
-};
-
-export type CmxBundleEntryMeta = {
-  type?: CmxMetaType;
 };
 
 export type CmxBundle = {
@@ -41,6 +45,9 @@ export type CmxBundle = {
   runtime: {
     importSource: string;
   };
+  exports: Record<string, CmxExportConfig>;
+  unsupportedValues: UnsupportedValuesPolicy;
+  unverifiedOptionalExports: UnverifiedOptionalExportsPolicy;
   dependencies: CmxDependency[];
   entries: CmxBundleEntry[];
   chunks: CmxBundleChunk[];
@@ -62,6 +69,12 @@ function parseCmxBundle(value: unknown): CmxBundle {
   return {
     version: CMX_BUNDLE_VERSION,
     runtime: parseRuntime(value.runtime),
+    exports: parseExports(value.exports),
+    unsupportedValues: parsePolicy(value.unsupportedValues, ["error", "omit"]),
+    unverifiedOptionalExports: parsePolicy(value.unverifiedOptionalExports, [
+      "error",
+      "omit",
+    ]),
     dependencies: parseArray(value.dependencies, parseDependency),
     entries: parseArray(value.entries, parseEntry),
     chunks: parseArray(value.chunks, parseChunk),
@@ -92,21 +105,41 @@ function parseEntry(value: unknown): CmxBundleEntry {
     name: value.name,
     file: value.file,
     sourcemap: value.sourcemap,
-    ...(value.meta === undefined ? {} : { meta: parseEntryMeta(value.meta) }),
   };
 }
 
-function parseEntryMeta(value: unknown): CmxBundleEntryMeta {
+function parseExports(value: unknown): Record<string, CmxExportConfig> {
   if (!isRecord(value)) {
     throw invalidBundle();
   }
 
+  return Object.fromEntries(
+    Object.entries(value).map(([name, config]) => [name, parseExport(config)]),
+  );
+}
+
+function parseExport(value: unknown): CmxExportConfig {
+  if (!isRecord(value) || typeof value.required !== "boolean") {
+    throw invalidBundle();
+  }
+
+  if (value.required) {
+    if (value.type === undefined) {
+      throw invalidBundle();
+    }
+    return {
+      required: true,
+      type: parseTypeRef(value.type),
+    };
+  }
+
   return {
-    ...(value.type === undefined ? {} : { type: parseMetaType(value.type) }),
+    required: false,
+    ...(value.type === undefined ? {} : { type: parseTypeRef(value.type) }),
   };
 }
 
-function parseMetaType(value: unknown): CmxMetaType {
+function parseTypeRef(value: unknown): CmxTypeRef {
   if (!isRecord(value) || typeof value.from !== "string") {
     throw invalidBundle();
   }
@@ -114,15 +147,19 @@ function parseMetaType(value: unknown): CmxMetaType {
   if (value.import !== undefined && typeof value.import !== "string") {
     throw invalidBundle();
   }
-  if (value.optional !== undefined && typeof value.optional !== "boolean") {
-    throw invalidBundle();
-  }
 
   return {
     from: value.from,
     ...(value.import === undefined ? {} : { import: value.import }),
-    ...(value.optional === undefined ? {} : { optional: value.optional }),
   };
+}
+
+function parsePolicy<T extends string>(value: unknown, allowed: T[]): T {
+  if (typeof value !== "string" || !allowed.includes(value as T)) {
+    throw invalidBundle();
+  }
+
+  return value as T;
 }
 
 function parseDependency(value: unknown): CmxDependency {

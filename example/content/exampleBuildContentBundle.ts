@@ -7,10 +7,14 @@ export async function exampleBuildContentBundle(): Promise<void> {
       about: "pages/about.tsx",
     },
     externals: ["@example/backend-contract", "@example/ui-library"],
-    metaType: {
-      from: "@example/backend-contract",
-      import: "Meta",
-      optional: true,
+    exports: {
+      default: {
+        required: true,
+        type: {
+          from: "cmx-contracts",
+          import: "CmxNode",
+        },
+      },
     },
     cwd: ".",
     outDir: "dist",

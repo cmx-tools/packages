@@ -4,7 +4,9 @@ import {
   type CmxBundle,
   type CmxBundleChunk,
   type CmxDependency,
-  type CmxMetaType,
+  type CmxExportConfig,
+  type UnverifiedOptionalExportsPolicy,
+  type UnsupportedValuesPolicy,
 } from "cmx-contracts";
 import { normalizeModulePath } from "./normalizeModulePath.js";
 
@@ -36,7 +38,9 @@ export function createCmxBundleArtifact(input: {
   outputBundle: OutputBundle;
   entryOrder: Map<string, number>;
   runtimeImportSource: string;
-  metaTypesByModuleId: Map<string, CmxMetaType>;
+  exports: Record<string, CmxExportConfig>;
+  unsupportedValues: UnsupportedValuesPolicy;
+  unverifiedOptionalExports: UnverifiedOptionalExportsPolicy;
   dependencies: CmxDependency[];
 }): CmxBundle {
   const chunks = getOutputChunks(input.outputBundle);
@@ -47,6 +51,9 @@ export function createCmxBundleArtifact(input: {
     runtime: {
       importSource: input.runtimeImportSource,
     },
+    exports: input.exports,
+    unsupportedValues: input.unsupportedValues,
+    unverifiedOptionalExports: input.unverifiedOptionalExports,
     dependencies: [...input.dependencies].sort((left, right) =>
       left.name.localeCompare(right.name),
     ),
@@ -59,16 +66,10 @@ export function createCmxBundleArtifact(input: {
       )
       .map((chunk) => {
         const bundleChunk = toBundleChunk(chunk);
-        const metaType = chunk.facadeModuleId
-          ? input.metaTypesByModuleId.get(
-              normalizeModulePath(chunk.facadeModuleId),
-            )
-          : undefined;
         return {
           name: chunk.name,
           file: bundleChunk.file,
           sourcemap: bundleChunk.sourcemap,
-          ...(metaType ? { meta: { type: metaType } } : {}),
         };
       }),
     chunks: bundleChunks,

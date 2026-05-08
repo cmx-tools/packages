@@ -13,7 +13,6 @@ import {
   renderCmxDocument,
   type CmxRenderDiagnostic,
   type RuntimeProtocol,
-  type UnsupportedValuesPolicy,
 } from "./renderCmxDocument.js";
 
 export type RenderCmxDocumentsEntry = {
@@ -54,7 +53,6 @@ export type RenderCmxDocumentsResult =
 
 export type RenderCmxDocumentsInput = {
   bundleDir: string;
-  unsupportedValues?: UnsupportedValuesPolicy;
 };
 
 export async function renderCmxDocuments(
@@ -95,9 +93,9 @@ export async function renderCmxDocuments(
         const rendered = await renderCmxDocument({
           moduleUrl: pathToFileURL(path.join(input.bundleDir, entry.file)),
           runtime: runtimeProtocol.protocol,
+          exports: bundle.exports,
           dependencies: bundle.dependencies,
-          metaType: entry.meta?.type,
-          unsupportedValues: input.unsupportedValues,
+          unsupportedValues: bundle.unsupportedValues,
         });
         return [
           entry.name,

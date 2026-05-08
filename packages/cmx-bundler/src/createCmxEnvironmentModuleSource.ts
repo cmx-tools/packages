@@ -1,25 +1,14 @@
-import type {
-  CmxDependency,
-  CmxEnvironmentEntry,
-  CmxMetaType,
-} from "cmx-contracts";
+import type { CmxDependency, CmxEnvironmentEntry } from "cmx-contracts";
 
 export function createCmxEnvironmentModuleSource(input: {
   entries: CmxEnvironmentEntry[];
   dependencies: CmxDependency[];
-  metaType?: CmxMetaType;
 }): string {
   const localNames = toEnvironmentLocalNames(input.entries);
   const sortedDependencies = [...input.dependencies].sort((left, right) =>
     left.name.localeCompare(right.name),
   );
-  const metaTypeName = input.metaType?.import;
   const importLines = [
-    ...(metaTypeName && input.metaType
-      ? [
-          `import type { ${metaTypeName} } from ${JSON.stringify(input.metaType.from)};`,
-        ]
-      : []),
     'import type { CmxEnvironment } from "cmx-contracts";',
     ...input.entries.flatMap((entry, index) => [
       `import * as ${localNames[index]?.implementation} from ${JSON.stringify(entry.implementation ?? entry.contract)};`,
@@ -30,12 +19,7 @@ export function createCmxEnvironmentModuleSource(input: {
         : []),
     ]),
   ];
-  const metaGeneric = metaTypeName
-    ? `${metaTypeName}${input.metaType?.optional ? " | undefined" : ""}`
-    : undefined;
-  const exportOpen = metaGeneric
-    ? `export const environment: CmxEnvironment<${metaGeneric}> = {`
-    : "export const environment: CmxEnvironment = {";
+  const exportOpen = "export const environment: CmxEnvironment = {";
 
   return [
     ...importLines,
@@ -49,7 +33,6 @@ export function createCmxEnvironmentModuleSource(input: {
         : `    ${JSON.stringify(entry.contract)}: ${localNames[index]?.implementation},`,
     ),
     "  },",
-    ...formatMetaType(input.metaType),
     "};",
     "",
   ].join("\n");
@@ -121,20 +104,4 @@ function formatDependencies(dependencies: CmxDependency[]): string {
     ]),
     "  ]",
   ].join("\n");
-}
-
-function formatMetaType(metaType: CmxMetaType | undefined): string[] {
-  if (!metaType) {
-    return [];
-  }
-
-  return [
-    "  metaType: {",
-    `    from: ${JSON.stringify(metaType.from)},`,
-    ...(metaType.import
-      ? [`    import: ${JSON.stringify(metaType.import)},`]
-      : []),
-    `    optional: ${metaType.optional === true ? "true" : "false"},`,
-    "  },",
-  ];
 }
