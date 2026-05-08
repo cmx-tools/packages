@@ -5,6 +5,7 @@ import { environment } from "./_gen_cmx_environment.js";
 import { cmx } from "cmx-react";
 
 type AppProps = {
+  title: string;
   children: React.ReactNode;
 };
 
@@ -15,7 +16,8 @@ const server = createServer(async (req, res) => {
     const route = req.url?.includes("/about") ? "about" : "404";
     const { default: document } = await import(`./_db_content/${route}.json`);
     const page = cmx(document, environment);
-    const html = renderHtml(<App>{page.default}</App>);
+    const title = toPageTitle(page);
+    const html = renderHtml(<App title={title}>{page.default}</App>);
 
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(html);
@@ -29,12 +31,12 @@ server.listen(port, () => {
   console.log(`http://127.0.0.1:${port}`);
 });
 
-function App({ children }: AppProps) {
+function App({ title, children }: AppProps) {
   return (
     <html lang="en">
       <head>
         <meta charSet="utf-8" />
-        <title>example</title>
+        <title>{title}</title>
       </head>
       <body>{children}</body>
     </html>
@@ -47,4 +49,19 @@ function renderHtml(children: React.ReactNode): string {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unexpected error";
+}
+
+function toPageTitle(page: unknown): string {
+  if (
+    typeof page === "object" &&
+    page !== null &&
+    "meta" in page &&
+    typeof page.meta === "object" &&
+    page.meta !== null &&
+    "title" in page.meta &&
+    typeof page.meta.title === "string"
+  ) {
+    return page.meta.title;
+  }
+  return "example";
 }

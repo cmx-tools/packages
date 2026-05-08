@@ -21,6 +21,12 @@
           "import": "CmxNode"
         },
         "slots": [[]]
+      },
+      "meta": {
+        "type": {
+          "from": "@example/backend-contract",
+          "import": "Meta"
+        }
       }
     }
   },
@@ -49,6 +55,9 @@
           "children": ["About"]
         }
       ]
+    },
+    "meta": {
+      "title": "About"
     }
   }
 }

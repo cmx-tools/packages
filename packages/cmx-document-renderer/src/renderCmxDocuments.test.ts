@@ -227,7 +227,6 @@ describe("renderCmxDocuments", () => {
                     from: "cmx-contracts",
                     import: "CmxNode",
                   },
-                  slots: [[]],
                 },
               },
             },

@@ -19,6 +19,20 @@ describe("cmx", () => {
     },
   );
 
+  it("hydrates optional meta export into page export map", () => {
+    const result = cmx(
+      createDocument({
+        metaExport: {
+          title: "About",
+        },
+      }),
+    ) as { meta?: { title: string } };
+
+    expect(result.meta).toEqual({
+      title: "About",
+    });
+  });
+
   it("hydrates a pure CMX document default export into React values", () => {
     const document = createDocument({
       defaultExport: {
@@ -353,6 +367,7 @@ describe("cmx", () => {
 type TestDocumentInput = {
   defaultExport?: CmxNode;
   defaultSlots?: CmxDocument["interface"]["exports"]["default"]["slots"];
+  metaExport?: unknown;
   imports?: CmxDependency[];
 };
 
@@ -375,10 +390,21 @@ function createDocument(input: TestDocumentInput = {}): CmxDocument {
           },
           slots: input.defaultSlots ?? [[]],
         },
+        ...(input.metaExport === undefined
+          ? {}
+          : {
+              meta: {
+                type: {
+                  from: "@site/content",
+                  import: "Meta",
+                },
+              },
+            }),
       },
     },
     content: {
       default: input.defaultExport ?? null,
+      ...(input.metaExport === undefined ? {} : { meta: input.metaExport }),
     },
   };
 }

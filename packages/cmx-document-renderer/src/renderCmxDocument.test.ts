@@ -42,4 +42,61 @@ describe("cmx-document-renderer", () => {
       },
     });
   });
+
+  it("renders configured optional meta export when present", async () => {
+    await expect(
+      renderCmxDocument({
+        moduleUrl: new URL("./prepared-bundle.fixture.ts", import.meta.url),
+        exports: {
+          default: {
+            required: true,
+            type: {
+              from: "cmx-contracts",
+              import: "CmxNode",
+            },
+          },
+          meta: {
+            required: false,
+            type: {
+              from: "@example/backend-contract",
+              import: "Meta",
+            },
+          },
+        },
+      }),
+    ).resolves.toEqual({
+      document: {
+        $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
+        cmxVersion: 1,
+        interface: {
+          imports: {},
+          exports: {
+            default: {
+              type: {
+                from: "cmx-contracts",
+                import: "CmxNode",
+              },
+              slots: [[]],
+            },
+            meta: {
+              type: {
+                from: "@example/backend-contract",
+                import: "Meta",
+              },
+            },
+          },
+        },
+        content: {
+          default: {
+            type: "element",
+            tag: "main",
+            children: ["Hello"],
+          },
+          meta: {
+            title: "Hello",
+          },
+        },
+      },
+    });
+  });
 });
