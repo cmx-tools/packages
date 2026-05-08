@@ -6,19 +6,22 @@ import type {
   TransformPluginContext,
 } from "rolldown";
 import { parseSync, Visitor } from "rolldown/utils";
-import type { CmxDependency, CmxMetaType } from "cmx-contracts";
+import type {
+  CmxDependency,
+  CmxExportConfig,
+  UnverifiedOptionalExportsPolicy,
+  UnsupportedValuesPolicy,
+} from "cmx-contracts";
 import { CMX_BUNDLE_FILE_NAME } from "cmx-contracts";
 import {
   createCmxBundleArtifact,
   createEntryOrder,
-  isEntryModule,
 } from "./createCmxBundleArtifact.js";
 import { createCmxEnvironmentModuleSource } from "./createCmxEnvironmentModuleSource.js";
 import { readConsumerPackageJson } from "./consumerPackage.js";
 import {
   createCmxExternalPolicy,
   isExactImplementationExportMap,
-  matchesCmxExternalPolicy,
   type CmxExternalEntry,
 } from "./CmxExternalPolicy.js";
 import {
@@ -29,9 +32,7 @@ import {
   type ExternalStub,
 } from "./createExternalImportStubs.js";
 import { discoverImplementationPackageExports } from "./discoverImplementationPackageExports.js";
-import { extractCmxBundleMetaExport } from "./extractCmxBundleMetaExport.js";
 import { findUnsupportedExternalImport } from "./findUnsupportedExternalImport.js";
-import { normalizeModulePath } from "./normalizeModulePath.js";
 import {
   resolveAndRecordCmxExternalDependency,
   type CmxGetIntegrity,
@@ -41,17 +42,16 @@ import { resolveCmxExternalImports } from "./resolveCmxExternalImports.js";
 
 const RUNTIME_IMPORT_SOURCE = "cmx-runtime";
 const DYNAMIC_IMPORT_UNSUPPORTED = "dynamic-import-unsupported";
-const META_TYPE_UNSUPPORTED = "meta-type-unsupported";
-const META_TYPE_UNSUPPORTED_MESSAGE =
-  "CMX meta annotations must be simple non-generic type references.";
-const META_REQUIRED = "cmx-meta-required";
+const EXPORTS_REQUIRED = "cmx-exports-required";
 const EXTERNAL_CONTRACT_INVALID = "cmx-external-contract-invalid";
 const EXTERNAL_IMPLEMENTATION_EXPORTS_COMPLEX =
   "cmx-external-implementation-exports-complex";
 
 export type CmxPluginOptions = {
   externals?: CmxExternalEntry[];
-  metaType?: CmxMetaType;
+  exports: Record<string, CmxExportConfig>;
+  unsupportedValues?: UnsupportedValuesPolicy;
+  unverifiedOptionalExports?: UnverifiedOptionalExportsPolicy;
   environment?: CmxEnvironmentEmission;
   cwd?: string;
   getIntegrity?: CmxGetIntegrity;
@@ -62,15 +62,13 @@ export type CmxEnvironmentEmission = {
 };
 
 export type { CmxGetIntegrity, CmxIntegrityContext };
-export type { CmxExternalEntry, CmxMetaType };
+export type { CmxExternalEntry };
 
-export function cmx(options: CmxPluginOptions = {}): Plugin {
+export function cmx(options: CmxPluginOptions): Plugin {
   const jsxRuntimeModuleId = `${RUNTIME_IMPORT_SOURCE}/jsx-runtime`;
   const jsxDevRuntimeModuleId = `${RUNTIME_IMPORT_SOURCE}/jsx-dev-runtime`;
   const externalPolicy = createCmxExternalPolicy(options.externals ?? []);
-  const configuredMetaType = options.metaType;
   const externalStubs = new Map<string, ExternalStub>();
-  const metaTypesByModuleId = new Map<string, CmxMetaType>();
   const bundleDependencies = new Map<string, CmxDependency>();
   const environmentDependencies = new Map<string, CmxDependency>();
   let environmentEntries: CmxEnvironmentEntry[] = [];
@@ -85,6 +83,12 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
       return withCmxJsxRuntime(inputOptions);
     },
     async buildStart() {
+      if (!options.exports || Object.keys(options.exports).length === 0) {
+        this.error({
+          code: EXPORTS_REQUIRED,
+          message: "CMX plugin options must configure at least one export.",
+        });
+      }
       bundleDependencies.clear();
       environmentDependencies.clear();
       consumerPackageJsonPathResolved = path.resolve(
@@ -170,48 +174,6 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
       return createExternalStubSource(RUNTIME_IMPORT_SOURCE, stub);
     },
     async transform(source, id) {
-      const moduleId = normalizeModulePath(id);
-      if (isEntryModule(moduleId, entryOrder)) {
-        const metaExport = extractCmxBundleMetaExport(source, id);
-        if (metaExport.result === "present" && configuredMetaType) {
-          metaTypesByModuleId.set(moduleId, configuredMetaType);
-          if (
-            matchesCmxExternalPolicy(configuredMetaType.from, externalPolicy)
-          ) {
-            await resolveAndRecordCmxExternalDependency(this, {
-              importSpecifier: configuredMetaType.from,
-              importerId: id,
-              consumerPackageJsonPath: consumerPackageJsonPathResolved,
-              consumerPackage,
-              bundleDependencies,
-              getIntegrity: options.getIntegrity,
-            });
-          }
-        } else {
-          metaTypesByModuleId.delete(moduleId);
-        }
-        if (metaExport.result === "unsupported") {
-          this.error(
-            {
-              code: META_TYPE_UNSUPPORTED,
-              message: META_TYPE_UNSUPPORTED_MESSAGE,
-            },
-            metaExport.position,
-          );
-        }
-        if (
-          metaExport.result === "none" &&
-          configuredMetaType &&
-          options.metaType?.optional !== true
-        ) {
-          this.error({
-            code: META_REQUIRED,
-            message:
-              "CMX entry must export meta because cmx metaType is required.",
-          });
-        }
-      }
-
       const dynamicImport = findDynamicImport(source, id);
       if (dynamicImport) {
         this.error(
@@ -276,7 +238,9 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
         outputBundle,
         entryOrder,
         runtimeImportSource: RUNTIME_IMPORT_SOURCE,
-        metaTypesByModuleId,
+        exports: options.exports,
+        unsupportedValues: options.unsupportedValues ?? "error",
+        unverifiedOptionalExports: options.unverifiedOptionalExports ?? "error",
         dependencies: [...bundleDependencies.values()],
       });
 
@@ -293,7 +257,6 @@ export function cmx(options: CmxPluginOptions = {}): Plugin {
           source: createCmxEnvironmentModuleSource({
             entries: environmentEntries,
             dependencies: [...environmentDependencies.values()],
-            metaType: configuredMetaType,
           }),
         });
       }

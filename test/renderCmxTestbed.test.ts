@@ -39,13 +39,13 @@ function expectPartialResult(
   return result;
 }
 
-const THEME_UI_DEPENDENCY = [
-  {
+const THEME_UI_IMPORTS = {
+  "@theme/ui": {
     name: "@theme/ui",
     specifier: "^0.0.0",
     version: "0.0.0",
   },
-];
+};
 
 describe("renderCmxTestbed", () => {
   it("omits source for runtime errors without generated bundle frames", async () => {
@@ -240,11 +240,24 @@ describe("renderCmxTestbed", () => {
     expect(result).toMatchObject({
       result: "document",
       document: {
-        dependencies: [],
-        tree: {
-          type: "element",
-          tag: "main",
-          children: ["Hello"],
+        interface: {
+          imports: {},
+          exports: {
+            default: {
+              type: {
+                from: "cmx-contracts",
+                import: "CmxNode",
+              },
+              slots: [[]],
+            },
+          },
+        },
+        content: {
+          default: {
+            type: "element",
+            tag: "main",
+            children: ["Hello"],
+          },
         },
       },
       diagnostics: [],
@@ -306,12 +319,12 @@ describe("renderCmxTestbed", () => {
     expect(new Set(Object.keys(result.entries))).toEqual(
       new Set(["home", "about"]),
     );
-    expect(result.entries.home.document.tree).toEqual({
+    expect(result.entries.home.document.content.default).toEqual({
       type: "element",
       tag: "main",
       children: ["Home ", 1],
     });
-    expect(result.entries.about.document.tree).toEqual({
+    expect(result.entries.about.document.content.default).toEqual({
       type: "element",
       tag: "main",
       children: ["About ", 1],
@@ -367,10 +380,12 @@ describe("renderCmxTestbed", () => {
     expect(result.entries.home).toMatchObject({
       result: "document",
       document: {
-        tree: {
-          type: "element",
-          tag: "main",
-          children: ["Home"],
+        content: {
+          default: {
+            type: "element",
+            tag: "main",
+            children: ["Home"],
+          },
         },
       },
     });
@@ -402,7 +417,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.document.tree).toEqual({
+    expect(result.document.content.default).toEqual({
       type: "fragment",
       children: [
         {
@@ -438,7 +453,7 @@ describe("renderCmxTestbed", () => {
                   [entry]: source,
                 },
               }),
-            ).document.tree,
+            ).document.content.default,
         ),
       ),
     ).resolves.toEqual([null, true, "hello", 42]);
@@ -456,7 +471,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.document.tree).toEqual({
+    expect(result.document.content.default).toEqual({
       type: "fragment",
       children: [
         {
@@ -502,7 +517,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.document.tree).toEqual({
+    expect(result.document.content.default).toEqual({
       type: "element",
       tag: "ul",
       children: [
@@ -544,7 +559,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.document.tree).toEqual({
+    expect(result.document.content.default).toEqual({
       type: "fragment",
       children: [
         {
@@ -571,7 +586,7 @@ describe("renderCmxTestbed", () => {
         },
       ],
     });
-    expect(result.document.dependencies).toEqual(THEME_UI_DEPENDENCY);
+    expect(result.document.interface.imports).toEqual(THEME_UI_IMPORTS);
   });
 
   it("preserves local component children shape through the bundle boundary", async () => {
@@ -588,7 +603,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.document.tree).toEqual({
+    expect(result.document.content.default).toEqual({
       type: "fragment",
       children: [
         {
@@ -621,7 +636,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.document.tree).toEqual({
+    expect(result.document.content.default).toEqual({
       type: "element",
       tag: "section",
       children: [
@@ -636,329 +651,53 @@ describe("renderCmxTestbed", () => {
     });
   });
 
-  it("normalizes props, slots, and meta data through the bundle boundary", async () => {
+  it("normalizes props and default export slot interface through the bundle boundary", async () => {
     const result = expectDocumentResult(
       await renderCmxTestbed({
-        metaType: {
-          from: "@theme/content",
-          import: "PageMeta",
-        },
+        externals: ["@theme/ui"],
         files: {
           "entry.tsx": [
-            'import { __registerExternal } from "cmx-runtime/jsx-runtime";',
-            'const Hero = __registerExternal({ from: "@theme/ui", import: "Hero" });',
-            'const Unused = __registerExternal({ from: "@theme/ui", import: "Unused" });',
+            'import Hero from "@theme/ui";',
             "const action = <button>Act</button>;",
-            "const fake = { type: 'component', from: '@fake/ui', import: 'Fake' };",
-            "void Unused;",
-            "export const meta = { slug: 'home', data: { preview: <span>Meta</span>, fake } };",
-            "export default <main",
-            "  id='home'",
-            "  missing={undefined}",
-            "  action={action}",
-            "  data={{ fake, items: [undefined, <Hero tone='featured' />] }}",
-            ">",
-            "  <Hero />",
-            "</main>;",
+            "export default <main action={action}><Hero /></main>;",
           ].join("\n"),
         },
       }),
     );
 
-    expect(result.document.tree).toEqual({
+    expect(result.document.interface).toEqual({
+      imports: THEME_UI_IMPORTS,
+      exports: {
+        default: {
+          type: {
+            from: "cmx-contracts",
+            import: "CmxNode",
+          },
+          slots: [[]],
+        },
+      },
+    });
+    expect(result.document.content.default).toEqual({
       type: "element",
       tag: "main",
       props: {
-        id: "home",
         action: {
           type: "element",
           tag: "button",
           children: ["Act"],
         },
-        data: {
-          fake: {
-            type: "component",
-            from: "@fake/ui",
-            import: "Fake",
-          },
-          items: [
-            {
-              type: "component",
-              from: "@theme/ui",
-              import: "Hero",
-              props: {
-                tone: "featured",
-              },
-            },
-          ],
-        },
       },
-      slots: [["action"], ["data", "items", 0]],
+      slots: [["action"]],
       children: [
         {
           type: "component",
           from: "@theme/ui",
-          import: "Hero",
         },
       ],
     });
-    expect(result.document.meta).toEqual({
-      type: {
-        from: "@theme/content",
-        import: "PageMeta",
-      },
-      data: {
-        slug: "home",
-        data: {
-          preview: {
-            type: "element",
-            tag: "span",
-            children: ["Meta"],
-          },
-          fake: {
-            type: "component",
-            from: "@fake/ui",
-            import: "Fake",
-          },
-        },
-      },
-      slots: [["data", "preview"]],
-    });
-    expect(result.document.dependencies).toEqual([]);
-  });
-
-  it("normalizes root meta slots and component refs through the bundle boundary", async () => {
-    const result = expectDocumentResult(
-      await renderCmxTestbed({
-        files: {
-          "entry.tsx": [
-            'import { __registerExternal } from "cmx-runtime/jsx-runtime";',
-            'const Hero = __registerExternal({ from: "@theme/ui", import: "Hero" });',
-            "export const meta = <Hero tone='meta' />;",
-            "export default <main />;",
-          ].join("\n"),
-        },
-      }),
-    );
-
-    expect(result.document.meta).toEqual({
-      data: {
-        type: "component",
-        from: "@theme/ui",
-        import: "Hero",
-        props: {
-          tone: "meta",
-        },
-      },
-      slots: [[]],
-    });
-  });
-
-  it("attaches named imported meta type refs from bundle metadata", async () => {
-    const result = expectDocumentResult(
-      await renderCmxTestbed({
-        metaType: {
-          from: "@theme/content",
-          import: "PageMeta",
-        },
-        files: {
-          "entry.tsx": [
-            'import type { PageMeta } from "@theme/content";',
-            "export const meta: PageMeta = { title: 'Hello' };",
-            "export default <main>Hello</main>;",
-          ].join("\n"),
-        },
-      }),
-    );
-
-    expect(result.document.meta).toEqual({
-      type: {
-        from: "@theme/content",
-        import: "PageMeta",
-      },
-      data: {
-        title: "Hello",
-      },
-    });
-    expect(result.bundle.entries[0]).toMatchObject({
-      meta: {
-        type: {
-          from: "@theme/content",
-          import: "PageMeta",
-        },
-      },
-    });
-    expect(result.document.dependencies).toEqual([]);
-  });
-
-  it("attaches default imported meta type refs from bundle metadata", async () => {
-    const result = expectDocumentResult(
-      await renderCmxTestbed({
-        metaType: {
-          from: "@theme/content",
-        },
-        files: {
-          "entry.tsx": [
-            'import type PageMeta from "@theme/content";',
-            "export const meta: PageMeta = { title: 'Hello' };",
-            "export default <main>Hello</main>;",
-          ].join("\n"),
-        },
-      }),
-    );
-
-    expect(result.document.meta).toEqual({
-      type: {
-        from: "@theme/content",
-      },
-      data: {
-        title: "Hello",
-      },
-    });
-    expect(result.bundle.entries[0]).toMatchObject({
-      meta: {
-        type: {
-          from: "@theme/content",
-        },
-      },
-    });
-    expect(result.document.dependencies).toEqual([]);
-  });
-
-  it("rejects complex exported meta type annotations", async () => {
-    const result = await renderCmxTestbed({
-      metaType: {
-        from: "@theme/content",
-        import: "PageMeta",
-      },
-      files: {
-        "entry.tsx": [
-          'import type { PageMeta } from "@theme/content";',
-          "export const meta: PageMeta<{ title: string }> = { title: 'Hello' };",
-          "export default <main>Hello</main>;",
-        ].join("\n"),
-      },
-    });
-
-    expect(result).toMatchObject({
-      result: "error",
-      diagnostics: [
-        {
-          severity: "error",
-          code: "meta-type-unsupported",
-          message:
-            "CMX meta annotations must be simple non-generic type references.",
-          source: {
-            file: expect.stringMatching(/entry\.tsx$/u),
-            line: 2,
-            column: expect.any(Number),
-          },
-        },
-      ],
-    });
-    expect(result).not.toHaveProperty("bundle");
-  });
-
-  it("renders exported meta as unknown when metaType is not configured", async () => {
-    const result = expectDocumentResult(
-      await renderCmxTestbed({
-        files: {
-          "entry.tsx": [
-            'import type { PageMeta } from "./meta";',
-            "export const meta: PageMeta = { title: 'Hello' };",
-            "export default <main>Hello</main>;",
-          ].join("\n"),
-          "meta.ts": "export type PageMeta = { title: string };\n",
-        },
-      }),
-    );
-
-    expect(result.document.meta).toEqual({
-      data: {
-        title: "Hello",
-      },
-    });
-    expect(result.bundle.entries[0]).not.toHaveProperty("meta");
-  });
-
-  it("allows omitted meta when configured metaType is optional", async () => {
-    const result = expectDocumentResult(
-      await renderCmxTestbed({
-        metaType: {
-          from: "@theme/content",
-          import: "PageMeta",
-          optional: true,
-        },
-        files: {
-          "entry.tsx": "export default <main>Hello</main>;\n",
-        },
-      }),
-    );
-
+    expect(result.document).not.toHaveProperty("tree");
     expect(result.document).not.toHaveProperty("meta");
-    expect(result.bundle.entries[0]).not.toHaveProperty("meta");
-  });
-
-  it("rejects omitted meta when configured metaType is required", async () => {
-    const result = await renderCmxTestbed({
-      metaType: {
-        from: "@theme/content",
-        import: "PageMeta",
-      },
-      files: {
-        "entry.tsx": "export default <main>Hello</main>;\n",
-      },
-    });
-
-    expect(result).toMatchObject({
-      result: "error",
-      diagnostics: [
-        {
-          severity: "error",
-          code: "cmx-meta-required",
-          message:
-            "CMX entry must export meta because cmx metaType is required.",
-        },
-      ],
-    });
-    expect(result).not.toHaveProperty("bundle");
-  });
-
-  it("uses configured metaType instead of local meta annotations", async () => {
-    const result = expectDocumentResult(
-      await renderCmxTestbed({
-        metaType: {
-          from: "@theme/content",
-          import: "PageMeta",
-        },
-        files: {
-          "entry.tsx": [
-            'import type { PageMeta } from "./meta";',
-            "export const meta: PageMeta = { title: 'Hello' };",
-            "export default <main>Hello</main>;",
-          ].join("\n"),
-          "meta.ts": "export type PageMeta = { title: string };\n",
-        },
-      }),
-    );
-
-    expect(result.document.meta).toEqual({
-      type: {
-        from: "@theme/content",
-        import: "PageMeta",
-      },
-      data: {
-        title: "Hello",
-      },
-    });
-    expect(result.bundle.entries[0]).toMatchObject({
-      meta: {
-        type: {
-          from: "@theme/content",
-          import: "PageMeta",
-        },
-      },
-    });
+    expect(result.document).not.toHaveProperty("dependencies");
   });
 
   it("renders configured external imports through importer-edge stubs", async () => {
@@ -981,7 +720,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.document.tree).toEqual({
+    expect(result.document.content.default).toEqual({
       type: "fragment",
       children: [
         {
@@ -1003,10 +742,10 @@ describe("renderCmxTestbed", () => {
         },
       ],
     });
-    expect(result.document.dependencies).toEqual(THEME_UI_DEPENDENCY);
+    expect(result.document.interface.imports).toEqual(THEME_UI_IMPORTS);
   });
 
-  it("returns unsupported value diagnostics for props and meta data by default", async () => {
+  it("returns unsupported value diagnostics for props by default", async () => {
     await expect(
       renderCmxTestbed({
         files: {
@@ -1022,42 +761,14 @@ describe("renderCmxTestbed", () => {
         },
       ],
     });
-
-    await expect(
-      renderCmxTestbed({
-        metaType: {
-          from: "@theme/content",
-          import: "PageMeta",
-        },
-        files: {
-          "entry.tsx": [
-            "export const meta = { slug: 'home', build: () => 'x' };",
-            "export default <main />;",
-          ].join("\n"),
-        },
-      }),
-    ).resolves.toMatchObject({
-      result: "error",
-      diagnostics: [
-        {
-          code: "unsupported-value",
-          message: "Unsupported meta value at meta.build",
-        },
-      ],
-    });
   });
 
-  it("omits unsupported prop and meta data values when configured", async () => {
+  it("omits unsupported prop values when configured", async () => {
     const result = expectDocumentResult(
       await renderCmxTestbed({
-        metaType: {
-          from: "@theme/content",
-          import: "PageMeta",
-        },
         unsupportedValues: "omit",
         files: {
           "entry.tsx": [
-            "export const meta = { slug: 'home', build: () => 'x' };",
             "export default <button",
             "  onClick={() => {}}",
             "  data={{ keep: 'ok', nested: { skip: () => {}, pass: 42 } }}",
@@ -1067,7 +778,7 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.document.tree).toEqual({
+    expect(result.document.content.default).toEqual({
       type: "element",
       tag: "button",
       props: {
@@ -1077,15 +788,6 @@ describe("renderCmxTestbed", () => {
             pass: 42,
           },
         },
-      },
-    });
-    expect(result.document.meta).toEqual({
-      type: {
-        from: "@theme/content",
-        import: "PageMeta",
-      },
-      data: {
-        slug: "home",
       },
     });
   });
@@ -1166,8 +868,8 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(JSON.parse(JSON.stringify(result.document.tree))).toEqual(
-      result.document.tree,
+    expect(JSON.parse(JSON.stringify(result.document.content.default))).toEqual(
+      result.document.content.default,
     );
   });
 });

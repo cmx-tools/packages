@@ -12,7 +12,7 @@ export type ExampleBuildCmxBundleInput = {
   entries: Record<string, string>;
   outDir: string;
   externals?: CmxPluginOptions["externals"];
-  metaType?: CmxPluginOptions["metaType"];
+  exports: CmxPluginOptions["exports"];
   cwd?: string;
 };
 
@@ -24,7 +24,7 @@ export async function exampleBuildCmxBundle(
     plugins: [
       cmx({
         externals: input.externals,
-        metaType: input.metaType,
+        exports: input.exports,
         cwd: input.cwd,
       }),
     ],

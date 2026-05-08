@@ -13,12 +13,12 @@ import { CmxReactError } from "./CmxReactError.js";
 
 export type CmxResult<Meta = unknown> = {
   children: ReactNode;
-  meta: Meta;
+  meta?: Meta;
 };
 
 export function cmx<Meta = unknown>(
   document: CmxDocument,
-  environment?: CmxEnvironment<Meta>,
+  environment?: CmxEnvironment,
 ): CmxResult<Meta> {
   const verification = verifyCmxDocumentEnvironment(document, environment);
   if (!verification.valid) {
@@ -26,23 +26,25 @@ export function cmx<Meta = unknown>(
   }
 
   return {
-    children: materializeNode(document.tree, environment),
-    ...((document.meta
-      ? { meta: materializeMeta(document.meta, environment) }
-      : {}) as { meta: Meta }),
+    children: hydrateExport(document, "default", environment) as ReactNode,
   };
 }
 
-function materializeMeta(
-  meta: NonNullable<CmxDocument["meta"]>,
+function hydrateExport(
+  document: CmxDocument,
+  name: string,
   environment: CmxEnvironment | undefined,
 ): unknown {
-  return resolveCmxSlots(meta.data, meta.slots, (slotNode) => ({
-    value: materializeNode(slotNode, environment),
-  }));
+  return resolveCmxSlots(
+    document.content[name],
+    document.interface.exports[name]?.slots,
+    (slotNode) => ({
+      value: hydrateNode(slotNode, environment),
+    }),
+  );
 }
 
-function materializeNode(
+function hydrateNode(
   node: CmxNode,
   environment: CmxEnvironment | undefined,
 ): ReactNode {
@@ -56,43 +58,43 @@ function materializeNode(
   }
 
   if (node.type === "fragment") {
-    return materializeFragment(node, environment);
+    return hydrateFragment(node, environment);
   }
 
   if (node.type === "element") {
-    return materializeElement(node, environment);
+    return hydrateElement(node, environment);
   }
 
   if (node.type === "component") {
-    return materializeComponent(node, environment);
+    return hydrateComponent(node, environment);
   }
 
   throw new Error("CMX component nodes are not supported yet.");
 }
 
-function materializeFragment(
+function hydrateFragment(
   node: CmxFragmentNode,
   environment: CmxEnvironment | undefined,
 ): ReactNode {
   return createElement(
     Fragment,
     undefined,
-    ...materializeChildren(node, environment),
+    ...hydrateChildren(node, environment),
   );
 }
 
-function materializeElement(
+function hydrateElement(
   node: CmxElementNode,
   environment: CmxEnvironment | undefined,
 ): ReactNode {
   return createElement(
     node.tag,
-    materializeProps(node, environment),
-    ...materializeChildren(node, environment),
+    hydrateProps(node, environment),
+    ...hydrateChildren(node, environment),
   );
 }
 
-function materializeComponent(
+function hydrateComponent(
   node: CmxComponentNode,
   environment: CmxEnvironment | undefined,
 ): ReactNode {
@@ -100,12 +102,12 @@ function materializeComponent(
 
   return createElement(
     component as never,
-    materializeProps(node, environment),
-    ...materializeChildren(node, environment),
+    hydrateProps(node, environment),
+    ...hydrateChildren(node, environment),
   );
 }
 
-function materializeProps(
+function hydrateProps(
   node: CmxElementNode | CmxComponentNode,
   environment: CmxEnvironment | undefined,
 ): Record<string, unknown> | undefined {
@@ -114,15 +116,13 @@ function materializeProps(
   }
 
   return resolveCmxSlots(node.props, node.slots, (slotNode) => ({
-    value: materializeNode(slotNode, environment),
+    value: hydrateNode(slotNode, environment),
   })) as Record<string, unknown>;
 }
 
-function materializeChildren(
+function hydrateChildren(
   node: CmxFragmentNode | CmxElementNode | CmxComponentNode,
   environment: CmxEnvironment | undefined,
 ): ReactNode[] {
-  return (
-    node.children?.map((child) => materializeNode(child, environment)) ?? []
-  );
+  return node.children?.map((child) => hydrateNode(child, environment)) ?? [];
 }

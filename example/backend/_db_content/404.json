@@ -1,10 +1,23 @@
 {
   "$schema": "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
   "cmxVersion": 1,
-  "dependencies": [],
-  "tree": {
-    "type": "element",
-    "tag": "h1",
-    "children": ["Not Found"]
+  "interface": {
+    "imports": {},
+    "exports": {
+      "default": {
+        "type": {
+          "from": "cmx-contracts",
+          "import": "CmxNode"
+        },
+        "slots": [[]]
+      }
+    }
+  },
+  "content": {
+    "default": {
+      "type": "element",
+      "tag": "h1",
+      "children": ["Not Found"]
+    }
   }
 }

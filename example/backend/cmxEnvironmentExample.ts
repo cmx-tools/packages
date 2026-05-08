@@ -28,6 +28,15 @@ export async function cmxEnvironmentExample(): Promise<void> {
       },
       cmx({
         cwd: process.cwd(),
+        exports: {
+          default: {
+            required: true,
+            type: {
+              from: "cmx-contracts",
+              import: "CmxNode",
+            },
+          },
+        },
         externals: [
           {
             contract: "@example/backend-contract",
@@ -35,11 +44,6 @@ export async function cmxEnvironmentExample(): Promise<void> {
           },
           "@example/ui-library",
         ],
-        metaType: {
-          from: "@example/backend-contract",
-          import: "Meta",
-          optional: true,
-        },
         environment: {
           fileName: "_gen_cmx_environment.ts",
         },

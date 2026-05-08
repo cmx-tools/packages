@@ -115,35 +115,6 @@ function cmxPluginDiagnosticFromBuildMessage(
     };
   }
 
-  if (
-    message.includes(
-      "CMX meta annotations must be simple non-generic type references.",
-    )
-  ) {
-    if (!source) {
-      return undefined;
-    }
-    return {
-      severity: "error",
-      code: "meta-type-unsupported",
-      message:
-        "CMX meta annotations must be simple non-generic type references.",
-      source,
-    };
-  }
-
-  if (
-    message.includes(
-      "CMX entry must export meta because cmx metaType is required.",
-    )
-  ) {
-    return {
-      severity: "error",
-      code: "cmx-meta-required",
-      message: "CMX entry must export meta because cmx metaType is required.",
-    };
-  }
-
   return undefined;
 }
 

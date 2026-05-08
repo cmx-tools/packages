@@ -11,6 +11,19 @@ describe("parseCmxBundleJson", () => {
             importSource: "cmx-runtime",
             extra: true,
           },
+          exports: {
+            default: {
+              required: true,
+              type: {
+                from: "cmx-contracts",
+                import: "CmxNode",
+                extra: true,
+              },
+              extra: true,
+            },
+          },
+          unsupportedValues: "error",
+          unverifiedOptionalExports: "omit",
           dependencies: [
             {
               name: "@site/types",
@@ -25,15 +38,6 @@ describe("parseCmxBundleJson", () => {
               name: "home",
               file: "home.js",
               sourcemap: "home.js.map",
-              meta: {
-                type: {
-                  from: "@site/types",
-                  import: "PageMeta",
-                  optional: true,
-                  extra: true,
-                },
-                extra: true,
-              },
               extra: true,
             },
           ],
@@ -53,6 +57,17 @@ describe("parseCmxBundleJson", () => {
       runtime: {
         importSource: "cmx-runtime",
       },
+      exports: {
+        default: {
+          required: true,
+          type: {
+            from: "cmx-contracts",
+            import: "CmxNode",
+          },
+        },
+      },
+      unsupportedValues: "error",
+      unverifiedOptionalExports: "omit",
       dependencies: [
         {
           name: "@site/types",
@@ -66,13 +81,6 @@ describe("parseCmxBundleJson", () => {
           name: "home",
           file: "home.js",
           sourcemap: "home.js.map",
-          meta: {
-            type: {
-              from: "@site/types",
-              import: "PageMeta",
-              optional: true,
-            },
-          },
         },
       ],
       chunks: [
@@ -94,6 +102,9 @@ describe("parseCmxBundleJson", () => {
           runtime: {
             importSource: "cmx-runtime",
           },
+          exports: {},
+          unsupportedValues: "error",
+          unverifiedOptionalExports: "error",
           dependencies: [],
           entries: [
             {

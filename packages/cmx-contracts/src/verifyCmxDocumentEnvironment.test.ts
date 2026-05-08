@@ -11,35 +11,16 @@ describe("verifyCmxDocumentEnvironment", () => {
     expect(
       verifyCmxDocumentEnvironment(
         createDocument({
-          dependencies: [
-            {
-              name: "@site/content",
-              specifier: "^0.1.0",
-              version: "0.1.0",
-            },
+          imports: [
             {
               name: "@site/theme",
               specifier: "^1.0.0",
               version: "1.2.3",
             },
           ],
-          meta: {
-            type: {
-              from: "@site/content",
-              import: "PageMeta",
-            },
-            data: {
-              title: "Home",
-            },
-          },
         }),
         createEnvironment({
           dependencies: [
-            {
-              name: "@site/content",
-              specifier: "workspace:*",
-              version: "0.1.0",
-            },
             {
               name: "@site/theme",
               specifier: "workspace:*",
@@ -51,10 +32,6 @@ describe("verifyCmxDocumentEnvironment", () => {
               version: "3.0.0",
             },
           ],
-          metaType: {
-            from: "@site/content",
-            import: "PageMeta",
-          },
         }),
       ),
     ).toEqual({
@@ -94,7 +71,7 @@ describe("verifyCmxDocumentEnvironment", () => {
     expect(
       verifyCmxDocumentEnvironment(
         createDocument({
-          dependencies: [
+          imports: [
             {
               name: "@site/theme",
               specifier: "^1.0.0",
@@ -120,7 +97,7 @@ describe("verifyCmxDocumentEnvironment", () => {
     expect(
       verifyCmxDocumentEnvironment(
         createDocument({
-          dependencies: [
+          imports: [
             {
               name: "@site/theme",
               specifier: "^1.0.0",
@@ -147,7 +124,7 @@ describe("verifyCmxDocumentEnvironment", () => {
     expect(
       verifyCmxDocumentEnvironment(
         createDocument({
-          dependencies: [
+          imports: [
             {
               name: "@site/theme",
               specifier: "^1.0.0",
@@ -199,7 +176,7 @@ describe("verifyCmxDocumentEnvironment", () => {
     expect(
       verifyCmxDocumentEnvironment(
         createDocument({
-          dependencies: [input.documentDependency],
+          imports: [input.documentDependency],
         }),
         createEnvironment({
           dependencies: [input.environmentDependency],
@@ -219,107 +196,22 @@ describe("verifyCmxDocumentEnvironment", () => {
     });
   });
 
-  it.each([
-    {
-      name: "typed document meta without environment meta type",
-      document: createDocument({
-        meta: {
-          type: {
-            optional: true,
-            from: "@site/content",
-            import: "PageMeta",
-          },
-          data: {},
-        },
-      }),
-      environment: createEnvironment(),
-    },
-    {
-      name: "untyped document meta with environment meta type",
-      document: createDocument({
-        meta: {
-          data: {},
-        },
-      }),
-      environment: createEnvironment({
-        metaType: {
-          from: "@site/content",
-          import: "PageMeta",
-          optional: true,
-        },
-      }),
-    },
-    {
-      name: "different document and environment meta types",
-      document: createDocument({
-        meta: {
-          type: {
-            optional: true,
-            from: "@site/content",
-            import: "PageMeta",
-          },
-          data: {},
-        },
-      }),
-      environment: createEnvironment({
-        metaType: {
-          from: "@site/content",
-          import: "OtherMeta",
-          optional: true,
-        },
-      }),
-    },
-  ])("reports meta mismatch for $name", (input) => {
-    expect(
-      verifyCmxDocumentEnvironment(input.document, input.environment),
-    ).toEqual({
-      valid: false,
-      diagnostics: [
-        {
-          severity: "error",
-          code: "meta-type-mismatch",
-          message: "Document meta type is not compatible with the environment.",
-        },
-      ],
-    });
-  });
-
-  it("reports missing required meta", () => {
-    expect(
-      verifyCmxDocumentEnvironment(
-        createDocument(),
-        createEnvironment({
-          metaType: {
-            from: "@site/content",
-            import: "PageMeta",
-          },
-        }),
-      ),
-    ).toEqual({
-      valid: false,
-      diagnostics: [
-        {
-          severity: "error",
-          code: "missing-required-meta",
-          message: "Document meta is required but missing.",
-        },
-      ],
-    });
-  });
-
-  it("does not inspect imports or walk the document tree", () => {
+  it("does not inspect content or environment imports", () => {
     const document = {
       $schema: "https://cmx.dev/schemas/document.v1.json",
       cmxVersion: 1,
-      dependencies: [
-        {
-          name: "@site/theme",
-          specifier: "^1.0.0",
-          version: "1.2.3",
+      interface: {
+        imports: {
+          "@site/theme": {
+            name: "@site/theme",
+            specifier: "^1.0.0",
+            version: "1.2.3",
+          },
         },
-      ],
-      get tree(): never {
-        throw new Error("tree was inspected");
+        exports: {},
+      },
+      get content(): never {
+        throw new Error("content was inspected");
       },
     } as CmxDocument;
     const environment = {
@@ -333,11 +225,6 @@ describe("verifyCmxDocumentEnvironment", () => {
       get imports(): never {
         throw new Error("imports were inspected");
       },
-      metaType: {
-        from: "@site/content",
-        import: "PageMeta",
-        optional: true,
-      },
     } as CmxEnvironment;
 
     expect(verifyCmxDocumentEnvironment(document, environment)).toEqual({
@@ -346,17 +233,37 @@ describe("verifyCmxDocumentEnvironment", () => {
   });
 });
 
-function createDocument(options: Partial<CmxDocument> = {}): CmxDocument {
+type TestDocumentOptions = Partial<CmxDocument> & {
+  imports?: CmxDependency[];
+};
+
+function createDocument(options: TestDocumentOptions = {}): CmxDocument {
+  const { imports = [], ...documentOptions } = options;
   return {
     $schema: "https://cmx.dev/schemas/document.v1.json",
     cmxVersion: 1,
-    dependencies: [],
-    tree: {
-      type: "component",
-      from: "@site/theme/button",
-      import: "Button",
+    interface: {
+      imports: Object.fromEntries(
+        imports.map((dependency) => [dependency.name, dependency]),
+      ),
+      exports: {
+        default: {
+          type: {
+            from: "cmx-contracts",
+            import: "CmxNode",
+          },
+          slots: [[]],
+        },
+      },
     },
-    ...options,
+    content: {
+      default: {
+        type: "component",
+        from: "@site/theme/button",
+        import: "Button",
+      },
+    },
+    ...documentOptions,
   };
 }
 

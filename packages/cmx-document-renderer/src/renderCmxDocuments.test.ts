@@ -85,10 +85,23 @@ describe("renderCmxDocuments", () => {
             $schema:
               "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
             cmxVersion: 1,
-            dependencies: [],
-            tree: {
-              type: "element",
-              tag: "main",
+            interface: {
+              imports: {},
+              exports: {
+                default: {
+                  type: {
+                    from: "cmx-contracts",
+                    import: "CmxNode",
+                  },
+                  slots: [[]],
+                },
+              },
+            },
+            content: {
+              default: {
+                type: "element",
+                tag: "main",
+              },
             },
           },
         },
@@ -148,175 +161,25 @@ describe("renderCmxDocuments", () => {
         entry: {
           result: "document",
           document: {
-            dependencies: [
-              {
-                name: "@theme/ui",
-                specifier: "^1.0.0",
-                version: "1.2.3",
-              },
-            ],
-            tree: {
-              type: "component",
-              from: "@theme/ui/button",
-              import: "Button",
-            },
-          },
-        },
-      },
-    });
-  });
-
-  it("selects dependencies from emitted typed meta refs", async () => {
-    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
-    await writeFile(
-      path.join(outDir, "entry.js"),
-      `export const meta = { title: "Home" };\nexport default "Home";\n`,
-      "utf8",
-    );
-
-    await expect(
-      renderCmxBundle({
-        bundleDir: outDir,
-        bundle: {
-          version: 1,
-          runtime: {
-            importSource: "cmx-runtime",
-          },
-          dependencies: [
-            {
-              name: "@theme/content",
-              specifier: "workspace:*",
-              version: "0.0.0",
-            },
-            {
-              name: "@theme/unused",
-              specifier: "^2.0.0",
-              version: "2.3.4",
-            },
-          ],
-          entries: [
-            {
-              name: "entry",
-              file: "entry.js",
-              sourcemap: "entry.js.map",
-              meta: {
-                type: {
-                  from: "@theme/content",
-                  import: "PageMeta",
+            interface: {
+              imports: {
+                "@theme/ui": {
+                  name: "@theme/ui",
+                  specifier: "^1.0.0",
+                  version: "1.2.3",
                 },
               },
             },
-          ],
-          chunks: [],
-        },
-      }),
-    ).resolves.toMatchObject({
-      result: "complete",
-      entries: {
-        entry: {
-          result: "document",
-          document: {
-            dependencies: [
-              {
-                name: "@theme/content",
-                specifier: "workspace:*",
-                version: "0.0.0",
-              },
-            ],
-            meta: {
-              type: {
-                from: "@theme/content",
-                import: "PageMeta",
-              },
-              data: {
-                title: "Home",
+            content: {
+              default: {
+                type: "component",
+                from: "@theme/ui/button",
+                import: "Button",
               },
             },
-            tree: "Home",
           },
         },
       },
-    });
-  });
-
-  it("returns a top-level error when the runtime protocol cannot be loaded", async () => {
-    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
-    await writeFile(
-      path.join(outDir, "entry.js"),
-      `throw new Error("entry was imported");\n`,
-      "utf8",
-    );
-    const importSource = pathToFileURL(path.join(outDir, "missing.js")).href;
-
-    await expect(
-      renderCmxBundle({
-        bundleDir: outDir,
-        bundle: {
-          version: 1,
-          runtime: {
-            importSource,
-          },
-          dependencies: [],
-          entries: [
-            {
-              name: "entry",
-              file: "entry.js",
-              sourcemap: "entry.js.map",
-            },
-          ],
-          chunks: [],
-        },
-      }),
-    ).resolves.toEqual({
-      result: "error",
-      diagnostics: [
-        {
-          severity: "error",
-          code: "runtime-protocol-unavailable",
-          message: `CMX runtime protocol could not be loaded from "${importSource}".`,
-        },
-      ],
-    });
-  });
-
-  it("returns a top-level error when the runtime protocol is invalid", async () => {
-    const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
-    await writeFile(
-      path.join(outDir, "entry.js"),
-      `throw new Error("entry was imported");\n`,
-      "utf8",
-    );
-    await writeFile(path.join(outDir, "runtime.js"), `export {};\n`, "utf8");
-    const importSource = pathToFileURL(path.join(outDir, "runtime.js")).href;
-
-    await expect(
-      renderCmxBundle({
-        bundleDir: outDir,
-        bundle: {
-          version: 1,
-          runtime: {
-            importSource,
-          },
-          dependencies: [],
-          entries: [
-            {
-              name: "entry",
-              file: "entry.js",
-              sourcemap: "entry.js.map",
-            },
-          ],
-          chunks: [],
-        },
-      }),
-    ).resolves.toEqual({
-      result: "error",
-      diagnostics: [
-        {
-          severity: "error",
-          code: "invalid-runtime-protocol",
-          message: `CMX runtime protocol from "${importSource}" does not export isRuntimeNode.`,
-        },
-      ],
     });
   });
 
@@ -356,15 +219,27 @@ describe("renderCmxDocuments", () => {
             $schema:
               "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
             cmxVersion: 1,
-            dependencies: [],
-            tree: "rendered",
+            interface: {
+              imports: {},
+              exports: {
+                default: {
+                  type: {
+                    from: "cmx-contracts",
+                    import: "CmxNode",
+                  },
+                  slots: [[]],
+                },
+              },
+            },
+            content: {
+              default: "rendered",
+            },
           },
         },
       },
       diagnostics: [],
     });
   });
-
   it("maps render errors through entry sourcemaps", async () => {
     const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
     await writeCompiledEntry(
@@ -512,7 +387,9 @@ describe("renderCmxDocuments", () => {
         home: {
           result: "document",
           document: {
-            tree: "Home",
+            content: {
+              default: "Home",
+            },
           },
         },
         broken: {
@@ -717,11 +594,34 @@ describe("renderCmxDocuments", () => {
 
 async function renderCmxBundle(input: {
   bundleDir: string;
-  bundle: CmxBundle;
+  bundle: Omit<
+    CmxBundle,
+    "exports" | "unsupportedValues" | "unverifiedOptionalExports"
+  > &
+    Partial<
+      Pick<
+        CmxBundle,
+        "exports" | "unsupportedValues" | "unverifiedOptionalExports"
+      >
+    >;
 }): ReturnType<typeof renderCmxDocuments> {
+  const bundle: CmxBundle = {
+    exports: {
+      default: {
+        required: true,
+        type: {
+          from: "cmx-contracts",
+          import: "CmxNode",
+        },
+      },
+    },
+    unsupportedValues: "error",
+    unverifiedOptionalExports: "error",
+    ...input.bundle,
+  };
   await writeFile(
     path.join(input.bundleDir, CMX_BUNDLE_FILE_NAME),
-    `${JSON.stringify(input.bundle, null, 2)}\n`,
+    `${JSON.stringify(bundle, null, 2)}\n`,
     "utf8",
   );
   return renderCmxDocuments({

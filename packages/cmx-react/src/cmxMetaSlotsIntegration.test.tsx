@@ -4,45 +4,49 @@ import { describe, expect, it } from "vitest";
 import type { CmxDocument, CmxEnvironment } from "cmx-contracts";
 import { cmx } from "cmx-react";
 
-type PageMeta = {
-  title: string;
-  badge: React.ReactNode;
-};
-
-describe("cmx React meta slots", () => {
-  it("renders materialized meta slots at the app boundary", () => {
+describe("cmx React default export slots", () => {
+  it("renders hydrated default export slots at the app boundary", () => {
     function Badge() {
       return <span className="badge">Featured</span>;
     }
     const document: CmxDocument = {
       $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
       cmxVersion: 1,
-      dependencies: [
-        {
-          name: "@site/theme",
-          specifier: "^1.0.0",
-          version: "1.2.3",
-        },
-      ],
-      meta: {
-        data: {
-          title: "About",
-          badge: {
-            type: "component",
-            from: "@site/theme",
-            import: "Badge",
+      interface: {
+        imports: {
+          "@site/theme": {
+            name: "@site/theme",
+            specifier: "^1.0.0",
+            version: "1.2.3",
           },
         },
-        slots: [["badge"]],
+        exports: {
+          default: {
+            type: {
+              from: "cmx-contracts",
+              import: "CmxNode",
+            },
+            slots: [[]],
+          },
+        },
       },
-      tree: {
-        type: "element",
-        tag: "main",
-        children: ["About"],
+      content: {
+        default: {
+          type: "element",
+          tag: "main",
+          children: [
+            {
+              type: "component",
+              from: "@site/theme",
+              import: "Badge",
+            },
+            "About",
+          ],
+        },
       },
     };
-    const environment: CmxEnvironment<PageMeta> = {
-      dependencies: document.dependencies,
+    const environment: CmxEnvironment = {
+      dependencies: Object.values(document.interface.imports),
       imports: {
         "@site/theme": {
           Badge,
@@ -50,31 +54,19 @@ describe("cmx React meta slots", () => {
       },
     };
 
-    const { children, meta } = cmx<PageMeta>(document, environment);
-    const html = renderToString(<App children={children} meta={meta} />);
+    const { children } = cmx(document, environment);
+    const html = renderToString(<App>{children}</App>);
 
-    expect(html).toContain("<title>About</title>");
     expect(html).toContain('<span class="badge">Featured</span>');
-    expect(html).toContain("<main>About</main>");
+    expect(html).toContain("<main");
+    expect(html).toContain("About");
   });
 });
 
-function App({
-  children,
-  meta,
-}: {
-  children: React.ReactNode;
-  meta?: PageMeta;
-}) {
+function App({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <title>{meta?.title}</title>
-      </head>
-      <body>
-        {meta?.badge}
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

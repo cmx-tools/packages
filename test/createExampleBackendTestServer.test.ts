@@ -37,7 +37,7 @@ describe("createExampleBackendTestServer", () => {
         <html lang="en">
           <head>
             <meta charset="utf-8" />
-            <title>About</title>
+            <title>example</title>
           </head>
           <body>
             <div>

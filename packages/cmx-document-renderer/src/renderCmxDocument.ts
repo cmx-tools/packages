@@ -1,12 +1,11 @@
 import type {
   CmxDependency,
   CmxDiagnostic,
-  CmxMetaType,
   CmxComponentNode,
   CmxDocument,
   CmxElementNode,
-  CmxMeta,
   CmxNode,
+  CmxExportConfig,
   SlotPath,
 } from "cmx-contracts";
 import { CMX_DOCUMENT_VERSION } from "cmx-contracts";
@@ -50,15 +49,14 @@ type RenderContext = {
   runtime: RuntimeProtocol;
   dependencies: CmxDependency[];
   usedDependencyNames: Set<string>;
-  metaType?: CmxMetaType;
 };
 
 export type RenderCmxDocumentInput = {
   moduleUrl: string | URL;
+  exports: Record<string, CmxExportConfig>;
   runtime?: RuntimeProtocol;
   unsupportedValues?: UnsupportedValuesPolicy;
   dependencies?: CmxDependency[];
-  metaType?: CmxMetaType;
 };
 
 export class CmxRenderError extends Error {
@@ -78,6 +76,13 @@ export async function renderCmxDocument(
     /* @vite-ignore */ toModuleUrl(input.moduleUrl)
   )) as Record<string, unknown>;
 
+  const defaultConfig = input.exports.default;
+  if (!defaultConfig) {
+    throw new Error(
+      "CMX document rendering requires configured default export.",
+    );
+  }
+
   if (!Object.prototype.hasOwnProperty.call(bundleModule, "default")) {
     throw new Error("CMX bundle module has no default export.");
   }
@@ -89,18 +94,37 @@ export async function renderCmxDocument(
     ...input,
     runtime: input.runtime ?? (await loadDefaultRuntimeProtocol()),
   });
-  const tree = await normalizeCmxNodeValue(root, "default export", context);
-  const meta = await normalizeMeta(bundleModule, context);
+  const defaultContent = await normalizeCmxNodeValue(
+    root,
+    "default export",
+    context,
+  );
 
   return {
     document: {
       $schema: CMX_DOCUMENT_SCHEMA,
       cmxVersion: CMX_DOCUMENT_VERSION,
-      dependencies: context.dependencies.filter((dependency) =>
-        context.usedDependencyNames.has(dependency.name),
-      ),
-      ...(meta ? { meta } : {}),
-      tree,
+      interface: {
+        imports: Object.fromEntries(
+          context.dependencies
+            .filter((dependency) =>
+              context.usedDependencyNames.has(dependency.name),
+            )
+            .map((dependency) => [dependency.name, dependency]),
+        ),
+        exports: {
+          default: {
+            type: {
+              from: "cmx-contracts",
+              import: "CmxNode",
+            },
+            slots: [[]],
+          },
+        },
+      },
+      content: {
+        default: defaultContent,
+      },
     },
   };
 }
@@ -356,107 +380,8 @@ async function normalizeChildValue(
   return [await normalizeCmxNodeValue(resolvedValue, pathLabel, context)];
 }
 
-async function normalizeMeta(
-  module: Record<string, unknown>,
-  context: RenderContext,
-): Promise<CmxMeta | undefined> {
-  if (!Object.prototype.hasOwnProperty.call(module, "meta")) {
-    return undefined;
-  }
-
-  const slots: SlotPath[] = [];
-  const result = await normalizeMetaValue(
-    module.meta,
-    "meta",
-    [],
-    slots,
-    context,
-  );
-  if (!result.keep) {
-    return undefined;
-  }
-
-  if (context.metaType) {
-    registerDependencyRef(context.metaType.from, context);
-  }
-
-  return {
-    ...(context.metaType ? { type: context.metaType } : {}),
-    data: result.value,
-    ...(slots.length > 0 ? { slots } : {}),
-  };
-}
-
-async function normalizeMetaValue(
-  value: unknown,
-  pathLabel: string,
-  path: SlotPath,
-  slots: SlotPath[],
-  context: RenderContext,
-): Promise<KeepResult | DropResult> {
-  const resolvedValue = await value;
-
-  if (resolvedValue === undefined) {
-    return unsupportedValue("meta", pathLabel, context);
-  }
-
-  if (
-    resolvedValue === null ||
-    typeof resolvedValue === "string" ||
-    typeof resolvedValue === "number" ||
-    typeof resolvedValue === "boolean"
-  ) {
-    return { keep: true, value: resolvedValue };
-  }
-
-  if (Array.isArray(resolvedValue)) {
-    const normalized: unknown[] = [];
-    for (let index = 0; index < resolvedValue.length; index += 1) {
-      const result = await normalizeMetaValue(
-        resolvedValue[index],
-        `${pathLabel}[${index}]`,
-        [...path, normalized.length],
-        slots,
-        context,
-      );
-      if (result.keep) {
-        normalized.push(result.value);
-      }
-    }
-    return { keep: true, value: normalized };
-  }
-
-  if (context.runtime.isRuntimeNode(resolvedValue)) {
-    slots.push(path);
-    return {
-      keep: true,
-      value: await normalizeRuntimeNode(resolvedValue, pathLabel, context),
-    };
-  }
-
-  if (!isPlainObject(resolvedValue)) {
-    return unsupportedValue("meta", pathLabel, context);
-  }
-
-  const normalized: Record<string, unknown> = {};
-  for (const [key, nestedValue] of Object.entries(resolvedValue)) {
-    const result = await normalizeMetaValue(
-      nestedValue,
-      `${pathLabel}.${key}`,
-      [...path, key],
-      slots,
-      context,
-    );
-    if (result.keep) {
-      normalized[key] = result.value;
-    }
-  }
-
-  return { keep: true, value: normalized };
-}
-
 function unsupportedValue(
-  domain: "meta" | "prop",
+  domain: "prop",
   pathLabel: string,
   context: RenderContext,
 ): DropResult {
@@ -475,14 +400,12 @@ function createRenderContext(options: {
   runtime: RuntimeProtocol;
   unsupportedValues?: UnsupportedValuesPolicy;
   dependencies?: CmxDependency[];
-  metaType?: CmxMetaType;
 }): RenderContext {
   return {
     runtime: options.runtime,
     unsupportedValues: options.unsupportedValues ?? "error",
     dependencies: options.dependencies ?? [],
     usedDependencyNames: new Set(),
-    ...(options.metaType ? { metaType: options.metaType } : {}),
   };
 }
 

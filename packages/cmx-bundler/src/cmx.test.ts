@@ -32,6 +32,16 @@ async function readBundle(outDir: string): Promise<CmxBundle> {
   );
 }
 
+const defaultExports: CmxPluginOptions["exports"] = {
+  default: {
+    required: true,
+    type: {
+      from: "cmx-contracts",
+      import: "CmxNode",
+    },
+  },
+};
+
 async function writeStubPackage(
   rootDir: string,
   packageName: string,
@@ -140,7 +150,7 @@ describe("cmx", () => {
       const outDir = path.join(tempDir, "dist");
       const bundle = await rolldown({
         input: entryFile,
-        plugins: [cmx()],
+        plugins: [cmx({ exports: defaultExports })],
       });
 
       try {
@@ -171,6 +181,9 @@ describe("cmx", () => {
           runtime: {
             importSource: "cmx-runtime",
           },
+          exports: defaultExports,
+          unsupportedValues: "error",
+          unverifiedOptionalExports: "error",
           dependencies: [],
           entries: [
             {
@@ -205,13 +218,41 @@ describe("cmx", () => {
       );
       const bundle = await rolldown({
         input: entryFile,
-        plugins: [cmx()],
+        plugins: [cmx({ exports: defaultExports })],
       });
 
       try {
         await expect(
           bundle.generate({ format: "esm", sourcemap: false }),
         ).resolves.toBeDefined();
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("requires at least one configured export", async () => {
+    await withTempDir(async (tempDir) => {
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.tsx",
+        "export default <main>Hello</main>;\n",
+      );
+      const bundle = await rolldown({
+        input: entryFile,
+        plugins: [cmx({ exports: {} })],
+      });
+
+      try {
+        await expect(
+          bundle.generate({ format: "esm", sourcemap: false }),
+        ).rejects.toMatchObject({
+          errors: [
+            expect.objectContaining({
+              pluginCode: "cmx-exports-required",
+            }),
+          ],
+        });
       } finally {
         await bundle.close();
       }
@@ -251,7 +292,7 @@ describe("cmx", () => {
           home: homeFile,
           about: aboutFile,
         },
-        plugins: [cmx()],
+        plugins: [cmx({ exports: defaultExports })],
       });
 
       try {
@@ -329,7 +370,7 @@ describe("cmx", () => {
       await writeFixture(tempDir, "other.ts", "export const value = 1;\n");
       const bundle = await rolldown({
         input: entryFile,
-        plugins: [cmx()],
+        plugins: [cmx({ exports: defaultExports })],
       });
 
       try {
@@ -377,6 +418,7 @@ describe("cmx", () => {
         input: entryFile,
         plugins: [
           cmx({
+            exports: defaultExports,
             externals: [{ contract: "@theme/ui", implementation: "@theme/ui" }],
             cwd: tempDir,
           }),
@@ -450,6 +492,7 @@ describe("cmx", () => {
         input: entryFile,
         plugins: [
           cmx({
+            exports: defaultExports,
             externals: ["@theme/ui"],
             cwd: tempDir,
             getIntegrity: () => "sha512-test",
@@ -512,6 +555,7 @@ describe("cmx", () => {
         input: entryFile,
         plugins: [
           cmx({
+            exports: defaultExports,
             cwd: tempDir,
             externals: [
               {
@@ -520,10 +564,6 @@ describe("cmx", () => {
               },
               "@example/ui-library",
             ],
-            metaType: {
-              from: "@example/ui-library",
-              import: "PageMeta",
-            },
             environment: {
               fileName: "cmx-environment.ts",
             },
@@ -548,13 +588,12 @@ describe("cmx", () => {
           readFile(path.join(outDir, "cmx-environment.ts"), "utf8"),
         ).resolves.toEqual(
           [
-            'import type { PageMeta } from "@example/ui-library";',
             'import type { CmxEnvironment } from "cmx-contracts";',
             'import * as Api from "./api.ts";',
             'import type * as ExampleBackendContract from "@example/backend-contract";',
             'import * as ExampleUiLibrary from "@example/ui-library";',
             "",
-            "export const environment: CmxEnvironment<PageMeta> = {",
+            "export const environment: CmxEnvironment = {",
             "  dependencies: [",
             "    {",
             '      name: "@example/backend-contract",',
@@ -571,11 +610,6 @@ describe("cmx", () => {
             "  imports: {",
             '    "@example/backend-contract": Api satisfies typeof ExampleBackendContract,',
             '    "@example/ui-library": ExampleUiLibrary,',
-            "  },",
-            "  metaType: {",
-            '    from: "@example/ui-library",',
-            '    import: "PageMeta",',
-            "    optional: false,",
             "  },",
             "};",
             "",
@@ -654,6 +688,7 @@ describe("cmx", () => {
             },
           },
           cmx({
+            exports: defaultExports,
             cwd: tempDir,
             externals: [
               {
@@ -793,6 +828,7 @@ describe("cmx", () => {
             },
           },
           cmx({
+            exports: defaultExports,
             cwd: tempDir,
             externals: [
               { contract: "@theme/ui", implementation: "@runtime/ui" },
@@ -900,6 +936,7 @@ describe("cmx", () => {
             },
           },
           cmx({
+            exports: defaultExports,
             cwd: tempDir,
             externals: [
               { contract: "@theme/ui", implementation: "@runtime/ui" },
@@ -954,6 +991,7 @@ describe("cmx", () => {
         input: entryFile,
         plugins: [
           cmx({
+            exports: defaultExports,
             externals: ["@theme/ui/*"],
             cwd: tempDir,
           }),
@@ -1002,10 +1040,7 @@ describe("cmx", () => {
       const bundle = await rolldown({
         input: entryFile,
         plugins: [
-          cmx({
-            externals: ["@theme"],
-            cwd: tempDir,
-          }),
+          cmx({ exports: defaultExports, externals: ["@theme"], cwd: tempDir }),
         ],
       });
 
@@ -1051,6 +1086,7 @@ describe("cmx", () => {
         input: entryFile,
         plugins: [
           cmx({
+            exports: defaultExports,
             externals: [
               { contract: "@theme/ui" },
             ] as unknown as CmxPluginOptions["externals"],
@@ -1108,6 +1144,7 @@ describe("cmx", () => {
           input: entryFile,
           plugins: [
             cmx({
+              exports: defaultExports,
               externals: [
                 { contract: "@theme/ui", implementation },
               ] as unknown as CmxPluginOptions["externals"],
@@ -1170,6 +1207,7 @@ describe("cmx", () => {
             },
           },
           cmx({
+            exports: defaultExports,
             cwd: tempDir,
             externals: ["@theme/ui"],
             environment: {
@@ -1213,214 +1251,7 @@ describe("cmx", () => {
     });
   });
 
-  it("uses configured metaType for content entries that export meta", async () => {
-    await withTempDir(async (tempDir) => {
-      const entryFile = await writeFixture(
-        tempDir,
-        "entry.tsx",
-        [
-          "export const meta = { title: 'Hello' };",
-          "export default <main>Hello</main>;",
-        ].join("\n"),
-      );
-      const outDir = path.join(tempDir, "dist");
-      const bundle = await rolldown({
-        input: entryFile,
-        plugins: [
-          cmx({
-            metaType: {
-              from: "@theme/content",
-              import: "PageMeta",
-            },
-          }),
-        ],
-      });
-
-      try {
-        await bundle.write({
-          dir: outDir,
-          entryFileNames: "entry.js",
-        });
-
-        await expect(readBundle(outDir)).resolves.toMatchObject({
-          entries: [
-            {
-              name: "entry",
-              meta: {
-                type: {
-                  from: "@theme/content",
-                  import: "PageMeta",
-                },
-              },
-            },
-          ],
-        });
-      } finally {
-        await bundle.close();
-      }
-    });
-  });
-
-  it("ignores non-entry exported meta annotations", async () => {
-    await withTempDir(async (tempDir) => {
-      const entryFile = await writeFixture(
-        tempDir,
-        "entry.tsx",
-        [
-          'import { label } from "./helper";',
-          "export default <main>{label}</main>;",
-        ].join("\n"),
-      );
-      await writeFixture(
-        tempDir,
-        "helper.ts",
-        [
-          "type HelperMeta<T> = { local: T };",
-          "export const meta: HelperMeta<{ label: string }> = { local: { label: 'Helper' } };",
-          "export const label = meta.local.label;",
-        ].join("\n"),
-      );
-      const outDir = path.join(tempDir, "dist");
-      const bundle = await rolldown({
-        input: entryFile,
-        plugins: [cmx()],
-      });
-
-      try {
-        await bundle.write({
-          dir: outDir,
-          entryFileNames: "entry.js",
-        });
-
-        const cmxBundle = await readBundle(outDir);
-        expect(cmxBundle.entries).toEqual([
-          {
-            name: "entry",
-            file: "entry.js",
-            sourcemap: "entry.js.map",
-          },
-        ]);
-      } finally {
-        await bundle.close();
-      }
-    });
-  });
-
-  it("allows content entries without meta when configured metaType is optional", async () => {
-    await withTempDir(async (tempDir) => {
-      const entryFile = await writeFixture(
-        tempDir,
-        "entry.tsx",
-        [
-          "export const meta = { title: 'Hello' };",
-          "export default <main>Hello</main>;",
-        ].join("\n"),
-      );
-      const withoutMetaFile = await writeFixture(
-        tempDir,
-        "withoutMeta.tsx",
-        "export default <main>No meta</main>;\n",
-      );
-      const outDir = path.join(tempDir, "dist");
-      const bundle = await rolldown({
-        input: {
-          entry: entryFile,
-          withoutMeta: withoutMetaFile,
-        },
-        plugins: [
-          cmx({
-            metaType: {
-              from: "@theme/content",
-              import: "PageMeta",
-              optional: true,
-            },
-          }),
-        ],
-      });
-
-      try {
-        await bundle.write({
-          dir: outDir,
-          entryFileNames: "[name].js",
-        });
-
-        const cmxBundle = await readBundle(outDir);
-        expect(cmxBundle.entries).toHaveLength(2);
-        expect(cmxBundle.entries).toEqual(
-          expect.arrayContaining([
-            {
-              name: "entry",
-              file: "entry.js",
-              sourcemap: "entry.js.map",
-              meta: {
-                type: {
-                  from: "@theme/content",
-                  import: "PageMeta",
-                  optional: true,
-                },
-              },
-            },
-            {
-              name: "withoutMeta",
-              file: "withoutMeta.js",
-              sourcemap: "withoutMeta.js.map",
-            },
-          ]),
-        );
-        const withoutMetaEntry = cmxBundle.entries.find(
-          (entry) => entry.name === "withoutMeta",
-        );
-        expect(withoutMetaEntry).toBeDefined();
-        expect(withoutMetaEntry).not.toHaveProperty("meta");
-      } finally {
-        await bundle.close();
-      }
-    });
-  });
-
-  it("rejects content entries without meta when configured metaType is required", async () => {
-    await withTempDir(async (tempDir) => {
-      const entryFile = await writeFixture(
-        tempDir,
-        "entry.tsx",
-        "export default <main>Missing meta</main>;\n",
-      );
-      const outDir = path.join(tempDir, "dist");
-      const bundle = await rolldown({
-        input: entryFile,
-        plugins: [
-          cmx({
-            metaType: {
-              from: "@theme/content",
-              import: "PageMeta",
-            },
-          }),
-        ],
-      });
-
-      try {
-        await expect(
-          bundle.write({
-            dir: outDir,
-            entryFileNames: "entry.js",
-          }),
-        ).rejects.toMatchObject({
-          errors: [
-            expect.objectContaining({
-              pluginCode: "cmx-meta-required",
-            }),
-          ],
-        });
-        await expect(
-          readFile(path.join(outDir, "cmx-bundle.json"), "utf8"),
-        ).rejects.toMatchObject({ code: "ENOENT" });
-      } finally {
-        await bundle.close();
-      }
-    });
-  });
-
-  it("allows exported meta when metaType is not configured", async () => {
+  it("does not treat meta as a special bundle entry field", async () => {
     await withTempDir(async (tempDir) => {
       const entryFile = await writeFixture(
         tempDir,
@@ -1433,7 +1264,7 @@ describe("cmx", () => {
       const outDir = path.join(tempDir, "dist");
       const bundle = await rolldown({
         input: entryFile,
-        plugins: [cmx()],
+        plugins: [cmx({ exports: defaultExports })],
       });
 
       try {
@@ -1447,56 +1278,6 @@ describe("cmx", () => {
           name: "entry",
         });
         expect(cmxBundle.entries[0]).not.toHaveProperty("meta");
-      } finally {
-        await bundle.close();
-      }
-    });
-  });
-
-  it("rejects unsupported exported meta annotations", async () => {
-    await withTempDir(async (tempDir) => {
-      const entryFile = await writeFixture(
-        tempDir,
-        "entry.tsx",
-        [
-          'import type { PageMeta } from "@theme/content";',
-          "export const meta: PageMeta<{ title: string }> = { title: 'Local' };",
-          "export default <main>Local</main>;",
-        ].join("\n"),
-      );
-      const outDir = path.join(tempDir, "dist");
-      const bundle = await rolldown({
-        input: entryFile,
-        plugins: [
-          cmx({
-            metaType: {
-              from: "@theme/content",
-              import: "PageMeta",
-            },
-          }),
-        ],
-      });
-
-      try {
-        await expect(
-          bundle.write({
-            dir: outDir,
-            entryFileNames: "entry.js",
-          }),
-        ).rejects.toMatchObject({
-          errors: [
-            expect.objectContaining({
-              pluginCode: "meta-type-unsupported",
-              loc: expect.objectContaining({
-                line: 2,
-                column: 19,
-              }),
-            }),
-          ],
-        });
-        await expect(
-          readFile(path.join(outDir, "cmx-bundle.json"), "utf8"),
-        ).rejects.toMatchObject({ code: "ENOENT" });
       } finally {
         await bundle.close();
       }
@@ -1534,6 +1315,7 @@ describe("cmx", () => {
         input: entryFile,
         plugins: [
           cmx({
+            exports: defaultExports,
             externals: ["@theme/ui"],
             cwd: tempDir,
           }),
@@ -1580,6 +1362,7 @@ describe("cmx", () => {
         input: entryFile,
         plugins: [
           cmx({
+            exports: defaultExports,
             externals: ["@theme/ui"],
             cwd: tempDir,
           }),
@@ -1608,7 +1391,7 @@ describe("cmx", () => {
       );
       const bundle = await rolldown({
         input: entryFile,
-        plugins: [cmx({ externals: ["@theme/ui"] })],
+        plugins: [cmx({ exports: defaultExports, externals: ["@theme/ui"] })],
       });
 
       try {
@@ -1661,6 +1444,7 @@ describe("cmx", () => {
         input: entryFile,
         plugins: [
           cmx({
+            exports: defaultExports,
             externals: ["@acme/widgets"],
             cwd: tempDir,
           }),
@@ -1724,6 +1508,7 @@ describe("cmx", () => {
         input: entryFile,
         plugins: [
           cmx({
+            exports: defaultExports,
             externals: ["@theme/ui"],
             cwd: tempDir,
           }),
@@ -1784,6 +1569,7 @@ describe("cmx", () => {
         input: entryFile,
         plugins: [
           cmx({
+            exports: defaultExports,
             externals: ["@theme/ui"],
             cwd: tempDir,
           }),
@@ -1839,6 +1625,7 @@ describe("cmx", () => {
         input: entryFile,
         plugins: [
           cmx({
+            exports: defaultExports,
             externals: ["@theme/ui"],
             cwd: tempDir,
           }),
@@ -1861,73 +1648,6 @@ describe("cmx", () => {
         await expect(
           readFile(path.join(outDir, "entry.js"), "utf8"),
         ).resolves.toContain("local");
-      } finally {
-        await bundle.close();
-      }
-    });
-  });
-
-  it("records bundle dependency when typed meta import matches configured externals", async () => {
-    await withTempDir(async (tempDir) => {
-      await writeFixture(
-        tempDir,
-        "package.json",
-        `${JSON.stringify(
-          {
-            name: "meta-external-fixture",
-            private: true,
-            dependencies: { "@theme/content": "workspace:*" },
-          },
-          null,
-          2,
-        )}\n`,
-      );
-      await writeStubPackage(tempDir, "@theme/content", "0.5.0");
-      const entryFile = await writeFixture(
-        tempDir,
-        "entry.tsx",
-        [
-          'import type { PageMeta } from "@theme/content";',
-          "export const meta: PageMeta = { title: 'Hello' };",
-          "export default <main>Hello</main>;",
-        ].join("\n"),
-      );
-      const outDir = path.join(tempDir, "dist");
-      const bundle = await rolldown({
-        input: entryFile,
-        plugins: [
-          cmx({
-            externals: ["@theme/content"],
-            metaType: {
-              from: "@theme/content",
-              import: "PageMeta",
-            },
-            cwd: tempDir,
-          }),
-        ],
-      });
-
-      try {
-        await bundle.write({
-          dir: outDir,
-          entryFileNames: "entry.js",
-        });
-        const cmxBundle = await readBundle(outDir);
-        expect(cmxBundle.dependencies).toEqual([
-          {
-            name: "@theme/content",
-            specifier: "workspace:*",
-            version: "0.5.0",
-          },
-        ]);
-        expect(cmxBundle.entries[0]).toMatchObject({
-          meta: {
-            type: {
-              from: "@theme/content",
-              import: "PageMeta",
-            },
-          },
-        });
       } finally {
         await bundle.close();
       }
@@ -1961,6 +1681,7 @@ describe("cmx", () => {
         input: entryFile,
         plugins: [
           cmx({
+            exports: defaultExports,
             externals: ["@theme/ui"],
             cwd: tempDir,
           }),
@@ -2009,6 +1730,7 @@ describe("cmx", () => {
         input: entryFile,
         plugins: [
           cmx({
+            exports: defaultExports,
             externals: ["@theme/ui"],
             cwd: tempDir,
           }),
@@ -2059,6 +1781,7 @@ describe("cmx", () => {
         external: ["@theme/ui"],
         plugins: [
           cmx({
+            exports: defaultExports,
             externals: ["@theme/ui"],
             cwd: tempDir,
           }),

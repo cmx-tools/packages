@@ -1,5 +1,5 @@
 import type { CmxDependency } from "./cmxDependency.js";
-import type { CmxMetaType, CmxVersion } from "./cmxBundle.js";
+import type { CmxTypeRef, CmxVersion } from "./cmxBundle.js";
 
 export type SlotPath = Array<string | number>;
 
@@ -36,16 +36,19 @@ export type CmxNode =
   | CmxElementNode
   | CmxComponentNode;
 
-export type CmxMeta = {
-  type?: CmxMetaType;
-  data: unknown;
+export type CmxDocumentExport = {
+  type?: CmxTypeRef;
   slots?: SlotPath[];
+};
+
+export type CmxDocumentInterface = {
+  imports: Record<string, CmxDependency>;
+  exports: Record<string, CmxDocumentExport>;
 };
 
 export type CmxDocument = {
   $schema: string;
   cmxVersion: CmxVersion;
-  dependencies: CmxDependency[];
-  meta?: CmxMeta;
-  tree: CmxNode;
+  interface: CmxDocumentInterface;
+  content: Record<string, unknown>;
 };

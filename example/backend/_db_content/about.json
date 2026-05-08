@@ -1,51 +1,54 @@
 {
   "$schema": "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
   "cmxVersion": 1,
-  "dependencies": [
-    {
-      "name": "@example/backend-contract",
-      "specifier": "workspace:*",
-      "version": "0.1.0"
+  "interface": {
+    "imports": {
+      "@example/backend-contract": {
+        "name": "@example/backend-contract",
+        "specifier": "workspace:*",
+        "version": "0.1.0"
+      },
+      "@example/ui-library": {
+        "name": "@example/ui-library",
+        "specifier": "workspace:*",
+        "version": "0.1.0"
+      }
     },
-    {
-      "name": "@example/ui-library",
-      "specifier": "workspace:*",
-      "version": "0.1.0"
-    }
-  ],
-  "meta": {
-    "type": {
-      "from": "@example/backend-contract",
-      "import": "Meta",
-      "optional": true
-    },
-    "data": {
-      "title": "About"
+    "exports": {
+      "default": {
+        "type": {
+          "from": "cmx-contracts",
+          "import": "CmxNode"
+        },
+        "slots": [[]]
+      }
     }
   },
-  "tree": {
-    "type": "element",
-    "tag": "div",
-    "children": [
-      {
-        "type": "component",
-        "from": "@example/ui-library",
-        "import": "Header",
-        "props": {
-          "accessory": {
-            "type": "component",
-            "from": "@example/backend-contract",
-            "import": "UserProfile"
-          }
+  "content": {
+    "default": {
+      "type": "element",
+      "tag": "div",
+      "children": [
+        {
+          "type": "component",
+          "from": "@example/ui-library",
+          "import": "Header",
+          "props": {
+            "accessory": {
+              "type": "component",
+              "from": "@example/backend-contract",
+              "import": "UserProfile"
+            }
+          },
+          "slots": [["accessory"]],
+          "children": ["About"]
         },
-        "slots": [["accessory"]],
-        "children": ["About"]
-      },
-      {
-        "type": "element",
-        "tag": "p",
-        "children": ["About"]
-      }
-    ]
+        {
+          "type": "element",
+          "tag": "p",
+          "children": ["About"]
+        }
+      ]
+    }
   }
 }

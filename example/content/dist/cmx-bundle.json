@@ -3,6 +3,17 @@
   "runtime": {
     "importSource": "cmx-runtime"
   },
+  "exports": {
+    "default": {
+      "required": true,
+      "type": {
+        "from": "cmx-contracts",
+        "import": "CmxNode"
+      }
+    }
+  },
+  "unsupportedValues": "error",
+  "unverifiedOptionalExports": "error",
   "dependencies": [
     {
       "name": "@example/backend-contract",
@@ -24,14 +35,7 @@
     {
       "name": "about",
       "file": "about.js",
-      "sourcemap": "about.js.map",
-      "meta": {
-        "type": {
-          "from": "@example/backend-contract",
-          "import": "Meta",
-          "optional": true
-        }
-      }
+      "sourcemap": "about.js.map"
     }
   ],
   "chunks": [
