@@ -243,6 +243,101 @@ describe("cmx-document-renderer", () => {
     });
   });
 
+  it("accepts primitive and array roots for CmxNode-typed exports", async () => {
+    await expect(
+      renderCmxDocument({
+        moduleUrl: new URL("./prepared-bundle.fixture.ts", import.meta.url),
+        exports: {
+          plainString: {
+            required: true,
+            type: {
+              from: "cmx-contracts",
+              import: "CmxNode",
+            },
+          },
+          plainNumber: {
+            required: true,
+            type: {
+              from: "cmx-contracts",
+              import: "CmxNode",
+            },
+          },
+          plainBoolean: {
+            required: true,
+            type: {
+              from: "cmx-contracts",
+              import: "CmxNode",
+            },
+          },
+          plainNull: {
+            required: true,
+            type: {
+              from: "cmx-contracts",
+              import: "CmxNode",
+            },
+          },
+          plainArray: {
+            required: true,
+            type: {
+              from: "cmx-contracts",
+              import: "CmxNode",
+            },
+          },
+        },
+      }),
+    ).resolves.toEqual({
+      document: {
+        $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
+        cmxVersion: 1,
+        interface: {
+          imports: {},
+          exports: {
+            plainString: {
+              type: {
+                from: "cmx-contracts",
+                import: "CmxNode",
+              },
+            },
+            plainNumber: {
+              type: {
+                from: "cmx-contracts",
+                import: "CmxNode",
+              },
+            },
+            plainBoolean: {
+              type: {
+                from: "cmx-contracts",
+                import: "CmxNode",
+              },
+            },
+            plainNull: {
+              type: {
+                from: "cmx-contracts",
+                import: "CmxNode",
+              },
+            },
+            plainArray: {
+              type: {
+                from: "cmx-contracts",
+                import: "CmxNode",
+              },
+            },
+          },
+        },
+        content: {
+          plainString: "hello",
+          plainNumber: 42,
+          plainBoolean: true,
+          plainNull: null,
+          plainArray: {
+            type: "fragment",
+            children: ["hello", 42, true, null],
+          },
+        },
+      },
+    });
+  });
+
   it("fails required typed export when configured type cannot be verified", async () => {
     await expect(
       renderCmxDocument({

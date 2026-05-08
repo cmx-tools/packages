@@ -116,10 +116,28 @@ export async function renderCmxDocument(
       continue;
     }
 
+    let normalizedRootValue = rendered.value;
+    let rootIsCmxNode = rendered.rootIsCmxNode;
+    if (isCmxNodeTypeRef(config.type)) {
+      try {
+        normalizedRootValue = await normalizeCmxNodeValue(
+          root,
+          `${name} export`,
+          context,
+        );
+        rootIsCmxNode = true;
+      } catch (error) {
+        if (!(error instanceof CmxRenderError)) {
+          throw error;
+        }
+        rootIsCmxNode = false;
+      }
+    }
+
     const verifiedType = resolveVerifiedType({
       configuredType: config.type,
       sourceType: input.sourceExports?.[name]?.type,
-      rootIsCmxNode: rendered.rootIsCmxNode,
+      rootIsCmxNode,
     });
     if (config.type && !verifiedType) {
       if (config.required || context.unverifiedOptionalExports === "error") {
@@ -133,7 +151,7 @@ export async function renderCmxDocument(
     }
     registerTypeDependencyRef(verifiedType, context);
 
-    content[name] = rendered.value;
+    content[name] = normalizedRootValue;
     documentExports[name] = {
       ...(verifiedType === undefined ? {} : { type: verifiedType }),
       ...(rendered.slots.length === 0 ? {} : { slots: rendered.slots }),
@@ -570,6 +588,16 @@ function resolveVerifiedType(input: {
   }
 
   return undefined;
+}
+
+function isCmxNodeTypeRef(type: CmxTypeRef | undefined): boolean {
+  return (
+    type !== undefined &&
+    sameTypeRef(type, {
+      from: "cmx-contracts",
+      import: "CmxNode",
+    })
+  );
 }
 
 function sameTypeRef(left: CmxTypeRef, right: CmxTypeRef | undefined): boolean {
