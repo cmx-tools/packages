@@ -112,7 +112,11 @@ function hydrateComponent(
   node: CmxComponentNode,
   environment: CmxEnvironment | undefined,
 ): ReactNode {
-  const component = environment?.imports[node.from]?.[node.import ?? "default"];
+  const importName = node.import ?? "default";
+  const component = environment?.imports[node.from]?.[importName];
+  if (!component) {
+    throw new Error(`CMX import binding missing: ${node.from}#${importName}`);
+  }
 
   return createElement(
     component as never,
