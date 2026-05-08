@@ -400,7 +400,7 @@ describe("cmx", () => {
 
     const _defaultType: Assert<IsEqual<typeof page.default, React.ReactNode>> =
       true;
-    const _metaType: Assert<
+    const _metaExportType: Assert<
       IsEqual<
         typeof page.meta,
         | {
@@ -413,7 +413,7 @@ describe("cmx", () => {
     const _teaserType: Assert<IsEqual<typeof page.teaser, unknown>> = true;
 
     expect(_defaultType).toBe(true);
-    expect(_metaType).toBe(true);
+    expect(_metaExportType).toBe(true);
     expect(_teaserType).toBe(true);
   });
 });

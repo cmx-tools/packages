@@ -280,7 +280,7 @@ describe("renderCmxTestbed", () => {
     });
   });
 
-  it("resolves the workspace cmx-runtime package without materializing it beside tmp output", async () => {
+  it("resolves the workspace cmx-runtime package without emitting it beside tmp output", async () => {
     const result = expectDocumentResult(
       await renderCmxTestbed({
         files: {
