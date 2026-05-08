@@ -44,7 +44,14 @@ export function verifyCmxDocumentEnvironment(
     ]) ?? [],
   );
 
-  for (const documentDependency of Object.values(document.interface.imports)) {
+  const documentDependencies = new Map(
+    Object.values(document.interface.imports).map((documentDependency) => [
+      documentDependency.name,
+      documentDependency,
+    ]),
+  );
+
+  for (const documentDependency of documentDependencies.values()) {
     const environmentDependency = environmentDependencies.get(
       documentDependency.name,
     );
