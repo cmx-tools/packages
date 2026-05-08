@@ -159,11 +159,23 @@ function collectImportTypeRefs(program: AstNode): Map<string, ImportTypeRef> {
         continue;
       }
 
-      if (specifier.type !== "ImportSpecifier") {
+      if (specifier.type === "ImportNamespaceSpecifier") {
+        refs.set(local, { from: source });
         continue;
       }
 
-      const imported = identifierName(specifier.imported) ?? local;
+      if (
+        specifier.type !== "ImportSpecifier" &&
+        specifier.type !== "ImportDefaultSpecifier"
+      ) {
+        continue;
+      }
+
+      const imported =
+        specifier.type === "ImportDefaultSpecifier"
+          ? "default"
+          : (identifierName(specifier.imported) ?? local);
+
       refs.set(local, {
         from: source,
         ...(imported === "default" ? {} : { imported }),
