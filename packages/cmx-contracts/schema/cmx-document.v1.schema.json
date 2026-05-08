@@ -55,7 +55,7 @@
     "slotPath": {
       "type": "array",
       "items": {
-        "type": ["string", "number"]
+        "type": ["string", "integer"]
       }
     },
     "documentExport": {
