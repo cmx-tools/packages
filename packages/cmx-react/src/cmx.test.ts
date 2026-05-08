@@ -19,16 +19,21 @@ describe("cmx", () => {
     },
   );
 
-  it("hydrates optional meta export into page export map", () => {
+  it("hydrates optional configured export into export map", () => {
     const result = cmx(
       createDocument({
-        metaExport: {
+        optionalExportName: "teaser",
+        optionalExportType: {
+          from: "@site/content",
+          import: "Teaser",
+        },
+        optionalExportValue: {
           title: "About",
         },
       }),
-    ) as { meta?: { title: string } };
+    ) as { teaser?: { title: string } };
 
-    expect(result.meta).toEqual({
+    expect(result.teaser).toEqual({
       title: "About",
     });
   });
@@ -367,7 +372,9 @@ describe("cmx", () => {
 type TestDocumentInput = {
   defaultExport?: CmxNode;
   defaultSlots?: CmxDocument["interface"]["exports"]["default"]["slots"];
-  metaExport?: unknown;
+  optionalExportName?: string;
+  optionalExportType?: { from: string; import?: string };
+  optionalExportValue?: unknown;
   imports?: CmxDependency[];
 };
 
@@ -390,21 +397,24 @@ function createDocument(input: TestDocumentInput = {}): CmxDocument {
           },
           slots: input.defaultSlots ?? [[]],
         },
-        ...(input.metaExport === undefined
+        ...(input.optionalExportName === undefined ||
+        input.optionalExportValue === undefined
           ? {}
           : {
-              meta: {
-                type: {
-                  from: "@site/content",
-                  import: "Meta",
-                },
+              [input.optionalExportName]: {
+                ...(input.optionalExportType === undefined
+                  ? {}
+                  : { type: input.optionalExportType }),
               },
             }),
       },
     },
     content: {
       default: input.defaultExport ?? null,
-      ...(input.metaExport === undefined ? {} : { meta: input.metaExport }),
+      ...(input.optionalExportName === undefined ||
+      input.optionalExportValue === undefined
+        ? {}
+        : { [input.optionalExportName]: input.optionalExportValue }),
     },
   };
 }
