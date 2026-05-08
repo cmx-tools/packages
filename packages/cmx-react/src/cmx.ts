@@ -11,10 +11,6 @@ import { verifyCmxDocumentEnvironment } from "cmx-contracts";
 import { resolveCmxSlots } from "cmx-reduce";
 import { CmxReactError } from "./CmxReactError.js";
 
-export type CmxResult = {
-  default: ReactNode;
-} & Record<string, unknown>;
-
 type CmxHydratableNode = CmxFragmentNode | CmxElementNode | CmxComponentNode;
 
 export type HydratedCmxExportValue<T> = T extends CmxHydratableNode
