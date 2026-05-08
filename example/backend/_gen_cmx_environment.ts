@@ -1,9 +1,16 @@
 import type { CmxEnvironment } from "cmx-contracts";
+import type { CmxNode as CmxContractsCmxnode } from "cmx-contracts";
+import type { Meta as ExampleBackendContractMeta } from "@example/backend-contract";
 import * as Api from "./api.js";
 import type * as ExampleBackendContract from "@example/backend-contract";
 import * as ExampleUiLibrary from "@example/ui-library";
 
-export const environment: CmxEnvironment = {
+type CmxEnvironmentExports = {
+  default: CmxContractsCmxnode;
+  meta?: ExampleBackendContractMeta;
+};
+
+export const environment: CmxEnvironment<CmxEnvironmentExports> = {
   dependencies: [
     {
       name: "@example/backend-contract",
