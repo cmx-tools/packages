@@ -109,7 +109,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
     },
     sandbox: docker({ mounts }),
     name: "implementer",
-    agent: sandcastle.codex("gpt-5.3-codex", { effort: "high" }),
+    agent: sandcastle.codex("gpt-5.3-codex"),
     promptFile: "./.sandcastle/implement-prompt.md",
     completionSignal: [
       "<promise>COMPLETE</promise>",
