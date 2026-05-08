@@ -5,13 +5,13 @@
   "packageManager": "pnpm@11.0.8",
   "type": "module",
   "scripts": {
-    "verify": "export PRE_BUILD=false && corepack pnpm run fmt:check && corepack pnpm run build && corepack pnpm run typecheck && corepack pnpm run test",
+    "verify": "cross-env-shell PRE_BUILD=false \"corepack pnpm run fmt:check && corepack pnpm run build && corepack pnpm run typecheck && corepack pnpm run test\"",
     "build": "corepack pnpm -r --filter './packages/*' build",
     "test:unit": "vitest run --dir packages",
-    "pretest:integration": "if [ \"$PRE_BUILD\" != \"false\" ]; then corepack pnpm run build; fi",
+    "pretest:integration": "if-env PRE_BUILD=false || corepack pnpm run build",
     "test:integration": "vitest run --dir test && corepack pnpm -r test:integration",
     "test": "corepack pnpm run test:unit && corepack pnpm run test:integration && corepack pnpm run verify:example",
-    "pretypecheck": "if [ \"$PRE_BUILD\" != \"false\" ]; then corepack pnpm run build; fi",
+    "pretypecheck": "if-env PRE_BUILD=false || corepack pnpm run build",
     "typecheck": "tsgo --noEmit",
     "example:create-documents": "corepack pnpm -r --filter '@example/content' build",
     "example:create-environment": "corepack pnpm -r --filter '@example/backend' build",
@@ -34,6 +34,8 @@
     "prettier": "^3.8.3",
     "rolldown": "^1.0.0",
     "tsx": "^4.21.0",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.5",
+    "cross-env": "^10.1.0",
+    "if-env": "^1.0.4"
   }
 }
