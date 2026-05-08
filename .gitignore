@@ -6,3 +6,4 @@ dist/
 .cmx/
 .worktrees/
 .ralph/
+packages/cmx-contracts/schema/*.generated.ts
