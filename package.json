@@ -2,7 +2,7 @@
   "name": "content-management-jsx",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@10.33.2",
+  "packageManager": "pnpm@11.0.8",
   "type": "module",
   "scripts": {
     "verify": "corepack pnpm run fmt:check && corepack pnpm run typecheck && corepack pnpm run test",
@@ -21,15 +21,17 @@
     "fmt:check": "prettier --check ."
   },
   "devDependencies": {
+    "@ai-hero/sandcastle": "^0.5.10",
     "@jridgewell/trace-mapping": "^0.3.31",
     "@types/node": "^24.12.2",
-    "cmx-contracts": "workspace:*",
     "cmx-bundler": "workspace:*",
+    "cmx-contracts": "workspace:*",
     "cmx-document-renderer": "workspace:*",
     "cmx-react": "workspace:*",
     "cmx-runtime": "workspace:*",
     "prettier": "^3.8.3",
-    "rolldown": "^1.0.0-rc.18",
+    "rolldown": "^1.0.0",
+    "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.5"
   }

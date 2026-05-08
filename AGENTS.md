@@ -1,6 +1,7 @@
 GitHub: `Xiphe/content-management-jsx`
 Commit Messages Format: Conventional Commits
 Package manager: pnpm
+Skills in: `~/.agents/skills` or `./.agents/skills`
 
 Read MISSION.md
 Read CONTEXT.md for CMX domain glossary and package boundaries.
@@ -32,5 +33,6 @@ NEVER deep imports from internal modules
 ALWAYS feature/deep-module based architecture. Small interface, lots of implementation
 AVOID functional folders (`components` or `hooks`)
 
-ALWAYS test through official module/package APIs
+ALWAYS and ONLY test through official module/package/folder APIs.
 NEVER cement internal interfaces or implementation details using tests.
+EVERY test must be be a unique real world use-case of a first class call-site.
