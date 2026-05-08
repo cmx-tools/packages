@@ -15,7 +15,9 @@ export type CmxResult = {
   default: ReactNode;
 } & Record<string, unknown>;
 
-export type HydratedCmxExportValue<T> = T extends CmxNode
+type CmxHydratableNode = CmxFragmentNode | CmxElementNode | CmxComponentNode;
+
+export type HydratedCmxExportValue<T> = T extends CmxHydratableNode
   ? ReactNode
   : T extends readonly (infer Item)[]
     ? HydratedCmxExportValue<Item>[]
@@ -27,14 +29,12 @@ export type HydratedCmxExports<Exports extends Record<string, unknown>> = {
   [Key in keyof Exports]: HydratedCmxExportValue<Exports[Key]>;
 };
 
-export function cmx<Exports extends Record<string, unknown>>(
+export function cmx<
+  Exports extends Record<string, unknown> = Record<string, unknown>,
+>(
   document: CmxDocument,
-  environment: CmxEnvironment<Exports>,
-): HydratedCmxExports<Exports>;
-export function cmx(
-  document: CmxDocument,
-  environment?: CmxEnvironment,
-): CmxResult {
+  environment?: CmxEnvironment<Exports>,
+): HydratedCmxExports<Exports> {
   const verification = verifyCmxDocumentEnvironment(document, environment);
   if (!verification.valid) {
     throw new CmxReactError(verification.diagnostics);
@@ -45,7 +45,7 @@ export function cmx(
       name,
       hydrateExport(document, name, environment),
     ]),
-  ) as CmxResult;
+  ) as HydratedCmxExports<Exports>;
 }
 
 function hydrateExport(
