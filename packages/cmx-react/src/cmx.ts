@@ -11,22 +11,21 @@ import { verifyCmxDocumentEnvironment } from "cmx-contracts";
 import { resolveCmxSlots } from "cmx-reduce";
 import { CmxReactError } from "./CmxReactError.js";
 
-export type CmxResult<Meta = unknown> = {
-  children: ReactNode;
-  meta?: Meta;
+export type CmxResult = {
+  default: ReactNode;
 };
 
-export function cmx<Meta = unknown>(
+export function cmx(
   document: CmxDocument,
   environment?: CmxEnvironment,
-): CmxResult<Meta> {
+): CmxResult {
   const verification = verifyCmxDocumentEnvironment(document, environment);
   if (!verification.valid) {
     throw new CmxReactError(verification.diagnostics);
   }
 
   return {
-    children: hydrateExport(document, "default", environment) as ReactNode,
+    default: hydrateExport(document, "default", environment) as ReactNode,
   };
 }
 

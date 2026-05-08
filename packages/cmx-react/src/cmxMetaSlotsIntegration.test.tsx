@@ -54,8 +54,8 @@ describe("cmx React default export slots", () => {
       },
     };
 
-    const { children } = cmx(document, environment);
-    const html = renderToString(<App>{children}</App>);
+    const page = cmx(document, environment);
+    const html = renderToString(<App>{page.default}</App>);
 
     expect(html).toContain('<span class="badge">Featured</span>');
     expect(html).toContain("<main");
