@@ -43,7 +43,7 @@ describe("cmx-document-renderer", () => {
     });
   });
 
-  it("renders configured optional meta export when present", async () => {
+  it("renders configured optional exports through the same export map path", async () => {
     await expect(
       renderCmxDocument({
         moduleUrl: new URL("./prepared-bundle.fixture.ts", import.meta.url),
@@ -55,11 +55,11 @@ describe("cmx-document-renderer", () => {
               import: "CmxNode",
             },
           },
-          meta: {
+          teaser: {
             required: false,
             type: {
               from: "@example/backend-contract",
-              import: "Meta",
+              import: "Teaser",
             },
           },
         },
@@ -78,10 +78,10 @@ describe("cmx-document-renderer", () => {
               },
               slots: [[]],
             },
-            meta: {
+            teaser: {
               type: {
                 from: "@example/backend-contract",
-                import: "Meta",
+                import: "Teaser",
               },
             },
           },
@@ -92,8 +92,8 @@ describe("cmx-document-renderer", () => {
             tag: "main",
             children: ["Hello"],
           },
-          meta: {
-            title: "Hello",
+          teaser: {
+            heading: "Hello",
           },
         },
       },

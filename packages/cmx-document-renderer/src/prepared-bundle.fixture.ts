@@ -4,4 +4,8 @@ export const meta = {
   title: "Hello",
 };
 
+export const teaser = () => ({
+  heading: "Hello",
+});
+
 export default jsx("main", { children: "Hello" });

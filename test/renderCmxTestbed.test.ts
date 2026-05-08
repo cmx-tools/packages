@@ -697,6 +697,65 @@ describe("renderCmxTestbed", () => {
     expect(result.document).not.toHaveProperty("dependencies");
   });
 
+  it("renders custom configured exports and omits optional undefined exports", async () => {
+    const result = expectDocumentResult(
+      await renderCmxTestbed({
+        files: {
+          "entry.tsx": [
+            "export default <main>Hello</main>;",
+            "export const teaser = () => ({ title: 'About' });",
+            "export const optionalData = undefined;",
+          ].join("\n"),
+        },
+        exports: {
+          default: {
+            required: true,
+            type: {
+              from: "cmx-contracts",
+              import: "CmxNode",
+            },
+          },
+          teaser: {
+            required: true,
+            type: {
+              from: "@site/content",
+              import: "Teaser",
+            },
+          },
+          optionalData: {
+            required: false,
+          },
+        },
+      }),
+    );
+
+    expect(result.document.interface.exports).toEqual({
+      default: {
+        type: {
+          from: "cmx-contracts",
+          import: "CmxNode",
+        },
+        slots: [[]],
+      },
+      teaser: {
+        type: {
+          from: "@site/content",
+          import: "Teaser",
+        },
+      },
+    });
+    expect(result.document.content).toEqual({
+      default: {
+        type: "element",
+        tag: "main",
+        children: ["Hello"],
+      },
+      teaser: {
+        title: "About",
+      },
+    });
+  });
+
   it("renders configured external imports through importer-edge stubs", async () => {
     const result = expectDocumentResult(
       await renderCmxTestbed({
