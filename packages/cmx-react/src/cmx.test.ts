@@ -175,6 +175,27 @@ describe("cmx", () => {
     expect(result.default.type).toBe(Card);
   });
 
+  it("throws clear error when component binding is missing in environment imports", () => {
+    const document = createDocument({
+      imports: [themeDependency()],
+      defaultExport: {
+        type: "component",
+        from: "@site/theme",
+        import: "Panel",
+      },
+    });
+    const environment = createEnvironment({
+      dependencies: Object.values(document.interface.imports),
+      imports: {
+        "@site/theme": {},
+      },
+    });
+
+    expect(() => cmx(document, environment)).toThrow(
+      "CMX import binding missing: @site/theme#Panel",
+    );
+  });
+
   it("passes CMX node children as React children", () => {
     function Panel() {
       return null;
