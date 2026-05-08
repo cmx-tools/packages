@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
+  "title": "CmxDocumentSchema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "cmxVersion", "interface", "content"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "cmxVersion": {
+      "const": 1
+    },
+    "interface": {
+      "$ref": "#/definitions/documentInterface"
+    },
+    "content": {
+      "type": "object"
+    }
+  },
+  "definitions": {
+    "dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "specifier", "version"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "specifier": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "integrity": {
+          "type": "string"
+        }
+      }
+    },
+    "typeRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from"],
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "import": {
+          "type": "string"
+        }
+      }
+    },
+    "slotPath": {
+      "type": "array",
+      "items": {
+        "type": ["string", "number"]
+      }
+    },
+    "documentExport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/typeRef"
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/slotPath"
+          }
+        }
+      }
+    },
+    "documentInterface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["imports", "exports"],
+      "properties": {
+        "imports": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/dependency"
+          }
+        },
+        "exports": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/documentExport"
+          }
+        }
+      }
+    }
+  }
+}
