@@ -82,4 +82,28 @@ describe("detectConfiguredExportTypeRefs", () => {
       teaser: undefined,
     });
   });
+
+  it("detects default type imports and handles namespace import specifiers", () => {
+    const source = [
+      'import type DefaultMeta from "@example/backend-contract";',
+      'import type * as ContractTypes from "@example/backend-contract";',
+      "type LocalMeta = DefaultMeta;",
+      "type Namespaced = ContractTypes.PageMeta;",
+      'export const meta: LocalMeta = { title: "Hello" };',
+      'export const teaser: Namespaced = { heading: "Hello" };',
+    ].join("\n");
+
+    expect(
+      detectConfiguredExportTypeRefs({
+        source,
+        id: "entry.tsx",
+        exports: configuredExports,
+      }),
+    ).toEqual({
+      meta: {
+        from: "@example/backend-contract",
+      },
+      teaser: undefined,
+    });
+  });
 });
