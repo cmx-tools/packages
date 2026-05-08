@@ -275,6 +275,7 @@ export function cmx(options: CmxPluginOptions): Plugin {
           source: createCmxEnvironmentModuleSource({
             entries: environmentEntries,
             dependencies: [...environmentDependencies.values()],
+            exports: options.exports,
           }),
         });
       }

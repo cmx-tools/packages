@@ -601,11 +601,16 @@ describe("cmx", () => {
         ).resolves.toEqual(
           [
             'import type { CmxEnvironment } from "cmx-contracts";',
+            'import type { CmxNode as CmxContractsCmxnode } from "cmx-contracts";',
             'import * as Api from "./api.ts";',
             'import type * as ExampleBackendContract from "@example/backend-contract";',
             'import * as ExampleUiLibrary from "@example/ui-library";',
             "",
-            "export const environment: CmxEnvironment = {",
+            "type CmxEnvironmentExports = {",
+            '  "default": CmxContractsCmxnode;',
+            "};",
+            "",
+            "export const environment: CmxEnvironment<CmxEnvironmentExports> = {",
             "  dependencies: [",
             "    {",
             '      name: "@example/backend-contract",',
@@ -729,11 +734,16 @@ describe("cmx", () => {
         ).resolves.toEqual(
           [
             'import type { CmxEnvironment } from "cmx-contracts";',
+            'import type { CmxNode as CmxContractsCmxnode } from "cmx-contracts";',
             'import * as ThemeUi from "./theme-ui.ts";',
             'import type * as ThemeUi1 from "@theme/ui";',
             'import * as ThemeUiTokens from "@theme/ui/tokens";',
             "",
-            "export const environment: CmxEnvironment = {",
+            "type CmxEnvironmentExports = {",
+            '  "default": CmxContractsCmxnode;',
+            "};",
+            "",
+            "export const environment: CmxEnvironment<CmxEnvironmentExports> = {",
             "  dependencies: [",
             "    {",
             '      name: "@theme/ui",',
@@ -863,12 +873,17 @@ describe("cmx", () => {
         ).resolves.toEqual(
           [
             'import type { CmxEnvironment } from "cmx-contracts";',
+            'import type { CmxNode as CmxContractsCmxnode } from "cmx-contracts";',
             'import * as RuntimeUi from "@runtime/ui";',
             'import type * as ThemeUi from "@theme/ui";',
             'import * as RuntimeUiTokens from "@runtime/ui/tokens";',
             'import type * as ThemeUiTokens from "@theme/ui/tokens";',
             "",
-            "export const environment: CmxEnvironment = {",
+            "type CmxEnvironmentExports = {",
+            '  "default": CmxContractsCmxnode;',
+            "};",
+            "",
+            "export const environment: CmxEnvironment<CmxEnvironmentExports> = {",
             "  dependencies: [",
             "    {",
             '      name: "@theme/ui",',
@@ -1240,9 +1255,123 @@ describe("cmx", () => {
         ).resolves.toEqual(
           [
             'import type { CmxEnvironment } from "cmx-contracts";',
+            'import type { CmxNode as CmxContractsCmxnode } from "cmx-contracts";',
             'import * as ThemeUi from "@theme/ui";',
             "",
-            "export const environment: CmxEnvironment = {",
+            "type CmxEnvironmentExports = {",
+            '  "default": CmxContractsCmxnode;',
+            "};",
+            "",
+            "export const environment: CmxEnvironment<CmxEnvironmentExports> = {",
+            "  dependencies: [",
+            "    {",
+            '      name: "@theme/ui",',
+            '      specifier: "^2.0.0",',
+            '      version: "2.3.0",',
+            "    },",
+            "  ],",
+            "  imports: {",
+            '    "@theme/ui": ThemeUi,',
+            "  },",
+            "};",
+            "",
+          ].join("\n"),
+        );
+      } finally {
+        await bundle.close();
+      }
+    });
+  });
+
+  it("emits typed environment exports with required, optional typed, and optional unknown keys", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "cmx-environment-export-typing-fixture",
+            private: true,
+            dependencies: {
+              "@theme/ui": "^2.0.0",
+              "@example/backend-contract": "^2.0.0",
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeStubPackage(tempDir, "@theme/ui", "2.3.0");
+      await writeStubPackage(tempDir, "@example/backend-contract", "2.1.0");
+      const outDir = path.join(tempDir, "dist");
+      const envOnlyEntry = "virtual:cmx-export-typing-env-entry";
+      const bundle = await rolldown({
+        input: envOnlyEntry,
+        plugins: [
+          {
+            name: "cmx-export-typing-env-entry",
+            resolveId(source) {
+              if (source === envOnlyEntry) {
+                return source;
+              }
+            },
+            load(id) {
+              if (id === envOnlyEntry) {
+                return "export {};\n";
+              }
+            },
+          },
+          cmx({
+            exports: {
+              default: {
+                required: true,
+                type: {
+                  from: "cmx-contracts",
+                  import: "CmxNode",
+                },
+              },
+              meta: {
+                required: false,
+                type: {
+                  from: "@example/backend-contract",
+                  import: "Meta",
+                },
+              },
+              teaser: {
+                required: false,
+              },
+            },
+            cwd: tempDir,
+            externals: ["@theme/ui"],
+            environment: {
+              fileName: "cmx-environment.ts",
+            },
+          }),
+        ],
+      });
+
+      try {
+        await bundle.write({
+          dir: outDir,
+          entryFileNames: "env-typing.js",
+        });
+
+        await expect(
+          readFile(path.join(outDir, "cmx-environment.ts"), "utf8"),
+        ).resolves.toEqual(
+          [
+            'import type { CmxEnvironment } from "cmx-contracts";',
+            'import type { CmxNode as CmxContractsCmxnode } from "cmx-contracts";',
+            'import type { Meta as ExampleBackendContractMeta } from "@example/backend-contract";',
+            'import * as ThemeUi from "@theme/ui";',
+            "",
+            "type CmxEnvironmentExports = {",
+            '  "default": CmxContractsCmxnode;',
+            '  "meta"?: ExampleBackendContractMeta;',
+            '  "teaser"?: unknown;',
+            "};",
+            "",
+            "export const environment: CmxEnvironment<CmxEnvironmentExports> = {",
             "  dependencies: [",
             "    {",
             '      name: "@theme/ui",',
