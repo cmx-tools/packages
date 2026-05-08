@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 import type { CmxDocument, CmxEnvironment } from "cmx-contracts";
 import { cmx } from "cmx-react";
 
-describe("cmx React default export slots", () => {
-  it("renders hydrated default export slots at the app boundary", () => {
+describe("cmx React export slots", () => {
+  it("hydrates slots for default and named exports", () => {
     function Badge() {
       return <span className="badge">Featured</span>;
     }
@@ -28,6 +28,9 @@ describe("cmx React default export slots", () => {
             },
             slots: [[]],
           },
+          meta: {
+            slots: [["badge"]],
+          },
         },
       },
       content: {
@@ -43,6 +46,14 @@ describe("cmx React default export slots", () => {
             "About",
           ],
         },
+        meta: {
+          title: "About",
+          badge: {
+            type: "component",
+            from: "@site/theme",
+            import: "Badge",
+          },
+        },
       },
     };
     const environment: CmxEnvironment = {
@@ -55,17 +66,32 @@ describe("cmx React default export slots", () => {
     };
 
     const page = cmx(document, environment);
-    const html = renderToString(<App>{page.default}</App>);
+    const html = renderToString(
+      <App title={(page.meta as { title: string }).title}>
+        {page.default}
+        {(page.meta as { badge: React.ReactNode }).badge}
+      </App>,
+    );
 
     expect(html).toContain('<span class="badge">Featured</span>');
     expect(html).toContain("<main");
     expect(html).toContain("About");
+    expect(html).toContain("<title>About</title>");
   });
 });
 
-function App({ children }: { children: React.ReactNode }) {
+function App({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
+      <head>
+        <title>{title}</title>
+      </head>
       <body>{children}</body>
     </html>
   );

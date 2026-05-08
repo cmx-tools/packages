@@ -1,4 +1,8 @@
 import { __registerExternal, jsx, jsxs } from "cmx-runtime/jsx-runtime";
+const UserProfile$1 = __registerExternal({
+	from: "@example/backend-contract",
+	import: "UserProfile"
+});
 const Header$1 = __registerExternal({
 	from: "@example/ui-library",
 	import: "Header"
@@ -17,7 +21,10 @@ function Header({ children }) {
 }
 //#endregion
 //#region pages/about.tsx
-const meta = { title: "About" };
+const meta = {
+	title: "About",
+	accessory: /* @__PURE__ */ jsx(UserProfile$1, {})
+};
 async function About() {
 	return /* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx(Header, { children: "About" }), /* @__PURE__ */ jsx("p", { children: "About" })] });
 }

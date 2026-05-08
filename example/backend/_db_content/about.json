@@ -26,7 +26,8 @@
         "type": {
           "from": "@example/backend-contract",
           "import": "Meta"
-        }
+        },
+        "slots": [["accessory"]]
       }
     }
   },
@@ -57,7 +58,12 @@
       ]
     },
     "meta": {
-      "title": "About"
+      "title": "About",
+      "accessory": {
+        "type": "component",
+        "from": "@example/backend-contract",
+        "import": "UserProfile"
+      }
     }
   }
 }

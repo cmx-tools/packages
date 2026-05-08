@@ -6,6 +6,7 @@ import { cmx } from "cmx-react";
 
 type AppProps = {
   title: string;
+  accessory?: React.ReactNode;
   children: React.ReactNode;
 };
 
@@ -17,7 +18,12 @@ const server = createServer(async (req, res) => {
     const { default: document } = await import(`./_db_content/${route}.json`);
     const page = cmx(document, environment);
     const title = toPageTitle(page);
-    const html = renderHtml(<App title={title}>{page.default}</App>);
+    const accessory = toPageAccessory(page);
+    const html = renderHtml(
+      <App title={title} accessory={accessory}>
+        {page.default}
+      </App>,
+    );
 
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(html);
@@ -31,14 +37,17 @@ server.listen(port, () => {
   console.log(`http://127.0.0.1:${port}`);
 });
 
-function App({ title, children }: AppProps) {
+function App({ title, accessory, children }: AppProps) {
   return (
     <html lang="en">
       <head>
         <meta charSet="utf-8" />
         <title>{title}</title>
       </head>
-      <body>{children}</body>
+      <body>
+        {accessory}
+        {children}
+      </body>
     </html>
   );
 }
@@ -64,4 +73,18 @@ function toPageTitle(page: unknown): string {
     return page.meta.title;
   }
   return "example";
+}
+
+function toPageAccessory(page: unknown): React.ReactNode | undefined {
+  if (
+    typeof page === "object" &&
+    page !== null &&
+    "meta" in page &&
+    typeof page.meta === "object" &&
+    page.meta !== null &&
+    "accessory" in page.meta
+  ) {
+    return (page.meta as { accessory?: React.ReactNode }).accessory;
+  }
+  return undefined;
 }
