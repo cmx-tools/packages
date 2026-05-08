@@ -7,6 +7,9 @@ import { describe, expect, it } from "vitest";
 import { CMX_BUNDLE_FILE_NAME, type CmxBundle } from "cmx-contracts";
 import { renderCmxDocuments } from "cmx-document-renderer";
 
+const CMX_RUNTIME_JSX_RUNTIME_IMPORT_SOURCE = import.meta
+  .resolve("cmx-runtime/jsx-runtime");
+
 describe("renderCmxDocuments", () => {
   it("returns an error result for a bundle with no entries", async () => {
     const bundleDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
@@ -187,7 +190,10 @@ describe("renderCmxDocuments", () => {
     const outDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
     await writeFile(
       path.join(outDir, "entry.js"),
-      `export default { kind: "element", tag: "main", children: ["rendered"] };\n`,
+      [
+        `import { jsx } from "${CMX_RUNTIME_JSX_RUNTIME_IMPORT_SOURCE}";`,
+        `export default jsx("main", { children: "rendered" });`,
+      ].join("\n"),
       "utf8",
     );
 
@@ -227,12 +233,13 @@ describe("renderCmxDocuments", () => {
                     from: "cmx-contracts",
                     import: "CmxNode",
                   },
+                  slots: [[]],
                 },
               },
             },
             content: {
               default: {
-                kind: "element",
+                type: "element",
                 tag: "main",
                 children: ["rendered"],
               },
@@ -347,7 +354,10 @@ describe("renderCmxDocuments", () => {
       outDir,
       "home.js",
       "../home.tsx",
-      `export default { kind: "element", tag: "main", children: ["Home"] };`,
+      [
+        `import { jsx } from "${CMX_RUNTIME_JSX_RUNTIME_IMPORT_SOURCE}";`,
+        `export default jsx("main", { children: "Home" });`,
+      ].join("\n"),
     );
     await writeCompiledEntry(
       outDir,
@@ -390,9 +400,20 @@ describe("renderCmxDocuments", () => {
         home: {
           result: "document",
           document: {
+            interface: {
+              exports: {
+                default: {
+                  type: {
+                    from: "cmx-contracts",
+                    import: "CmxNode",
+                  },
+                  slots: [[]],
+                },
+              },
+            },
             content: {
               default: {
-                kind: "element",
+                type: "element",
                 tag: "main",
                 children: ["Home"],
               },
@@ -604,14 +625,12 @@ async function renderCmxBundle(input: {
   bundle: Omit<
     CmxBundle,
     "exports" | "unsupportedValues" | "unverifiedOptionalExports" | "entries"
-  > &
-    {
-      entries?: Array<
-        Omit<CmxBundle["entries"][number], "sourceExports"> &
-          Partial<Pick<CmxBundle["entries"][number], "sourceExports">>
-      >;
-    } &
-    Partial<
+  > & {
+    entries?: Array<
+      Omit<CmxBundle["entries"][number], "sourceExports"> &
+        Partial<Pick<CmxBundle["entries"][number], "sourceExports">>
+    >;
+  } & Partial<
       Pick<
         CmxBundle,
         "exports" | "unsupportedValues" | "unverifiedOptionalExports"
