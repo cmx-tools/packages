@@ -47,7 +47,7 @@ export type CmxDocumentInterface = {
 };
 
 export type CmxDocument = {
-  $schema: string;
+  $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json";
   cmxVersion: CmxVersion;
   interface: CmxDocumentInterface;
   content: Record<string, unknown>;

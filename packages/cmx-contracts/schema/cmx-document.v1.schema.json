@@ -7,7 +7,7 @@
   "required": ["$schema", "cmxVersion", "interface", "content"],
   "properties": {
     "$schema": {
-      "type": "string"
+      "const": "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json"
     },
     "cmxVersion": {
       "const": 1
