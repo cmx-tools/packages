@@ -172,33 +172,40 @@ describe("verifyCmxDocumentEnvironment", () => {
       documentDependency: dependency(),
       environmentDependency: dependency({ integrity: "sha512-environment" }),
     },
-  ])("reports dependency integrity $name", (input) => {
-    expect(
-      verifyCmxDocumentEnvironment(
-        createDocument({
-          imports: [input.documentDependency],
-        }),
-        createEnvironment({
-          dependencies: [input.environmentDependency],
-        }),
-      ),
-    ).toEqual({
-      valid: false,
-      diagnostics: [
-        {
-          severity: "error",
-          code: "dependency-integrity-mismatch",
-          message:
-            "Environment dependency @site/theme integrity does not match.",
-          dependency: "@site/theme",
-        },
-      ],
-    });
-  });
+  ])(
+    "reports dependency integrity $name",
+    (input: {
+      name: string;
+      documentDependency: CmxDependency;
+      environmentDependency: CmxDependency;
+    }) => {
+      expect(
+        verifyCmxDocumentEnvironment(
+          createDocument({
+            imports: [input.documentDependency],
+          }),
+          createEnvironment({
+            dependencies: [input.environmentDependency],
+          }),
+        ),
+      ).toEqual({
+        valid: false,
+        diagnostics: [
+          {
+            severity: "error",
+            code: "dependency-integrity-mismatch",
+            message:
+              "Environment dependency @site/theme integrity does not match.",
+            dependency: "@site/theme",
+          },
+        ],
+      });
+    },
+  );
 
   it("does not inspect content or environment imports", () => {
     const document = {
-      $schema: "https://cmx.dev/schemas/document.v1.json",
+      $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
       cmxVersion: 1,
       interface: {
         imports: {
@@ -240,7 +247,7 @@ type TestDocumentOptions = Partial<CmxDocument> & {
 function createDocument(options: TestDocumentOptions = {}): CmxDocument {
   const { imports = [], ...documentOptions } = options;
   return {
-    $schema: "https://cmx.dev/schemas/document.v1.json",
+    $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
     cmxVersion: 1,
     interface: {
       imports: Object.fromEntries(

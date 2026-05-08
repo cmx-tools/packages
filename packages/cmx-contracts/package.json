@@ -13,11 +13,11 @@
     "dist"
   ],
   "scripts": {
-    "gen:cmx-document-schema-types": "corepack pnpm exec json2ts -i schema/cmx-document.v1.schema.json -o schema/cmx-document.v1.schema.generated.ts --unknownAny",
-    "build": "tsgo -p tsconfig.json",
-    "pretest": "corepack pnpm run gen:cmx-document-schema-types && corepack pnpm run build",
+    "prebuild": "corepack pnpm exec json2ts -i schema/cmx-document.v1.schema.json -o schema/cmx-document.v1.schema.generated.ts --unknownAny",
+    "build": "tsgo -p tsconfig.json ",
+    "pretest": "corepack pnpm run build",
     "test": "vitest run --dir src",
-    "pretest:integration": "corepack pnpm run gen:cmx-document-schema-types && corepack pnpm run build",
+    "pretest:integration": "corepack pnpm run build",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "typecheck": "tsgo -p tsconfig.json --noEmit"
   },
