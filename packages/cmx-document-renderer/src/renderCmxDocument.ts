@@ -131,6 +131,7 @@ export async function renderCmxDocument(
       }
       continue;
     }
+    registerTypeDependencyRef(verifiedType, context);
 
     content[name] = rendered.value;
     documentExports[name] = {
@@ -594,6 +595,17 @@ function registerDependencyRef(
   ) {
     context.usedDependencyNames.add(packageName);
   }
+}
+
+function registerTypeDependencyRef(
+  typeRef: CmxTypeRef | undefined,
+  context: RenderContext,
+): void {
+  if (!typeRef) {
+    return;
+  }
+
+  registerDependencyRef(typeRef.from, context);
 }
 
 function packageNameFromImportRef(from: string): string | undefined {

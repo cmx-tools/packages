@@ -108,6 +108,70 @@ describe("cmx-document-renderer", () => {
     });
   });
 
+  it("includes type contract packages in document interface imports", async () => {
+    await expect(
+      renderCmxDocument({
+        moduleUrl: new URL("./prepared-bundle.fixture.ts", import.meta.url),
+        exports: {
+          teaser: {
+            required: false,
+            type: {
+              from: "@example/backend-contract",
+              import: "Teaser",
+            },
+          },
+        },
+        sourceExports: {
+          teaser: {
+            type: {
+              from: "@example/backend-contract",
+              import: "Teaser",
+            },
+          },
+        },
+        dependencies: [
+          {
+            name: "@example/backend-contract",
+            specifier: "workspace:*",
+            version: "0.1.0",
+          },
+          {
+            name: "@theme/ui",
+            specifier: "^1.0.0",
+            version: "1.2.3",
+          },
+        ],
+      }),
+    ).resolves.toEqual({
+      document: {
+        $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
+        cmxVersion: 1,
+        interface: {
+          imports: {
+            "@example/backend-contract": {
+              name: "@example/backend-contract",
+              specifier: "workspace:*",
+              version: "0.1.0",
+            },
+          },
+          exports: {
+            teaser: {
+              type: {
+                from: "@example/backend-contract",
+                import: "Teaser",
+              },
+            },
+          },
+        },
+        content: {
+          teaser: {
+            heading: "Hello",
+          },
+        },
+      },
+    });
+  });
+
   it("captures nested CMX slots on non-default exports", async () => {
     await expect(
       renderCmxDocument({
