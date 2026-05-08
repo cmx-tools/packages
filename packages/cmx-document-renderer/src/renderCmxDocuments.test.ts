@@ -603,8 +603,14 @@ async function renderCmxBundle(input: {
   bundleDir: string;
   bundle: Omit<
     CmxBundle,
-    "exports" | "unsupportedValues" | "unverifiedOptionalExports"
+    "exports" | "unsupportedValues" | "unverifiedOptionalExports" | "entries"
   > &
+    {
+      entries?: Array<
+        Omit<CmxBundle["entries"][number], "sourceExports"> &
+          Partial<Pick<CmxBundle["entries"][number], "sourceExports">>
+      >;
+    } &
     Partial<
       Pick<
         CmxBundle,
