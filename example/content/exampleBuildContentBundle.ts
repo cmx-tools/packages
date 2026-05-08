@@ -15,6 +15,13 @@ export async function exampleBuildContentBundle(): Promise<void> {
           import: "CmxNode",
         },
       },
+      meta: {
+        required: false,
+        type: {
+          from: "@example/backend-contract",
+          import: "Meta",
+        },
+      },
     },
     cwd: ".",
     outDir: "dist",

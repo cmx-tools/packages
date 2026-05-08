@@ -36,6 +36,13 @@ export async function cmxEnvironmentExample(): Promise<void> {
               import: "CmxNode",
             },
           },
+          meta: {
+            required: false,
+            type: {
+              from: "@example/backend-contract",
+              import: "Meta",
+            },
+          },
         },
         externals: [
           {

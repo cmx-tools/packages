@@ -471,30 +471,27 @@ describe("renderCmxTestbed", () => {
       }),
     );
 
-    expect(result.document.content.default).toEqual({
-      type: "fragment",
-      children: [
-        {
-          type: "element",
-          tag: "h1",
-          children: ["A"],
-        },
-        {
-          type: "element",
-          tag: "p",
-          children: [
-            "before",
-            {
-              type: "element",
-              tag: "strong",
-              children: ["deep"],
-            },
-            "after",
-          ],
-        },
-        "tail",
-      ],
-    });
+    expect(result.document.content.default).toEqual([
+      {
+        type: "element",
+        tag: "h1",
+        children: ["A"],
+      },
+      {
+        type: "element",
+        tag: "p",
+        children: [
+          "before",
+          {
+            type: "element",
+            tag: "strong",
+            children: ["deep"],
+          },
+          "after",
+        ],
+      },
+      "tail",
+    ]);
   });
 
   it("flattens async component array output in child position", async () => {
@@ -832,13 +829,14 @@ describe("renderCmxTestbed", () => {
         },
       }),
     ).resolves.toMatchObject({
-      result: "error",
-      diagnostics: [
-        {
-          code: "invalid-runtime-output",
-          message: "default export is not CMX runtime output",
+      result: "document",
+      document: {
+        content: {
+          default: {
+            hello: "world",
+          },
         },
-      ],
+      },
     });
 
     await expect(

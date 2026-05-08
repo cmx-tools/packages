@@ -13,7 +13,7 @@ import { CmxReactError } from "./CmxReactError.js";
 
 export type CmxResult = {
   default: ReactNode;
-};
+} & Record<string, unknown>;
 
 export function cmx(
   document: CmxDocument,
@@ -24,9 +24,12 @@ export function cmx(
     throw new CmxReactError(verification.diagnostics);
   }
 
-  return {
-    default: hydrateExport(document, "default", environment) as ReactNode,
-  };
+  return Object.fromEntries(
+    Object.keys(document.content).map((name) => [
+      name,
+      hydrateExport(document, name, environment),
+    ]),
+  ) as CmxResult;
 }
 
 function hydrateExport(

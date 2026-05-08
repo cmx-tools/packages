@@ -10,6 +10,13 @@
         "from": "cmx-contracts",
         "import": "CmxNode"
       }
+    },
+    "meta": {
+      "required": false,
+      "type": {
+        "from": "@example/backend-contract",
+        "import": "Meta"
+      }
     }
   },
   "unsupportedValues": "error",

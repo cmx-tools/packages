@@ -76,29 +76,47 @@ export async function renderCmxDocument(
     /* @vite-ignore */ toModuleUrl(input.moduleUrl)
   )) as Record<string, unknown>;
 
-  const defaultConfig = input.exports.default;
-  if (!defaultConfig) {
-    throw new Error(
-      "CMX document rendering requires configured default export.",
-    );
-  }
-
-  if (!Object.prototype.hasOwnProperty.call(bundleModule, "default")) {
-    throw new Error("CMX bundle module has no default export.");
-  }
-
-  const exportedDefault = bundleModule.default;
-  const root =
-    typeof exportedDefault === "function" ? exportedDefault() : exportedDefault;
   const context = createRenderContext({
     ...input,
     runtime: input.runtime ?? (await loadDefaultRuntimeProtocol()),
   });
-  const defaultContent = await normalizeCmxNodeValue(
-    root,
-    "default export",
-    context,
-  );
+  const documentExports: CmxDocument["interface"]["exports"] = {};
+  const content: CmxDocument["content"] = {};
+
+  for (const [name, config] of Object.entries(input.exports)) {
+    const hasExport = Object.prototype.hasOwnProperty.call(bundleModule, name);
+    if (!hasExport) {
+      if (config.required) {
+        throw new Error(`CMX bundle module has no ${name} export.`);
+      }
+      continue;
+    }
+
+    const exportedValue = bundleModule[name];
+    const root =
+      typeof exportedValue === "function" ? exportedValue() : exportedValue;
+    const rendered = await normalizeExportValue(
+      root,
+      `${name} export`,
+      context,
+    );
+    if (!rendered.keep) {
+      if (config.required) {
+        throw new CmxRenderError({
+          severity: "error",
+          code: "undefined-value",
+          message: `${name} export resolved to undefined`,
+        });
+      }
+      continue;
+    }
+
+    content[name] = rendered.value;
+    documentExports[name] = {
+      ...(config.type === undefined ? {} : { type: config.type }),
+      ...(rendered.slots.length === 0 ? {} : { slots: rendered.slots }),
+    };
+  }
 
   return {
     document: {
@@ -112,21 +130,106 @@ export async function renderCmxDocument(
             )
             .map((dependency) => [dependency.name, dependency]),
         ),
-        exports: {
-          default: {
-            type: {
-              from: "cmx-contracts",
-              import: "CmxNode",
-            },
-            slots: [[]],
-          },
-        },
+        exports: documentExports,
       },
-      content: {
-        default: defaultContent,
-      },
+      content,
     },
   };
+}
+
+type NormalizeExportResult =
+  | {
+      keep: false;
+    }
+  | {
+      keep: true;
+      value: unknown;
+      slots: SlotPath[];
+    };
+
+async function normalizeExportValue(
+  value: unknown,
+  pathLabel: string,
+  context: RenderContext,
+): Promise<NormalizeExportResult> {
+  const slots: SlotPath[] = [];
+  const result = await normalizeValue(value, pathLabel, [], slots, context);
+  if (!result.keep) {
+    return { keep: false };
+  }
+
+  return {
+    keep: true,
+    value: result.value,
+    slots,
+  };
+}
+
+async function normalizeValue(
+  value: unknown,
+  pathLabel: string,
+  path: SlotPath,
+  slots: SlotPath[],
+  context: RenderContext,
+): Promise<KeepResult | DropResult> {
+  const resolvedValue = await value;
+
+  if (resolvedValue === undefined) {
+    return { keep: false };
+  }
+
+  if (
+    resolvedValue === null ||
+    typeof resolvedValue === "string" ||
+    typeof resolvedValue === "number" ||
+    typeof resolvedValue === "boolean"
+  ) {
+    return { keep: true, value: resolvedValue };
+  }
+
+  if (Array.isArray(resolvedValue)) {
+    const normalized: unknown[] = [];
+    for (let index = 0; index < resolvedValue.length; index += 1) {
+      const itemResult = await normalizeValue(
+        resolvedValue[index],
+        `${pathLabel}[${index}]`,
+        [...path, normalized.length],
+        slots,
+        context,
+      );
+      if (itemResult.keep) {
+        normalized.push(itemResult.value);
+      }
+    }
+    return { keep: true, value: normalized };
+  }
+
+  if (context.runtime.isRuntimeNode(resolvedValue)) {
+    slots.push(path);
+    return {
+      keep: true,
+      value: await normalizeRuntimeNode(resolvedValue, pathLabel, context),
+    };
+  }
+
+  if (!isPlainObject(resolvedValue)) {
+    return unsupportedValue("export", pathLabel, context);
+  }
+
+  const normalized: Record<string, unknown> = {};
+  for (const [key, nestedValue] of Object.entries(resolvedValue)) {
+    const nestedResult = await normalizeValue(
+      nestedValue,
+      `${pathLabel}.${key}`,
+      [...path, key],
+      slots,
+      context,
+    );
+    if (nestedResult.keep) {
+      normalized[key] = nestedResult.value;
+    }
+  }
+  return { keep: true, value: normalized };
 }
 
 async function normalizeCmxNodeValue(
@@ -381,7 +484,7 @@ async function normalizeChildValue(
 }
 
 function unsupportedValue(
-  domain: "prop",
+  domain: "export" | "prop",
   pathLabel: string,
   context: RenderContext,
 ): DropResult {
