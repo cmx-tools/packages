@@ -11,15 +11,14 @@ type AppProps = {
 };
 
 const port = Number(process.env.PORT) || 3000;
-type Page = ReturnType<typeof cmx>;
 
 const server = createServer(async (req, res) => {
   try {
     const route = req.url?.includes("/about") ? "about" : "404";
     const { default: document } = await import(`./_db_content/${route}.json`);
     const page = cmx(document, environment);
-    const title = toPageTitle(page);
-    const accessory = toPageAccessory(page);
+    const title = page.meta?.title ?? "example";
+    const accessory = page.meta?.accessory;
     const html = renderHtml(
       <App title={title} accessory={accessory}>
         {page.default}
@@ -30,7 +29,7 @@ const server = createServer(async (req, res) => {
     res.end(html);
   } catch (error) {
     res.writeHead(500, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(renderHtml(<App>{errorMessage(error)}</App>));
+    res.end(renderHtml(<App title="error">{errorMessage(error)}</App>));
   }
 });
 
@@ -59,12 +58,4 @@ function renderHtml(children: React.ReactNode): string {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unexpected error";
-}
-
-function toPageTitle(page: Page): string {
-  return page.meta?.title ?? "example";
-}
-
-function toPageAccessory(page: Page): React.ReactNode | undefined {
-  return page.meta?.accessory;
 }
