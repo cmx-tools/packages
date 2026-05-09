@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { resolveCmxCliConfig } from "./resolveCmxCliConfig.js";
 
 async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
-  const tempDir = await mkdtemp(path.join(os.tmpdir(), "cmx-cli-config-"));
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "cmx-cli-"));
   await run(tempDir);
 }
 

@@ -1,12 +1,19 @@
 {
-  "name": "cmx-cli-config",
+  "name": "cmx-cli",
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "bin": {
+    "cmx": "./dist/cli.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cmxCli.d.ts",
+      "import": "./dist/cmxCli.js"
     }
   },
   "files": [

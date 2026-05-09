@@ -1,12 +1,15 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { resolveCmxCliConfig } from "cmx-cli-config";
+import type { CmxContractConfig } from "cmx-contracts";
 import { generateCmxEnvironment } from "./generateCmxEnvironment.js";
 
 const VERSION = "0.1.0";
+type CliModuleLoader = (specifier: string) => Promise<unknown>;
+type RunCmxEnvironmentCliOptions = { importModule?: CliModuleLoader };
 
 export async function runCmxEnvironmentCli(
   argv: readonly string[] = process.argv.slice(2),
+  options: RunCmxEnvironmentCliOptions = {},
 ): Promise<number> {
   if (argv.includes("--help") || argv.includes("-h")) {
     writeHelp();
@@ -25,6 +28,9 @@ export async function runCmxEnvironmentCli(
   }
 
   try {
+    const { resolveCmxCliConfig } = await loadCmxCli(
+      options.importModule ?? ((specifier) => import(specifier)),
+    );
     const config = await resolveCmxCliConfig({
       argv,
       cwd: command.cwd,
@@ -42,6 +48,41 @@ export async function runCmxEnvironmentCli(
     process.stderr.write(formatCliError(error));
     return 1;
   }
+}
+
+type CmxCliModule = {
+  resolveCmxCliConfig: (options: {
+    argv?: readonly string[];
+    cwd?: string;
+    env?: NodeJS.ProcessEnv;
+  }) => Promise<CmxContractConfig>;
+};
+
+async function loadCmxCli(
+  importModule: CliModuleLoader,
+): Promise<CmxCliModule> {
+  try {
+    const module = (await importModule("cmx-cli")) as Record<string, unknown>;
+    if (typeof module.resolveCmxCliConfig !== "function") {
+      throw new Error("Invalid cmx-cli installation");
+    }
+    return module as CmxCliModule;
+  } catch (error) {
+    if (isMissingModuleError(error)) {
+      throw new Error(
+        'Missing CLI dependency "cmx-cli". Install with: pnpm add -D cmx-cli cmx-environment',
+      );
+    }
+    throw error;
+  }
+}
+
+function isMissingModuleError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    error.code === "ERR_MODULE_NOT_FOUND"
+  );
 }
 
 type ParsedCommand = {

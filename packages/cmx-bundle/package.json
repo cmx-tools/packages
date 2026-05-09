@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cmxBundleCli.d.ts",
+      "import": "./dist/cmxBundleCli.js"
     }
   },
   "files": [
@@ -22,9 +26,19 @@
     "typecheck": "tsgo -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "cmx-cli-config": "workspace:*",
     "cmx-contracts": "workspace:*",
     "fast-glob": "^3.3.3",
     "rolldown": "^1.0.0-rc.18"
+  },
+  "peerDependencies": {
+    "cmx-cli": "*"
+  },
+  "peerDependenciesMeta": {
+    "cmx-cli": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "cmx-cli": "workspace:*"
   }
 }
