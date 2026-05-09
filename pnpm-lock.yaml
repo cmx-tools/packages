@@ -198,6 +198,9 @@ importers:
 
   packages/cmx-environment:
     dependencies:
+      cmx-cli-config:
+        specifier: workspace:*
+        version: link:../cmx-cli-config
       cmx-contracts:
         specifier: workspace:*
         version: link:../cmx-contracts
