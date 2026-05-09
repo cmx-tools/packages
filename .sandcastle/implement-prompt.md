@@ -107,10 +107,21 @@ Continuing to implement a misaligned solution is a HUGE **failure**.
 
 ## (6) CODE REVIEW
 
-1. Review your uncommitted changes with CodeRabbit /code-review skill.
-   _This step may take a while, let it cook._
-2. Address all valid feedback by jumping back to "(4) IMPLEMENTATION".
-3. Cycle until no more valid feedback is presented.
+Review your uncommitted changes with CodeRabbit /code-review skill.
+_This step may take a while, let it cook._
+
+Consider all feedback including nitpicks and suggestions.
+Only discard feedback that is misaligned with the bigger picture from workstream and task.
+
+Do exactly ONE of these:
+
+- No relevant feedback: Continue to "(7) COMMIT"
+- Valid concerns raised: Jump back to "(4) IMPLEMENTATION"
+  - you MAY skip tdd for trivial adjustments
+  - you MUST re-run "(5) VALIDATE IMPLEMENTATION" after adjustments
+  - you MAY skip "(6) CODE REVIEW" when all feedback was trivial
+
+Circling (4)-(5)-(6) a couple of times is normal and expected.
 
 ## (7) COMMIT
 
@@ -149,7 +160,7 @@ Only work on the task at hand.
 3. claim issue
 4. implement
 5. validate
-6. code review
+6. code review (maybe jump back to 4)
 7. commit
 8. report progress
 9. complete
