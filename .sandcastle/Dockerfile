@@ -42,6 +42,7 @@ RUN set -eux; \
 USER ${AGENT_UID}:${AGENT_GID}
 
 RUN npx skills add -g -y https://github.com/Xiphe/skills --skill golden-commit-ralph
+RUN npx skills add -g -y https://github.com/Xiphe/skills --skill to-issues
 RUN npx skills add -g -y https://github.com/mattpocock/skills --skill caveman
 RUN npx skills add -g -y https://github.com/mattpocock/skills --skill tdd
 RUN npx skills add -g -y https://github.com/coderabbitai/skills --skill code-review

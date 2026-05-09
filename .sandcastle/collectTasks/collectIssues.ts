@@ -5,6 +5,8 @@ const milestoneRe =
 
 const githubComIssueRe =
   /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/issues\/([0-9]+)\/?(?:[?#].*)?$/;
+const githubComPullRequestRe =
+  /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/([0-9]+)\/?(?:[?#].*)?$/;
 
 const ghIssueJsonFields = "number,title,url,state,labels,body" as const;
 
@@ -60,6 +62,13 @@ type GhIssueWithComments = GhIssue & {
   comments?: GhIssueComment[] | null;
 };
 
+type GhPullRequest = {
+  number: number;
+  title: string;
+  url: string;
+  body: string | null;
+};
+
 type LabelFilterOptions = {
   requiredLabels?: string[];
   excludedLabels?: string[];
@@ -110,6 +119,31 @@ export type CollectedIssues = {
   inputTasks: string;
 };
 
+export type PullRequestFixReferences = {
+  prdUrl: string;
+  summary: string;
+};
+
+export async function resolvePullRequestFixReferences(
+  issueLinkOrFolder: string | undefined,
+): Promise<PullRequestFixReferences | null> {
+  if (!issueLinkOrFolder) return null;
+
+  const pullRequestIdent = parseGitHubComPullRequest(issueLinkOrFolder);
+  if (!pullRequestIdent) return null;
+
+  const pullRequestFixRefs =
+    await collectPullRequestFixReferences(issueLinkOrFolder);
+
+  if (!pullRequestFixRefs.prdUrl) {
+    throw new Error(
+      `Expected pull request body to contain fix: reference to a PRD issue: ${issueLinkOrFolder}`,
+    );
+  }
+
+  return pullRequestFixRefs;
+}
+
 export async function collectTaskIssues(
   taskUrl: string,
   labels: LabelFilterOptions = {},
@@ -150,6 +184,34 @@ export async function collectIssues(
 ): Promise<string> {
   const snapshot = await collectIssueSnapshot(taskUrls, labels);
   return snapshot == null ? "" : snapshot.text;
+}
+
+export async function collectPullRequestFixReferences(
+  pullRequestUrl: string,
+): Promise<PullRequestFixReferences> {
+  const pullRequestIdent = parseGitHubComPullRequest(pullRequestUrl);
+  if (!pullRequestIdent) return { prdUrl: "", summary: "" };
+
+  const pullRequest = await loadPullRequestFromGh(pullRequestUrl);
+  const issueUrls = extractFixIssueUrls(
+    pullRequest.body ?? "",
+    pullRequestIdent.owner,
+    pullRequestIdent.repo,
+  );
+
+  for (const issueUrl of issueUrls) {
+    const issue = await loadIssueWithCommentsFromGh(issueUrl);
+    if (!isPrdIssue(issue)) continue;
+    return {
+      prdUrl: issue.url,
+      summary: extractIssueSummary(issue),
+    };
+  }
+
+  return {
+    prdUrl: "",
+    summary: "",
+  };
 }
 
 export async function collectBestNextTaskInput(
@@ -271,6 +333,18 @@ function parseGitHubComIssue(
   issuesUrl: string,
 ): { owner: string; repo: string; number: number } | null {
   const m = issuesUrl.match(githubComIssueRe);
+  if (!m) return null;
+  return {
+    owner: m[1]!,
+    repo: m[2]!,
+    number: Number(m[3]),
+  };
+}
+
+function parseGitHubComPullRequest(
+  pullRequestUrl: string,
+): { owner: string; repo: string; number: number } | null {
+  const m = pullRequestUrl.match(githubComPullRequestRe);
   if (!m) return null;
   return {
     owner: m[1]!,
@@ -412,6 +486,22 @@ async function loadIssueWithCommentsFromGh(
   return JSON.parse(stdout) as GhIssueWithComments;
 }
 
+async function loadPullRequestFromGh(
+  pullRequestUrl: string,
+): Promise<GhPullRequest> {
+  const { stdout, stderr, exitCode } = await execFileOutput("gh", [
+    "pr",
+    "view",
+    pullRequestUrl,
+    "--json",
+    "number,title,url,body",
+  ]);
+  if (exitCode !== 0) {
+    throw new Error(stderr || `gh pr view failed (${exitCode})`);
+  }
+  return JSON.parse(stdout) as GhPullRequest;
+}
+
 function formatInputTasks(blocks: string[]): string {
   return blocks.filter((b) => b.trim().length > 0).join("\n\n");
 }
@@ -440,6 +530,10 @@ async function collectInputTaskContext(taskUrl: string): Promise<string> {
   }
 
   const issue = await loadIssueWithCommentsFromGh(taskUrl);
+  return formatInputTaskContext(issue);
+}
+
+function formatInputTaskContext(issue: GhIssueWithComments): string {
   return (
     `## ${issue.title}\n\n` +
     `URL: ${issue.url}\n\n` +
@@ -448,6 +542,92 @@ async function collectInputTaskContext(taskUrl: string): Promise<string> {
     `### Comments\n\n` +
     `${formatInputTaskComments(issue.comments)}\n`
   );
+}
+
+function isPrdIssue(issue: GhIssue): boolean {
+  const title = issue.title.toLowerCase();
+  if (/\bprd\b/.test(title)) return true;
+
+  const labels = new Set(issue.labels.map((label) => label.name.toLowerCase()));
+  if (labels.has("prd") || labels.has("product-requirements")) return true;
+
+  const body = issue.body?.toLowerCase() ?? "";
+  if (/\bproduct requirements document\b/.test(body)) return true;
+  if (/^\s{0,3}#{1,6}\s*prd\b/m.test(body)) return true;
+  return false;
+}
+
+function extractIssueSummary(issue: GhIssue): string {
+  const body = issue.body ?? "";
+  const lines = body
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  for (const line of lines) {
+    if (/^#{1,6}\s+/u.test(line)) continue;
+    if (/^[-*+]\s+/u.test(line)) continue;
+    if (/^\d+\.\s+/u.test(line)) continue;
+    if (/^```/u.test(line)) continue;
+    return line;
+  }
+  return issue.title;
+}
+
+function extractFixIssueUrls(
+  pullRequestBody: string,
+  owner: string,
+  repo: string,
+): string[] {
+  const candidates = new Map<number, string>();
+
+  for (const refMatch of pullRequestBody.matchAll(/https?:\/\/\S+|#\s*\d+/g)) {
+    const rawRef = refMatch[0];
+    if (!rawRef) continue;
+    const numberRef = rawRef.match(/^#\s*([0-9]+)$/);
+    if (numberRef) {
+      const issueNumber = Number(numberRef[1]);
+      candidates.set(
+        issueNumber,
+        `https://github.com/${owner}/${repo}/issues/${issueNumber}`,
+      );
+      continue;
+    }
+
+    const normalized = normalizeReferenceUrl(rawRef);
+    const issueIdent = parseGitHubComIssue(normalized);
+    if (!issueIdent) continue;
+    candidates.set(
+      issueIdent.number,
+      `https://github.com/${issueIdent.owner}/${issueIdent.repo}/issues/${issueIdent.number}`,
+    );
+  }
+
+  return [...candidates.entries()]
+    .filter(([issueNumber, issueUrl]) =>
+      bodyDeclaresFix(pullRequestBody, issueNumber, issueUrl),
+    )
+    .map(([, issueUrl]) => issueUrl);
+}
+
+function normalizeReferenceUrl(rawRef: string): string {
+  const withoutAngles = rawRef.replace(/^<|>$/g, "");
+  return withoutAngles.replace(/[),.;]+$/g, "");
+}
+
+function bodyDeclaresFix(
+  body: string | null,
+  issueNumber: number,
+  issueUrl: string,
+): boolean {
+  if (body == null) return false;
+  const normalizedBody = normalizeParentRefText(body);
+  const normalizedIssueUrl = normalizeParentRefText(issueUrl);
+  const issueRef = `(?:#\\s*${issueNumber}(?!\\d)|${escapeRegExp(normalizedIssueUrl)})`;
+  const re = new RegExp(
+    `(?:^|\\s)(?:#+\\s*)?fix\\s*:?\\s*${issueRef}(?=\\s|$)`,
+    "i",
+  );
+  return re.test(normalizedBody);
 }
 
 async function collectFromIssueInput(

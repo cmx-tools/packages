@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { collectTaskIssues } from "./collectIssues.js";
+import {
+  collectPullRequestFixReferences,
+  collectTaskIssues,
+} from "./collectIssues.js";
 import { execFileOutput } from "./execFileOutput.js";
 
 vi.mock("./execFileOutput.js", () => ({
@@ -47,6 +50,148 @@ describe("collectTaskIssues", () => {
     const text = await collectTaskIssues(parentUrl);
 
     expect(text).toBe("");
+  });
+});
+
+describe("collectPullRequestFixReferences", () => {
+  beforeEach(() => {
+    execFileOutputMock.mockReset();
+  });
+
+  test("returns first PRD issue url and summary", async () => {
+    const prUrl = "https://github.com/Xiphe/ralph/pull/19";
+    const prdIssueUrl = "https://github.com/Xiphe/ralph/issues/77";
+    execFileOutputMock.mockImplementation(async (_command, args) => {
+      if (args[0] === "pr" && args[1] === "view") {
+        return ok({
+          number: 19,
+          title: "Some feature",
+          url: prUrl,
+          body: `Implementation details\n\nfix: ${prdIssueUrl}\n`,
+        });
+      }
+
+      if (args[0] === "issue" && args[1] === "view") {
+        return ok({
+          number: 77,
+          title: "PRD: launch feature X",
+          url: prdIssueUrl,
+          state: "open",
+          labels: [],
+          body: "## PRD\n\nFeature goals...",
+          comments: [{ body: "Looks good", author: { login: "xiphebrain" } }],
+        });
+      }
+
+      throw new Error(`unexpected gh args: ${args.join(" ")}`);
+    });
+
+    const result = await collectPullRequestFixReferences(prUrl);
+
+    expect(result.prdUrl).toBe(prdIssueUrl);
+    expect(result.summary).toBe("Feature goals...");
+  });
+
+  test("returns empty result when no referenced issue is PRD", async () => {
+    const prUrl = "https://github.com/Xiphe/ralph/pull/20";
+    const issueUrl = "https://github.com/Xiphe/ralph/issues/78";
+    execFileOutputMock.mockImplementation(async (_command, args) => {
+      if (args[0] === "pr" && args[1] === "view") {
+        return ok({
+          number: 20,
+          title: "Some fix",
+          url: prUrl,
+          body: "fix: #78",
+        });
+      }
+
+      if (args[0] === "issue" && args[1] === "view") {
+        return ok({
+          number: 78,
+          title: "Bug: edge case",
+          url: issueUrl,
+          state: "open",
+          labels: [],
+          body: "Fix edge case in parser",
+          comments: [],
+        });
+      }
+
+      throw new Error(`unexpected gh args: ${args.join(" ")}`);
+    });
+
+    const result = await collectPullRequestFixReferences(prUrl);
+
+    expect(result.prdUrl).toBe("");
+    expect(result.summary).toBe("");
+  });
+
+  test("accepts loose heading style fix marker", async () => {
+    const prUrl = "https://github.com/Xiphe/ralph/pull/21";
+    const issueUrl = "https://github.com/Xiphe/ralph/issues/79";
+    execFileOutputMock.mockImplementation(async (_command, args) => {
+      if (args[0] === "pr" && args[1] === "view") {
+        return ok({
+          number: 21,
+          title: "Some fix",
+          url: prUrl,
+          body: `## Fix\n\n${issueUrl}`,
+        });
+      }
+
+      if (args[0] === "issue" && args[1] === "view") {
+        return ok({
+          number: 79,
+          title: "PRD rollout",
+          url: issueUrl,
+          state: "open",
+          labels: [],
+          body: "## PRD\n\nRollout details",
+          comments: [],
+        });
+      }
+
+      throw new Error(`unexpected gh args: ${args.join(" ")}`);
+    });
+
+    const result = await collectPullRequestFixReferences(prUrl);
+
+    expect(result.prdUrl).toBe(issueUrl);
+    expect(result.summary).toBe("Rollout details");
+  });
+
+  test("does not partial-match shorter issue numbers in fix marker", async () => {
+    const prUrl = "https://github.com/Xiphe/ralph/pull/22";
+    const issueUrl = "https://github.com/Xiphe/ralph/issues/790";
+    execFileOutputMock.mockImplementation(async (_command, args) => {
+      if (args[0] === "pr" && args[1] === "view") {
+        return ok({
+          number: 22,
+          title: "Some fix",
+          url: prUrl,
+          body: "Fix: #790 Related: #79",
+        });
+      }
+
+      if (args[0] === "issue" && args[1] === "view") {
+        return ok({
+          number: 790,
+          title: "Bug: high number",
+          url: issueUrl,
+          state: "open",
+          labels: [],
+          body: "non prd",
+          comments: [],
+        });
+      }
+
+      throw new Error(`unexpected gh args: ${args.join(" ")}`);
+    });
+
+    const result = await collectPullRequestFixReferences(prUrl);
+
+    expect(result.prdUrl).toBe("");
+    expect(result.summary).toBe("");
   });
 });
 
