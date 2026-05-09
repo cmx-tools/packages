@@ -1,0 +1,25 @@
+{
+  "name": "cmx-cli-config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsgo -p tsconfig.json",
+    "pretest": "corepack pnpm run build",
+    "test": "vitest run --dir src",
+    "typecheck": "tsgo -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "c12": "^3.3.1",
+    "cmx-contracts": "workspace:*"
+  }
+}
