@@ -1,3 +1,4 @@
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { renderCmxDocuments } from "./renderCmxDocuments.js";
 
@@ -34,14 +35,26 @@ export async function runCmxDocumentCli(
   }
 
   if (result.result === "complete") {
-    process.stdout.write(`${JSON.stringify(toDocumentMap(result.entries))}\n`);
+    const documents = toDocumentMap(result.entries);
+    if (command.outDir === null) {
+      process.stdout.write(`${JSON.stringify(documents)}\n`);
+    } else {
+      if (!(await writeDocumentsOrFail(command.outDir, documents))) {
+        return 1;
+      }
+    }
     return 0;
   }
 
   if (result.result === "partial") {
-    process.stdout.write(
-      `${JSON.stringify(toDocumentMapFromMixedEntries(result.entries))}\n`,
-    );
+    const documents = toDocumentMapFromMixedEntries(result.entries);
+    if (command.outDir === null) {
+      process.stdout.write(`${JSON.stringify(documents)}\n`);
+    } else {
+      if (!(await writeDocumentsOrFail(command.outDir, documents))) {
+        return 1;
+      }
+    }
     writeDiagnostics(result.diagnostics);
     return 1;
   }
@@ -52,40 +65,85 @@ export async function runCmxDocumentCli(
 
 type ParsedCommand = {
   bundleDir: string;
+  outDir: string | null;
 };
 
 function parseCommand(argv: readonly string[]): ParsedCommand | null {
-  const positionals = argv.filter((argument) => !argument.startsWith("-"));
+  const options = parseOptions(argv);
+  if (options === null) {
+    return null;
+  }
 
-  if (positionals[0] === "render") {
-    if (positionals.length !== 2) {
+  if (options.positionals[0] === "render") {
+    if (options.positionals.length !== 2) {
       return null;
     }
     return {
-      bundleDir: resolveBundleDir(positionals[1]),
+      bundleDir: resolveBundleDir(options.positionals[1]),
+      outDir: resolveOutDir(options.outDir),
     };
   }
 
-  if (positionals.length === 1) {
+  if (options.positionals.length === 1) {
     return {
-      bundleDir: resolveBundleDir(positionals[0]),
+      bundleDir: resolveBundleDir(options.positionals[0]),
+      outDir: resolveOutDir(options.outDir),
     };
   }
 
-  if (positionals.length >= 1) {
+  if (options.positionals.length >= 1) {
     return null;
   }
 
   return null;
 }
 
+type ParsedOptions = {
+  positionals: string[];
+  outDir: string | null;
+};
+
+function parseOptions(argv: readonly string[]): ParsedOptions | null {
+  const positionals: string[] = [];
+  let outDir: string | null = null;
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === "--out-dir") {
+      const value = argv[index + 1];
+      if (value === undefined || value.startsWith("-")) {
+        return null;
+      }
+      outDir = value;
+      index += 1;
+      continue;
+    }
+    if (argument.startsWith("-")) {
+      continue;
+    }
+    positionals.push(argument);
+  }
+
+  return {
+    positionals,
+    outDir,
+  };
+}
+
 function resolveBundleDir(bundleDir: string): string {
   return path.resolve(process.cwd(), bundleDir);
 }
 
+function resolveOutDir(outDir: string | null): string | null {
+  if (outDir === null) {
+    return null;
+  }
+  return path.resolve(process.cwd(), outDir);
+}
+
 function writeUsage(): void {
   process.stderr.write(
-    "Usage: cmx-document render <bundleDir>\nUsage: cmx-document <bundleDir>\n",
+    "Usage: cmx-document render <bundleDir> [--out-dir <dir>]\nUsage: cmx-document <bundleDir> [--out-dir <dir>]\n",
   );
 }
 
@@ -95,10 +153,11 @@ function writeHelp(): void {
       "cmx-document",
       "",
       "Usage:",
-      "  cmx-document render <bundleDir>",
-      "  cmx-document <bundleDir>",
+      "  cmx-document render <bundleDir> [--out-dir <dir>]",
+      "  cmx-document <bundleDir> [--out-dir <dir>]",
       "",
       "Options:",
+      "  --out-dir <dir>",
       "  --help",
       "  --version",
       "",
@@ -142,4 +201,44 @@ function formatCliError(error: unknown): string {
     return `${error.message}\n`;
   }
   return "Unknown error\n";
+}
+
+async function writeDocuments(
+  outDir: string,
+  documents: Record<string, unknown>,
+): Promise<void> {
+  await mkdir(outDir, { recursive: true });
+  for (const [entryName, document] of Object.entries(documents)) {
+    const documentPath = resolveOutputDocumentPath(outDir, entryName);
+    await mkdir(path.dirname(documentPath), { recursive: true });
+    await writeFile(documentPath, `${JSON.stringify(document)}\n`, "utf8");
+  }
+}
+
+async function writeDocumentsOrFail(
+  outDir: string,
+  documents: Record<string, unknown>,
+): Promise<boolean> {
+  try {
+    await writeDocuments(outDir, documents);
+    return true;
+  } catch (error) {
+    process.stderr.write(formatCliError(error));
+    return false;
+  }
+}
+
+function resolveOutputDocumentPath(outDir: string, entryName: string): string {
+  const documentPath = path.resolve(outDir, `${entryName}.json`);
+  const relativePath = path.relative(path.resolve(outDir), documentPath);
+  if (
+    relativePath === "" ||
+    relativePath.startsWith("..") ||
+    path.isAbsolute(relativePath)
+  ) {
+    throw new Error(
+      `Invalid bundle entry name for --out-dir output: "${entryName}"`,
+    );
+  }
+  return documentPath;
 }

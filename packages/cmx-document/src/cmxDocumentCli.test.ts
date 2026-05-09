@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -217,6 +217,172 @@ describe("cmx-document cli", () => {
       expect(result.exitCode).toBe(1);
       expect(result.stdout).toBe("");
       expect(result.stderr).toContain("all broken");
+    });
+  });
+
+  it("writes rendered documents to --out-dir and emits no stdout", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeBundleFixture({
+        bundleDir: path.join(tempDir, "bundle"),
+        entries: [
+          {
+            name: "home",
+            file: "home.js",
+            source: 'export default { kind: "element", tag: "main" };\n',
+          },
+        ],
+      });
+
+      const result = await runCli(tempDir, [
+        "render",
+        "bundle",
+        "--out-dir",
+        "documents",
+      ]);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toBe("");
+      expect(
+        JSON.parse(
+          await readFile(path.join(tempDir, "documents", "home.json"), "utf8"),
+        ),
+      ).toMatchObject({
+        $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
+      });
+    });
+  });
+
+  it("writes successful documents on partial render and exits non-zero", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeBundleFixture({
+        bundleDir: path.join(tempDir, "bundle"),
+        entries: [
+          {
+            name: "ok",
+            file: "ok.js",
+            source: 'export default { kind: "element", tag: "main" };\n',
+          },
+          {
+            name: "broken",
+            file: "broken.js",
+            source: "throw new Error('broken render');\n",
+          },
+        ],
+      });
+
+      const result = await runCli(tempDir, [
+        "render",
+        "bundle",
+        "--out-dir",
+        "documents",
+      ]);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("broken render");
+      expect(
+        JSON.parse(
+          await readFile(path.join(tempDir, "documents", "ok.json"), "utf8"),
+        ),
+      ).toHaveProperty("$schema");
+    });
+  });
+
+  it("writes no documents when all entries fail in --out-dir mode", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeBundleFixture({
+        bundleDir: path.join(tempDir, "bundle"),
+        entries: [
+          {
+            name: "broken",
+            file: "broken.js",
+            source: "throw new Error('all broken');\n",
+          },
+        ],
+      });
+
+      const result = await runCli(tempDir, [
+        "render",
+        "bundle",
+        "--out-dir",
+        "documents",
+      ]);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("all broken");
+      await expect(
+        readFile(path.join(tempDir, "documents", "broken.json"), "utf8"),
+      ).rejects.toThrow();
+    });
+  });
+
+  it("does not clean stale files in --out-dir mode", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeBundleFixture({
+        bundleDir: path.join(tempDir, "bundle"),
+        entries: [
+          {
+            name: "home",
+            file: "home.js",
+            source: 'export default { kind: "element", tag: "main" };\n',
+          },
+        ],
+      });
+      await mkdir(path.join(tempDir, "documents"), { recursive: true });
+      await writeFile(
+        path.join(tempDir, "documents", "stale.json"),
+        '{"stale":true}\n',
+        "utf8",
+      );
+
+      const result = await runCli(tempDir, [
+        "render",
+        "bundle",
+        "--out-dir",
+        "documents",
+      ]);
+
+      expect(result.exitCode).toBe(0);
+      expect(
+        await readFile(path.join(tempDir, "documents", "stale.json"), "utf8"),
+      ).toBe('{"stale":true}\n');
+      expect(
+        JSON.parse(
+          await readFile(path.join(tempDir, "documents", "home.json"), "utf8"),
+        ),
+      ).toHaveProperty("$schema");
+    });
+  });
+
+  it("fails --out-dir writes when bundle entry name escapes output directory", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeBundleFixture({
+        bundleDir: path.join(tempDir, "bundle"),
+        entries: [
+          {
+            name: "../escape",
+            file: "home.js",
+            source: 'export default { kind: "element", tag: "main" };\n',
+          },
+        ],
+      });
+
+      const result = await runCli(tempDir, [
+        "render",
+        "bundle",
+        "--out-dir",
+        "documents",
+      ]);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain(
+        'Invalid bundle entry name for --out-dir output: "../escape"',
+      );
+      await expect(
+        readFile(path.join(tempDir, "escape.json"), "utf8"),
+      ).rejects.toThrow();
     });
   });
 });
