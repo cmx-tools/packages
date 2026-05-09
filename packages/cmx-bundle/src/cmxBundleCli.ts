@@ -1,6 +1,7 @@
 import path from "node:path";
 import type { CmxContractConfig } from "cmx-contracts";
 import { compileCmxBundle } from "./compileCmxBundle.js";
+import { resolveBundleEntriesFromGlob } from "./resolveBundleEntriesFromGlob.js";
 
 const VERSION = "0.1.0";
 type CliModuleLoader = (specifier: string) => Promise<unknown>;
@@ -29,13 +30,18 @@ export async function runCmxBundleCli(
 
   try {
     const cwd = command.cwd ?? process.cwd();
-    const { resolveCmxCliConfig } = await loadCmxCli(
+    const { resolveCmxCliConfig, glob } = await loadCmxCli(
       options.importModule ?? ((specifier) => import(specifier)),
     );
     const config = await resolveCmxCliConfig({ argv, cwd, env: process.env });
-    await compileCmxBundle({
+    const entries = await resolveBundleEntriesFromGlob({
       cwd,
       globPattern: command.globPattern,
+      glob,
+    });
+    await compileCmxBundle({
+      cwd,
+      entries,
       outDir: command.outDir,
       config,
     });
@@ -52,6 +58,12 @@ type CmxCliModule = {
     cwd?: string;
     env?: NodeJS.ProcessEnv;
   }) => Promise<CmxContractConfig>;
+  glob: (
+    pattern: string,
+    options: {
+      cwd: string;
+    },
+  ) => Promise<string[]>;
 };
 
 async function loadCmxCli(
@@ -59,7 +71,10 @@ async function loadCmxCli(
 ): Promise<CmxCliModule> {
   try {
     const module = (await importModule("cmx-cli")) as Record<string, unknown>;
-    if (typeof module.resolveCmxCliConfig !== "function") {
+    if (
+      typeof module.resolveCmxCliConfig !== "function" ||
+      typeof module.glob !== "function"
+    ) {
       throw new Error("Invalid cmx-cli installation");
     }
     return module as CmxCliModule;
