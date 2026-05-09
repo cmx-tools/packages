@@ -47,7 +47,7 @@ const setup: Setup[] = [
     command: "coderabbit auth status --agent | rg '\"authenticated\":\\s*true'",
   },
   {
-    command: 'codex login status | rg "Logged in using ChatGPT"',
+    command: 'codex login status 2>&1 | rg "Logged in using ChatGPT"',
   },
   {
     command: 'test -z "$(git status --porcelain)"',
