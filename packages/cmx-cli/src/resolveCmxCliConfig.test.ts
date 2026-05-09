@@ -58,7 +58,7 @@ describe("resolveCmxCliConfig", () => {
   it("returns empty config when no config source exists", async () => {
     await withTempDir(async (tempDir) => {
       const config = await resolveCmxCliConfig({ cwd: tempDir });
-      expect(config).toEqual({});
+      expect(config).toEqual({ cwd: tempDir });
     });
   });
 
@@ -195,6 +195,7 @@ describe("resolveCmxCliConfig", () => {
         argv: ["--cwd", fromArgv],
       });
 
+      expect(config.cwd).toBe(fromArgv);
       expect(config.externals).toEqual(["@pkg/from-argv"]);
     });
   });

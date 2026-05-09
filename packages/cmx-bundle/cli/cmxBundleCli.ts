@@ -37,15 +37,14 @@ export async function runCmxBundleCli(
     );
     const config = await resolveCmxCliConfig({ argv, cwd, env: process.env });
     const entries = await resolveBundleEntriesFromGlob({
-      cwd,
+      cwd: config.cwd ?? cwd,
       globPattern: command.globPattern,
       glob,
     });
     await compileCmxBundle({
-      cwd,
       entries,
       outDir: command.outDir,
-      config,
+      ...config,
     });
     return 0;
   } catch (error) {

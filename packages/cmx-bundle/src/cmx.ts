@@ -1,14 +1,7 @@
 import path from "node:path";
 import type { InputOptions, Plugin, TransformPluginContext } from "rolldown";
 import { parseSync, Visitor } from "rolldown/utils";
-import type {
-  CmxDependency,
-  CmxExportConfig,
-  CmxExternalEntry,
-  CmxTypeRef,
-  UnverifiedOptionalExportsPolicy,
-  UnsupportedValuesPolicy,
-} from "cmx-contracts";
+import type { CmxConfig, CmxDependency, CmxTypeRef } from "cmx-contracts";
 import { CMX_BUNDLE_FILE_NAME } from "cmx-contracts";
 import {
   createCmxBundleArtifact,
@@ -26,32 +19,17 @@ import {
   type ExternalStub,
 } from "./createExternalImportStubs.js";
 import { findUnsupportedExternalImport } from "./findUnsupportedExternalImport.js";
-import {
-  type CmxGetIntegrity,
-  type CmxIntegrityContext,
-  resolveAndRecordCmxExternalDependency,
-} from "./resolveCmxExternalDependency.js";
+import { resolveAndRecordCmxExternalDependency } from "./resolveCmxExternalDependency.js";
 import { resolveCmxExternalImports } from "./resolveCmxExternalImports.js";
 
 const RUNTIME_IMPORT_SOURCE = "cmx-runtime";
+const JSX_RUNTIME_MODULE_ID = `${RUNTIME_IMPORT_SOURCE}/jsx-runtime`;
+const JSX_DEV_RUNTIME_MODULE_ID = `${RUNTIME_IMPORT_SOURCE}/jsx-dev-runtime`;
 const DYNAMIC_IMPORT_UNSUPPORTED = "dynamic-import-unsupported";
 const EXPORTS_REQUIRED = "cmx-exports-required";
 const EXTERNAL_CONTRACT_INVALID = "cmx-external-contract-invalid";
-export type CmxPluginOptions = {
-  externals?: CmxExternalEntry[];
-  exports: Record<string, CmxExportConfig>;
-  unsupportedValues?: UnsupportedValuesPolicy;
-  unverifiedOptionalExports?: UnverifiedOptionalExportsPolicy;
-  cwd?: string;
-  getIntegrity?: CmxGetIntegrity;
-};
 
-export type { CmxGetIntegrity, CmxIntegrityContext };
-export type { CmxExternalEntry };
-
-export function cmx(options: CmxPluginOptions): Plugin {
-  const jsxRuntimeModuleId = `${RUNTIME_IMPORT_SOURCE}/jsx-runtime`;
-  const jsxDevRuntimeModuleId = `${RUNTIME_IMPORT_SOURCE}/jsx-dev-runtime`;
+export function cmx(options: CmxConfig): Plugin {
   const externalPolicy = createCmxExternalPolicy(options.externals ?? []);
   const externalStubs = new Map<string, ExternalStub>();
   const bundleDependencies = new Map<string, CmxDependency>();
@@ -70,7 +48,7 @@ export function cmx(options: CmxPluginOptions): Plugin {
       return withCmxJsxRuntime(inputOptions);
     },
     async buildStart() {
-      if (!options.exports || Object.keys(options.exports).length === 0) {
+      if (Object.keys(options.exports ?? {}).length === 0) {
         this.error({
           code: EXPORTS_REQUIRED,
           message: "CMX plugin options must configure at least one export.",
@@ -113,7 +91,10 @@ export function cmx(options: CmxPluginOptions): Plugin {
         });
       }
 
-      if (source === jsxRuntimeModuleId || source === jsxDevRuntimeModuleId) {
+      if (
+        source === JSX_RUNTIME_MODULE_ID ||
+        source === JSX_DEV_RUNTIME_MODULE_ID
+      ) {
         return {
           id: source,
           external: true,
@@ -150,7 +131,7 @@ export function cmx(options: CmxPluginOptions): Plugin {
       const entryTypeRefs = detectConfiguredExportTypeRefs({
         source,
         id,
-        exports: options.exports,
+        exports: options.exports ?? {},
       });
       if (Object.keys(entryTypeRefs).length > 0) {
         sourceExportTypesByEntry.set(normalizeModulePath(id), entryTypeRefs);
@@ -209,7 +190,7 @@ export function cmx(options: CmxPluginOptions): Plugin {
         outputBundle,
         entryOrder,
         runtimeImportSource: RUNTIME_IMPORT_SOURCE,
-        exports: options.exports,
+        exports: options.exports ?? {},
         unsupportedValues: options.unsupportedValues ?? "error",
         unverifiedOptionalExports: options.unverifiedOptionalExports ?? "error",
         dependencies: [...bundleDependencies.values()],

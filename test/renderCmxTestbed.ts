@@ -6,8 +6,9 @@ import {
   type CmxDocument,
   parseCmxBundleJson,
   type CmxBundle,
+  CmxConfig,
 } from "cmx-contracts";
-import { cmx, type CmxPluginOptions } from "cmx-bundle";
+import { cmx } from "cmx-bundle";
 import {
   renderCmxDocuments,
   type RenderCmxDocumentsCompleteResult,
@@ -22,9 +23,9 @@ export type RenderCmxTestbedInput = {
   files: Record<string, string>;
   entry?: string;
   entries?: string[];
-  externals?: CmxPluginOptions["externals"];
-  exports?: CmxPluginOptions["exports"];
-  unsupportedValues?: CmxPluginOptions["unsupportedValues"];
+  externals?: CmxConfig["externals"];
+  exports?: CmxConfig["exports"];
+  unsupportedValues?: CmxConfig["unsupportedValues"];
 };
 
 export type RenderCmxTestbedBundles = {
@@ -172,7 +173,7 @@ function entryNameFromPath(entryPath: string): string {
 }
 
 function createExternalPackageFixtureFiles(
-  externals: NonNullable<CmxPluginOptions["externals"]>,
+  externals: NonNullable<CmxConfig["externals"]>,
 ): Record<string, string> {
   const packages = [
     ...new Set(
@@ -246,7 +247,7 @@ function isString(value: string | undefined): value is string {
   return typeof value === "string";
 }
 
-const defaultExports: CmxPluginOptions["exports"] = {
+const defaultExports: CmxConfig["exports"] = {
   default: {
     required: true,
     type: {

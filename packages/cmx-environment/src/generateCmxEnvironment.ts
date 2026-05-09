@@ -2,33 +2,18 @@ import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { createRequire } from "node:module";
 import type {
+  CmxConfig,
   CmxDependency,
   CmxEnvironmentEntry,
-  CmxExportConfig,
   CmxExternalEntry,
   CmxExactImplementationExportMap,
+  CmxGetIntegrity,
 } from "cmx-contracts";
 import { createCmxEnvironmentModuleSource } from "./createCmxEnvironmentModuleSource.js";
 
 const COMPLEX_EXPORTS = "cmx-external-implementation-exports-complex";
 
-export type CmxGetIntegrity = (context: {
-  importSpecifier: string;
-  importerId: string;
-  resolvedId: string;
-  packageJsonPath: string;
-  packageName: string;
-  packageVersion: string;
-  consumerPackageJsonPath: string;
-  specifier: string;
-}) => string | null;
-
-export async function generateCmxEnvironment(input: {
-  cwd?: string;
-  exports: Record<string, CmxExportConfig>;
-  externals?: CmxExternalEntry[];
-  getIntegrity?: CmxGetIntegrity;
-}): Promise<{
+export async function generateCmxEnvironment(input: CmxConfig): Promise<{
   source: string;
   dependencies: CmxDependency[];
   entries: CmxEnvironmentEntry[];
@@ -48,7 +33,7 @@ export async function generateCmxEnvironment(input: {
     getIntegrity: input.getIntegrity,
   });
   const source = createCmxEnvironmentModuleSource({
-    exports: input.exports,
+    exports: input.exports ?? {},
     entries,
     dependencies,
   });

@@ -15,9 +15,13 @@ type ParsedCliOptions = {
   dottedOverrides: Array<{ path: string[]; value: unknown }>;
 };
 
+export type CmxConfigWithCwd = Omit<CmxConfig, "cwd"> & {
+  cwd: string;
+};
+
 export async function resolveCmxCliConfig(
   options: ResolveCmxCliConfigOptions = {},
-): Promise<CmxConfig> {
+): Promise<CmxConfigWithCwd> {
   const env = options.env ?? process.env;
   const parsed = parseCliOptions(options.argv ?? []);
   const resolvedCwd = parsed.cwd ?? env.CMX_CWD ?? options.cwd ?? process.cwd();
@@ -29,6 +33,7 @@ export async function resolveCmxCliConfig(
     env,
   });
   const withSectionOverrides = {
+    cwd: resolvedCwd,
     ...loadedConfig,
     ...parsed.sectionOverrides,
   };
@@ -137,9 +142,9 @@ function readFlagValue(
 }
 
 function mergeExternalOverrides(
-  config: CmxConfig,
+  config: CmxConfigWithCwd,
   externalFlags: readonly string[],
-): CmxConfig {
+): CmxConfigWithCwd {
   if (externalFlags.length === 0) {
     return config;
   }
@@ -219,9 +224,9 @@ function coerceDottedValue(input: string): unknown {
 }
 
 function applyDottedOverrides(
-  config: CmxConfig,
+  config: CmxConfigWithCwd,
   overrides: ParsedCliOptions["dottedOverrides"],
-): CmxConfig {
+): CmxConfigWithCwd {
   if (overrides.length === 0) {
     return config;
   }
@@ -238,7 +243,7 @@ function applyDottedOverrides(
     }
     cursor[override.path[override.path.length - 1]] = override.value;
   }
-  return resolved as CmxConfig;
+  return resolved as CmxConfigWithCwd;
 }
 
 function isRecord(input: unknown): input is Record<string, unknown> {
