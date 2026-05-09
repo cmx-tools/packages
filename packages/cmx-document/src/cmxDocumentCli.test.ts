@@ -385,4 +385,26 @@ describe("cmx-document cli", () => {
       ).rejects.toThrow();
     });
   });
+
+  it("prints install hint when cmx-cli is missing", async () => {
+    let stderr = "";
+    const stderrWrite = process.stderr.write.bind(process.stderr);
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      stderr += String(chunk);
+      return true;
+    }) as typeof process.stderr.write;
+    try {
+      const exitCode = await runCmxDocumentCli(["bundle"], {
+        importModule: async () => {
+          const error = new Error("missing") as Error & { code: string };
+          error.code = "ERR_MODULE_NOT_FOUND";
+          throw error;
+        },
+      });
+      expect(exitCode).toBe(1);
+      expect(stderr).toContain('Missing CLI dependency "cmx-cli"');
+    } finally {
+      process.stderr.write = stderrWrite;
+    }
+  });
 });

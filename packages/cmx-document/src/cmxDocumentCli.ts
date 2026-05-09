@@ -3,9 +3,12 @@ import path from "node:path";
 import { renderCmxDocuments } from "./renderCmxDocuments.js";
 
 const VERSION = "0.1.0";
+type CliModuleLoader = (specifier: string) => Promise<unknown>;
+type RunCmxDocumentCliOptions = { importModule?: CliModuleLoader };
 
 export async function runCmxDocumentCli(
   argv: readonly string[] = process.argv.slice(2),
+  options: RunCmxDocumentCliOptions = {},
 ): Promise<number> {
   if (argv.includes("--help") || argv.includes("-h")) {
     writeHelp();
@@ -17,7 +20,16 @@ export async function runCmxDocumentCli(
     return 0;
   }
 
-  const command = parseCommand(argv);
+  let command: ParsedCommand | null;
+  try {
+    command = await parseCommand(
+      argv,
+      options.importModule ?? ((specifier) => import(specifier)),
+    );
+  } catch (error) {
+    process.stderr.write(formatCliError(error));
+    return 1;
+  }
   if (command === null) {
     writeUsage();
     return 1;
@@ -68,26 +80,31 @@ type ParsedCommand = {
   outDir: string | null;
 };
 
-function parseCommand(argv: readonly string[]): ParsedCommand | null {
+async function parseCommand(
+  argv: readonly string[],
+  importModule: CliModuleLoader,
+): Promise<ParsedCommand | null> {
   const options = parseOptions(argv);
   if (options === null) {
     return null;
   }
+  const { resolveCliCwd } = await loadCmxCli(importModule);
+  const cwd = resolveCliCwd(undefined, process.env);
 
   if (options.positionals[0] === "render") {
     if (options.positionals.length !== 2) {
       return null;
     }
     return {
-      bundleDir: resolveBundleDir(options.positionals[1]),
-      outDir: resolveOutDir(options.outDir),
+      bundleDir: resolveBundleDir(options.positionals[1], cwd),
+      outDir: resolveOutDir(options.outDir, cwd),
     };
   }
 
   if (options.positionals.length === 1) {
     return {
-      bundleDir: resolveBundleDir(options.positionals[0]),
-      outDir: resolveOutDir(options.outDir),
+      bundleDir: resolveBundleDir(options.positionals[0], cwd),
+      outDir: resolveOutDir(options.outDir, cwd),
     };
   }
 
@@ -130,15 +147,15 @@ function parseOptions(argv: readonly string[]): ParsedOptions | null {
   };
 }
 
-function resolveBundleDir(bundleDir: string): string {
-  return path.resolve(process.cwd(), bundleDir);
+function resolveBundleDir(bundleDir: string, cwd: string): string {
+  return path.resolve(cwd, bundleDir);
 }
 
-function resolveOutDir(outDir: string | null): string | null {
+function resolveOutDir(outDir: string | null, cwd: string): string | null {
   if (outDir === null) {
     return null;
   }
-  return path.resolve(process.cwd(), outDir);
+  return path.resolve(cwd, outDir);
 }
 
 function writeUsage(): void {
@@ -201,6 +218,37 @@ function formatCliError(error: unknown): string {
     return `${error.message}\n`;
   }
   return "Unknown error\n";
+}
+
+type CmxCliModule = {
+  resolveCliCwd: (cliCwd?: string, env?: NodeJS.ProcessEnv) => string;
+};
+
+async function loadCmxCli(
+  importModule: CliModuleLoader,
+): Promise<CmxCliModule> {
+  try {
+    const module = (await importModule("cmx-cli")) as Record<string, unknown>;
+    if (typeof module.resolveCliCwd !== "function") {
+      throw new Error("Invalid cmx-cli installation");
+    }
+    return module as CmxCliModule;
+  } catch (error) {
+    if (isMissingModuleError(error)) {
+      throw new Error(
+        'Missing CLI dependency "cmx-cli". Install with: pnpm add -D cmx-cli cmx-document',
+      );
+    }
+    throw error;
+  }
+}
+
+function isMissingModuleError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    error.code === "ERR_MODULE_NOT_FOUND"
+  );
 }
 
 async function writeDocuments(

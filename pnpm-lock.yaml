@@ -155,9 +155,6 @@ importers:
 
   packages/cmx-bundle:
     dependencies:
-      cmx-cli-config:
-        specifier: workspace:*
-        version: link:../cmx-cli-config
       cmx-contracts:
         specifier: workspace:*
         version: link:../cmx-contracts
@@ -167,8 +164,12 @@ importers:
       rolldown:
         specifier: ^1.0.0-rc.18
         version: 1.0.0-rc.18
+    devDependencies:
+      cmx-cli:
+        specifier: workspace:*
+        version: link:../cmx-cli
 
-  packages/cmx-cli-config:
+  packages/cmx-cli:
     dependencies:
       c12:
         specifier: ^3.3.1
@@ -198,18 +199,22 @@ importers:
         specifier: workspace:*
         version: link:../cmx-runtime
     devDependencies:
+      cmx-cli:
+        specifier: workspace:*
+        version: link:../cmx-cli
       rolldown:
         specifier: ^1.0.0-rc.18
         version: 1.0.0-rc.18
 
   packages/cmx-environment:
     dependencies:
-      cmx-cli-config:
-        specifier: workspace:*
-        version: link:../cmx-cli-config
       cmx-contracts:
         specifier: workspace:*
         version: link:../cmx-contracts
+    devDependencies:
+      cmx-cli:
+        specifier: workspace:*
+        version: link:../cmx-cli
 
   packages/cmx-react:
     dependencies:
