@@ -5,10 +5,11 @@ import { rolldown } from "rolldown";
 import { describe, expect, it } from "vitest";
 import {
   CMX_BUNDLE_FILE_NAME,
+  CmxConfig,
   parseCmxBundleJson,
   type CmxBundle,
 } from "cmx-contracts";
-import { cmx, type CmxPluginOptions } from "./cmx.js";
+import { cmx } from "./cmx.js";
 
 async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
@@ -32,7 +33,7 @@ async function readBundle(outDir: string): Promise<CmxBundle> {
   );
 }
 
-const defaultExports: CmxPluginOptions["exports"] = {
+const defaultExports: CmxConfig["exports"] = {
   default: {
     required: true,
     type: {
@@ -657,7 +658,7 @@ describe("cmx", () => {
             exports: defaultExports,
             externals: [
               { contract: "@theme/ui" },
-            ] as unknown as CmxPluginOptions["externals"],
+            ] as unknown as CmxConfig["externals"],
             cwd: tempDir,
           }),
         ],
@@ -715,7 +716,7 @@ describe("cmx", () => {
               exports: defaultExports,
               externals: [
                 { contract: "@theme/ui", implementation },
-              ] as unknown as CmxPluginOptions["externals"],
+              ] as unknown as CmxConfig["externals"],
               cwd: tempDir,
             }),
           ],

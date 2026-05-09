@@ -1,23 +1,10 @@
 import type { PluginContext } from "rolldown";
-import type { CmxDependency } from "cmx-contracts";
+import type { CmxDependency, CmxGetIntegrity } from "cmx-contracts";
 import {
   findConsumerDependencySpecifier,
   type ConsumerPackageJson,
 } from "./consumerPackage.js";
 import { resolveCmxPackageIdentity } from "./resolveCmxPackageIdentity.js";
-
-export type CmxIntegrityContext = {
-  importSpecifier: string;
-  importerId: string;
-  resolvedId: string;
-  packageJsonPath: string;
-  packageName: string;
-  packageVersion: string;
-  consumerPackageJsonPath: string;
-  specifier: string;
-};
-
-export type CmxGetIntegrity = (context: CmxIntegrityContext) => string | null;
 
 export async function resolveAndRecordCmxExternalDependency(
   context: PluginContext,

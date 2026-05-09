@@ -40,8 +40,7 @@ export async function runCmxEnvironmentCli(
     });
     const result = await generateCmxEnvironment({
       cwd: command.cwd,
-      exports: config.exports ?? {},
-      externals: config.externals,
+      ...config,
     });
     await mkdir(path.dirname(command.outFile), { recursive: true });
     await writeFile(command.outFile, result.source, "utf8");
