@@ -113,10 +113,14 @@ function parseCommand(argv: readonly string[]): ParsedCommand | null {
       continue;
     }
     if (argument.startsWith("--")) {
+      const next = argv[index + 1];
+      const hasInlineValue = argument.includes("=");
+      const expectsValue = valueFlags.has(argument) || argument.includes(".");
       if (
-        valueFlags.has(argument) &&
-        argv[index + 1] !== undefined &&
-        !argv[index + 1].startsWith("--")
+        !hasInlineValue &&
+        expectsValue &&
+        next !== undefined &&
+        !next.startsWith("-")
       ) {
         index += 1;
       }

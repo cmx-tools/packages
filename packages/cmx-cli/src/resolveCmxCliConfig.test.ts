@@ -331,4 +331,42 @@ describe("resolveCmxCliConfig", () => {
       ).rejects.toThrow("CMX CLI config syntax error");
     });
   });
+
+  it("fails when value flags receive another flag token", async () => {
+    await withTempDir(async (tempDir) => {
+      await expect(
+        resolveCmxCliConfig({
+          cwd: tempDir,
+          argv: ["--config", "--external", "@pkg/ui"],
+        }),
+      ).rejects.toThrow(
+        "CMX CLI config syntax error: --config requires a value",
+      );
+    });
+  });
+
+  it("isolates env across concurrent resolution calls", async () => {
+    await withTempDir(async (tempDir) => {
+      const firstDir = path.join(tempDir, "first");
+      const secondDir = path.join(tempDir, "second");
+      await writeFixture(
+        firstDir,
+        "cmx.config.ts",
+        "export default { externals: [process.env.CMX_MARK] };\n",
+      );
+      await writeFixture(
+        secondDir,
+        "cmx.config.ts",
+        "export default { externals: [process.env.CMX_MARK] };\n",
+      );
+
+      const [first, second] = await Promise.all([
+        resolveCmxCliConfig({ cwd: firstDir, env: { CMX_MARK: "first" } }),
+        resolveCmxCliConfig({ cwd: secondDir, env: { CMX_MARK: "second" } }),
+      ]);
+
+      expect(first.externals).toEqual(["first"]);
+      expect(second.externals).toEqual(["second"]);
+    });
+  });
 });

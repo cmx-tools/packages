@@ -133,6 +133,39 @@ describe("cmx-bundle cli", () => {
     });
   }, 15000);
 
+  it("consumes value flags without positional corruption", async () => {
+    await withTempDir(async (tempDir) => {
+      await writePackageJson(tempDir);
+      await writeFixture(
+        tempDir,
+        "pages/index.tsx",
+        "export default <main />;\n",
+      );
+      await writeFixture(
+        tempDir,
+        "cmx.config.ts",
+        "export default { exports: { default: { required: true, type: { from: 'cmx-contracts', import: 'CmxNode' } } }, externals: ['@pkg/config'] };\n",
+      );
+
+      const result = await runCli(tempDir, [
+        "compile",
+        "pages/*.tsx",
+        "dist",
+        "--config",
+        "cmx.config.ts",
+        "--external",
+        "@pkg/extra",
+        "--exports.default.required",
+        "true",
+      ]);
+
+      expect(result.exitCode).toBe(0);
+      await expect(
+        readFile(path.join(tempDir, "dist", CMX_BUNDLE_FILE_NAME), "utf8"),
+      ).resolves.toContain('"name": "index"');
+    });
+  }, 15000);
+
   it("fails invalid verb", async () => {
     await withTempDir(async (tempDir) => {
       const result = await runCli(tempDir, ["invalid", "*.tsx", "dist"]);

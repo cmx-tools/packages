@@ -90,6 +90,13 @@ type ParsedCommand = {
 function parseCommand(argv: readonly string[]): ParsedCommand | null {
   const positionals: string[] = [];
   let cwd: string | undefined;
+  const valueFlags = new Set([
+    "--cwd",
+    "--config",
+    "--external",
+    "--exports",
+    "--externals",
+  ]);
 
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -103,6 +110,17 @@ function parseCommand(argv: readonly string[]): ParsedCommand | null {
       continue;
     }
     if (argument.startsWith("--")) {
+      const next = argv[index + 1];
+      const hasInlineValue = argument.includes("=");
+      const expectsValue = valueFlags.has(argument) || argument.includes(".");
+      if (
+        !hasInlineValue &&
+        expectsValue &&
+        next !== undefined &&
+        !next.startsWith("-")
+      ) {
+        index += 1;
+      }
       continue;
     }
     positionals.push(argument);

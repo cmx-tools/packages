@@ -58,4 +58,17 @@ describe("cmx umbrella cli", () => {
     expect(result.stderr).toContain("Missing capability package");
     expect(result.stderr).toContain("cmx-bundle");
   });
+
+  it("delegates subcommand --help and --version", async () => {
+    const result = await runCli(["bundle", "--help"], {
+      importModule: async () => ({
+        runCmxBundleCli: async (args: readonly string[]) => {
+          process.stdout.write(`bundle:${args.join(" ")}\n`);
+          return 0;
+        },
+      }),
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.trim()).toBe("bundle:--help");
+  });
 });

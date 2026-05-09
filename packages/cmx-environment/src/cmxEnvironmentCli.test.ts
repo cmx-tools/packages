@@ -275,6 +275,41 @@ describe("cmx-environment cli", () => {
     });
   });
 
+  it("consumes dotted override values without positional leakage", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "cmx-environment-cli-test",
+            private: true,
+            dependencies: {
+              "@site/contract": "^1.0.0",
+            },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeStubPackage(tempDir, "@site/contract", "1.2.3");
+      await writeFixture(
+        tempDir,
+        "cmx.config.ts",
+        "export default { exports: { default: { required: true, type: { from: 'cmx-contracts', import: 'CmxNode' } } }, externals: ['@site/contract'] };\n",
+      );
+
+      const result = await runCli(tempDir, [
+        "generate",
+        "dist/cmx-environment.ts",
+        "--exports.default.required",
+        "false",
+      ]);
+
+      expect(result.exitCode).toBe(0);
+    });
+  });
+
   it("writes diagnostics to stderr and exits 1 on failure", async () => {
     await withTempDir(async (tempDir) => {
       await writeFixture(

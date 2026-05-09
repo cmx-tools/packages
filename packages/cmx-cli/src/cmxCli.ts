@@ -31,17 +31,19 @@ export async function runCmxCli(
   argv: readonly string[] = process.argv.slice(2),
   options: RunCmxCliOptions = {},
 ): Promise<number> {
-  if (argv.includes("--help") || argv.includes("-h")) {
+  const [firstArg, ...restArgs] = argv;
+
+  if (firstArg === "--help" || firstArg === "-h") {
     writeHelp();
     return 0;
   }
 
-  if (argv.includes("--version") || argv.includes("-v")) {
+  if (firstArg === "--version" || firstArg === "-v") {
     process.stdout.write(`${VERSION}\n`);
     return 0;
   }
 
-  const verb = argv[0] as CapabilityName | undefined;
+  const verb = firstArg as CapabilityName | undefined;
   if (verb === undefined || !(verb in CAPABILITY_RUNNERS)) {
     writeUsage();
     return 1;
@@ -52,7 +54,7 @@ export async function runCmxCli(
       verb,
       options.importModule ?? ((specifier) => import(specifier)),
     );
-    return await runCapabilityCli(argv.slice(1));
+    return await runCapabilityCli(restArgs);
   } catch (error) {
     process.stderr.write(formatCliError(error));
     return 1;

@@ -22,13 +22,12 @@ export async function resolveCmxCliConfig(
   const parsed = parseCliOptions(options.argv ?? []);
   const resolvedCwd = parsed.cwd ?? env.CMX_CWD ?? options.cwd ?? process.cwd();
   const configFile = parsed.configFile ?? env.CMX_CONFIG;
-  const loadedConfig = await withScopedProcessEnv(env, async () =>
-    loadCmxConfig({
-      cwd: resolvedCwd,
-      configFile,
-      nodeEnv: env.NODE_ENV,
-    }),
-  );
+  const loadedConfig = await loadCmxConfig({
+    cwd: resolvedCwd,
+    configFile,
+    nodeEnv: env.NODE_ENV,
+    env,
+  });
   const withSectionOverrides = {
     ...loadedConfig,
     ...parsed.sectionOverrides,
@@ -44,24 +43,29 @@ type LoadCmxConfigOptions = {
   cwd: string;
   configFile?: string;
   nodeEnv?: string;
+  env: NodeJS.ProcessEnv;
 };
 
 async function loadCmxConfig(
   options: LoadCmxConfigOptions,
 ): Promise<CmxContractConfig> {
   try {
-    const loaded = await loadConfig<CmxContractConfig>({
-      name: "cmx",
-      cwd: options.cwd,
-      configFile: options.configFile,
-      configFileRequired: options.configFile !== undefined,
-      rcFile: ".cmxrc",
-      globalRc: false,
-      packageJson: true,
-      dotenv: {
-        fileName: [".env", `.env.${options.nodeEnv ?? "development"}`],
-      },
-    });
+    const loaded = await withScopedProcessEnv(
+      async () =>
+        loadConfig<CmxContractConfig>({
+          name: "cmx",
+          cwd: options.cwd,
+          configFile: options.configFile,
+          configFileRequired: options.configFile !== undefined,
+          rcFile: ".cmxrc",
+          globalRc: false,
+          packageJson: true,
+          dotenv: {
+            fileName: [".env", `.env.${options.nodeEnv ?? "development"}`],
+          },
+        }),
+      options.env,
+    );
     return loaded.config;
   } catch (cause) {
     throw new Error("Failed to resolve CMX config", { cause });
@@ -126,8 +130,8 @@ function readFlagValue(
   flag: string,
 ): string {
   const value = argv[index + 1];
-  if (value === undefined) {
-    throw new Error(`${flag} requires a value`);
+  if (value === undefined || value.startsWith("-")) {
+    throw syntaxError(`${flag} requires a value`);
   }
   return value;
 }
@@ -245,15 +249,25 @@ function syntaxError(message: string): Error {
   return new Error(`CMX CLI config syntax error: ${message}`);
 }
 
+let processEnvLock = Promise.resolve();
+
 async function withScopedProcessEnv<T>(
-  env: NodeJS.ProcessEnv,
   run: () => Promise<T>,
+  env: NodeJS.ProcessEnv = process.env,
 ): Promise<T> {
+  const lock = processEnvLock;
+  let releaseLock!: () => void;
+  processEnvLock = new Promise<void>((resolve) => {
+    releaseLock = resolve;
+  });
+  await lock;
+
   const previous = process.env;
   process.env = { ...previous, ...env };
   try {
     return await run();
   } finally {
     process.env = previous;
+    releaseLock();
   }
 }
