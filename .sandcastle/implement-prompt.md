@@ -45,26 +45,12 @@ When hitting hard blockers, missing skills, critical errors, or an instruction t
 
 Tackle the given task by following these steps:
 
-## (1) VALIDATE REPO STATE
-
-1. Make sure git status is clean. If not: ABORT.
-2. Identify the available validation scripts and run them.
-3. Prefer single `verify` over individual scripts.
-   When not present look for:
-   - `test`
-   - `typecheck`
-   - `lint`
-   - `fmt:check`
-
-   When any fail before we implemented anything: (re-)install dependencies.
-   If that doesn't help: report and ABORT.
-
-## (2) EXPLORATION
+## (1) EXPLORATION
 
 1. Read references and documentation linked in the task & conversation.
 2. Explore the repo.
 
-## (3) UNDERSTAND WHY
+## (2) UNDERSTAND WHY
 
 Find the end-user facing, MISSION-aligned WHY for this work.
 
@@ -80,7 +66,7 @@ Before you started this work you announced to the community:
 
 Write a detailed note for yourself and put it into `.sandcastle/logs/why/{issue-id}-{issue-title}.md`.
 
-## (4) CLAIM ISSUE
+## (3) CLAIM ISSUE
 
 Using gh CLI
 
@@ -88,7 +74,7 @@ Using gh CLI
    output exactly: <promise>TASK_TAKEN</promise> in case someone else is already working on it.
 2. set `in_progress` label to selected task -> ABORT if failure.
 
-## (5) IMPLEMENTATION
+## (4) IMPLEMENTATION
 
 Use /tdd skill to implement the task.
 
@@ -113,26 +99,26 @@ Then:
 Finding such situations and documenting it is a HUGE **success**.
 Continuing to implement a misaligned solution is a HUGE **failure**.
 
-## (6) VALIDATE IMPLEMENTATION
+## (5) VALIDATE IMPLEMENTATION
 
 1. Run `npm run fmt` or similar when available.
-2. Re-run the **full** suite of validation scripts.
+2. Run `corepack pnpm run verify`
    Green: Commit; Red: Adjust accordingly.
 
-## (7) CODE REVIEW
+## (6) CODE REVIEW
 
 1. Review your uncommitted changes with CodeRabbit /code-review skill.
-   This step may take a while, let it take as long as it needs, and check on it periodically.
-2. Address all valid feedback by jumping back to "(5) IMPLEMENTATION".
+   _This step may take a while, let it cook._
+2. Address all valid feedback by jumping back to "(4) IMPLEMENTATION".
 3. Cycle until no more valid feedback is presented.
 
-## (8) COMMIT
+## (7) COMMIT
 
 Pause caveman mode ONLY for this step.
 
 1. stage your changes
 2. commit using /golden-commit-ralph skill
-   - use your WHY from "(3) UNDERSTAND WHY"
+   - use your WHY from "(2) UNDERSTAND WHY"
    - be detailed!
    - when issue is fully addressed, reference it as `fix:`, otherwise as `ref:`
    - reference relevant related external documents and parent issues with `ref:`
@@ -140,7 +126,7 @@ Pause caveman mode ONLY for this step.
    - prefer full url references
    - add yourself as co-author
 
-## (9) REPORT PROGRESS
+## (8) REPORT PROGRESS
 
 ALWAYS do exactly ONE of these:
 
@@ -148,7 +134,7 @@ ALWAYS do exactly ONE of these:
 - When partially complete, remove `in_progress` label and add progress report as comment.
 - When implementation not straight forward, add `needs_feedback` label and remove `in_progress` and `afk` labels.
 
-## (10) COMPLETE
+## (9) COMPLETE
 
 Output exactly: <promise>COMPLETE</promise> when done.
 
@@ -158,13 +144,12 @@ Follow these steps.
 Don't skip any unless explicitly told.
 Only work on the task at hand.
 
-1. validate
-2. explore
-3. understand why
-4. claim issue
-5. implement
-6. validate
-7. code review
-8. commit
-9. report progress
-10. complete
+1. explore
+2. understand why
+3. claim issue
+4. implement
+5. validate
+6. code review
+7. commit
+8. report progress
+9. complete
