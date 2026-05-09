@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "bin": {
+    "cmx-bundle": "./dist/cli.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -19,7 +22,9 @@
     "typecheck": "tsgo -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "cmx-cli-config": "workspace:*",
     "cmx-contracts": "workspace:*",
+    "fast-glob": "^3.3.3",
     "rolldown": "^1.0.0-rc.18"
   }
 }
