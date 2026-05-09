@@ -11,6 +11,8 @@ type ParsedCliOptions = {
   cwd?: string;
   configFile?: string;
   externals: string[];
+  sectionOverrides: Partial<CmxContractConfig>;
+  dottedOverrides: Array<{ path: string[]; value: unknown }>;
 };
 
 export async function resolveCmxCliConfig(
@@ -20,16 +22,28 @@ export async function resolveCmxCliConfig(
   const parsed = parseCliOptions(options.argv ?? []);
   const resolvedCwd = parsed.cwd ?? env.CMX_CWD ?? options.cwd ?? process.cwd();
   const configFile = parsed.configFile ?? env.CMX_CONFIG;
-  const loadedConfig = await loadCmxConfig({
-    cwd: resolvedCwd,
-    configFile,
-  });
-  return mergeExternalOverrides(loadedConfig, parsed.externals);
+  const loadedConfig = await withScopedProcessEnv(env, async () =>
+    loadCmxConfig({
+      cwd: resolvedCwd,
+      configFile,
+      nodeEnv: env.NODE_ENV,
+    }),
+  );
+  const withSectionOverrides = {
+    ...loadedConfig,
+    ...parsed.sectionOverrides,
+  };
+  const withDottedOverrides = applyDottedOverrides(
+    withSectionOverrides,
+    parsed.dottedOverrides,
+  );
+  return mergeExternalOverrides(withDottedOverrides, parsed.externals);
 }
 
 type LoadCmxConfigOptions = {
   cwd: string;
   configFile?: string;
+  nodeEnv?: string;
 };
 
 async function loadCmxConfig(
@@ -44,7 +58,9 @@ async function loadCmxConfig(
       rcFile: ".cmxrc",
       globalRc: false,
       packageJson: true,
-      dotenv: true,
+      dotenv: {
+        fileName: [".env", `.env.${options.nodeEnv ?? "development"}`],
+      },
     });
     return loaded.config;
   } catch (cause) {
@@ -53,7 +69,11 @@ async function loadCmxConfig(
 }
 
 function parseCliOptions(argv: readonly string[]): ParsedCliOptions {
-  const parsed: ParsedCliOptions = { externals: [] };
+  const parsed: ParsedCliOptions = {
+    externals: [],
+    sectionOverrides: {},
+    dottedOverrides: [],
+  };
 
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -71,6 +91,29 @@ function parseCliOptions(argv: readonly string[]): ParsedCliOptions {
       parsed.externals.push(readFlagValue(argv, index, "--external"));
       index += 1;
       continue;
+    }
+    if (argument === "--exports") {
+      parsed.sectionOverrides.exports = parseJsonFlag(
+        readFlagValue(argv, index, "--exports"),
+        "--exports",
+      ) as CmxContractConfig["exports"];
+      index += 1;
+      continue;
+    }
+    if (argument === "--externals") {
+      parsed.sectionOverrides.externals = parseJsonFlag(
+        readFlagValue(argv, index, "--externals"),
+        "--externals",
+      ) as CmxContractConfig["externals"];
+      index += 1;
+      continue;
+    }
+    if (argument.startsWith("--") && argument.includes(".")) {
+      parsed.dottedOverrides.push({
+        path: argument.slice(2).split("."),
+        value: coerceDottedValue(readFlagValue(argv, index, argument)),
+      });
+      index += 1;
     }
   }
 
@@ -124,8 +167,93 @@ function parseExternal(external: string): CmxExternalEntry {
   if (splitIndex < 0) {
     return external;
   }
+  const contract = external.slice(0, splitIndex);
+  if (contract.length === 0) {
+    throw syntaxError("Invalid --external syntax");
+  }
+  const rawImplementation = external.slice(splitIndex + 1);
+  if (rawImplementation.startsWith("{")) {
+    const implementationMap = parseJsonFlag(rawImplementation, "--external");
+    if (
+      !isRecord(implementationMap) ||
+      Object.values(implementationMap).some(
+        (value) => typeof value !== "string",
+      )
+    ) {
+      throw syntaxError("Invalid --external implementation map");
+    }
+    return {
+      contract,
+      implementation: implementationMap as Record<string, string>,
+    };
+  }
   return {
-    contract: external.slice(0, splitIndex),
-    implementation: external.slice(splitIndex + 1),
+    contract,
+    implementation: rawImplementation,
   };
+}
+
+function parseJsonFlag(input: string, flag: string): unknown {
+  try {
+    return JSON.parse(input) as unknown;
+  } catch {
+    throw syntaxError(`Malformed JSON for ${flag}`);
+  }
+}
+
+function coerceDottedValue(input: string): unknown {
+  if (input === "true") {
+    return true;
+  }
+  if (input === "false") {
+    return false;
+  }
+  if (input === "null") {
+    return null;
+  }
+  return input;
+}
+
+function applyDottedOverrides(
+  config: CmxContractConfig,
+  overrides: ParsedCliOptions["dottedOverrides"],
+): CmxContractConfig {
+  if (overrides.length === 0) {
+    return config;
+  }
+  const resolved = { ...config } as Record<string, unknown>;
+  for (const override of overrides) {
+    let cursor = resolved;
+    for (let index = 0; index < override.path.length - 1; index += 1) {
+      const part = override.path[index];
+      const current = cursor[part];
+      if (!isRecord(current)) {
+        cursor[part] = {};
+      }
+      cursor = cursor[part] as Record<string, unknown>;
+    }
+    cursor[override.path[override.path.length - 1]] = override.value;
+  }
+  return resolved as CmxContractConfig;
+}
+
+function isRecord(input: unknown): input is Record<string, unknown> {
+  return typeof input === "object" && input !== null && !Array.isArray(input);
+}
+
+function syntaxError(message: string): Error {
+  return new Error(`CMX CLI config syntax error: ${message}`);
+}
+
+async function withScopedProcessEnv<T>(
+  env: NodeJS.ProcessEnv,
+  run: () => Promise<T>,
+): Promise<T> {
+  const previous = process.env;
+  process.env = { ...previous, ...env };
+  try {
+    return await run();
+  } finally {
+    process.env = previous;
+  }
 }
