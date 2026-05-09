@@ -1,86 +1,35 @@
-import { unlink } from "node:fs/promises";
-import { rolldown } from "rolldown";
-import { cmx } from "cmx-bundle";
-
-const ENV_ONLY_ENTRY = "virtual:cmx-env-only-entry";
-const ENV_ONLY_ARTIFACTS = [
-  ".cmx-env-only.js",
-  ".cmx-env-only.js.map",
-  "cmx-bundle.json",
-] as const;
+import { writeFile } from "node:fs/promises";
+import { generateCmxEnvironment } from "cmx-environment";
 
 export async function cmxEnvironmentExample(): Promise<void> {
-  const bundle = await rolldown({
-    input: ENV_ONLY_ENTRY,
-    plugins: [
-      {
-        name: "cmx-env-only-entry",
-        resolveId(source) {
-          if (source === ENV_ONLY_ENTRY) {
-            return source;
-          }
-        },
-        load(id) {
-          if (id === ENV_ONLY_ENTRY) {
-            return "export const meta = {};\nexport default {};\n";
-          }
+  const result = await generateCmxEnvironment({
+    cwd: process.cwd(),
+    exports: {
+      default: {
+        required: true,
+        type: {
+          from: "cmx-contracts",
+          import: "CmxNode",
         },
       },
-      cmx({
-        cwd: process.cwd(),
-        exports: {
-          default: {
-            required: true,
-            type: {
-              from: "cmx-contracts",
-              import: "CmxNode",
-            },
-          },
-          meta: {
-            required: false,
-            type: {
-              from: "@example/backend-contract",
-              import: "Meta",
-            },
-          },
+      meta: {
+        required: false,
+        type: {
+          from: "@example/backend-contract",
+          import: "Meta",
         },
-        externals: [
-          {
-            contract: "@example/backend-contract",
-            implementation: "./api.js",
-          },
-          "@example/ui-library",
-        ],
-        environment: {
-          fileName: "_gen_cmx_environment.ts",
-        },
-      }),
+      },
+    },
+    externals: [
+      {
+        contract: "@example/backend-contract",
+        implementation: "./api.js",
+      },
+      "@example/ui-library",
     ],
   });
 
-  try {
-    await bundle.write({
-      dir: ".",
-      entryFileNames: ".cmx-env-only.js",
-    });
-  } finally {
-    await bundle.close();
-  }
-
-  await Promise.all(
-    ENV_ONLY_ARTIFACTS.map(async (artifact) => {
-      await unlink(artifact).catch((error: unknown) => {
-        if (
-          typeof error !== "object" ||
-          error === null ||
-          !("code" in error) ||
-          error.code !== "ENOENT"
-        ) {
-          throw error;
-        }
-      });
-    }),
-  );
+  await writeFile("_gen_cmx_environment.ts", result.source, "utf8");
 }
 
 await cmxEnvironmentExample();

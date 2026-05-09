@@ -1,16 +1,12 @@
+import type {
+  CmxExternalEntry,
+  CmxExactImplementationExportMap,
+} from "cmx-contracts";
+
 export type CmxExternalPolicy = {
   contracts: string[];
   invalidContracts: string[];
 };
-
-export type CmxExternalEntry = string | CmxStructuredExternalEntry;
-
-export type CmxStructuredExternalEntry = {
-  contract: string;
-  implementation: string | CmxExactImplementationExportMap;
-};
-
-export type CmxExactImplementationExportMap = Record<string, string>;
 
 export function createCmxExternalPolicy(
   externals: CmxExternalEntry[],

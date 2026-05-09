@@ -29,6 +29,7 @@
     "cmx-bundle": "workspace:*",
     "cmx-contracts": "workspace:*",
     "cmx-document": "workspace:*",
+    "cmx-environment": "workspace:*",
     "cmx-react": "workspace:*",
     "cmx-runtime": "workspace:*",
     "prettier": "^3.8.3",

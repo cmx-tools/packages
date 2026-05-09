@@ -1,14 +1,10 @@
 import path from "node:path";
-import type {
-  InputOptions,
-  Plugin,
-  PluginContext,
-  TransformPluginContext,
-} from "rolldown";
+import type { InputOptions, Plugin, TransformPluginContext } from "rolldown";
 import { parseSync, Visitor } from "rolldown/utils";
 import type {
   CmxDependency,
   CmxExportConfig,
+  CmxExternalEntry,
   CmxTypeRef,
   UnverifiedOptionalExportsPolicy,
   UnsupportedValuesPolicy,
@@ -20,13 +16,8 @@ import {
 } from "./createCmxBundleArtifact.js";
 import { detectConfiguredExportTypeRefs } from "./detectConfiguredExportTypeRefs.js";
 import { normalizeModulePath } from "./normalizeModulePath.js";
-import { createCmxEnvironmentModuleSource } from "./createCmxEnvironmentModuleSource.js";
 import { readConsumerPackageJson } from "./consumerPackage.js";
-import {
-  createCmxExternalPolicy,
-  isExactImplementationExportMap,
-  type CmxExternalEntry,
-} from "./CmxExternalPolicy.js";
+import { createCmxExternalPolicy } from "./CmxExternalPolicy.js";
 import {
   createExternalStubSource,
   externalStubIdFromSource,
@@ -34,12 +25,11 @@ import {
   VIRTUAL_EXTERNAL_STUB_PREFIX,
   type ExternalStub,
 } from "./createExternalImportStubs.js";
-import { discoverImplementationPackageExports } from "./discoverImplementationPackageExports.js";
 import { findUnsupportedExternalImport } from "./findUnsupportedExternalImport.js";
 import {
-  resolveAndRecordCmxExternalDependency,
   type CmxGetIntegrity,
   type CmxIntegrityContext,
+  resolveAndRecordCmxExternalDependency,
 } from "./resolveCmxExternalDependency.js";
 import { resolveCmxExternalImports } from "./resolveCmxExternalImports.js";
 
@@ -47,21 +37,13 @@ const RUNTIME_IMPORT_SOURCE = "cmx-runtime";
 const DYNAMIC_IMPORT_UNSUPPORTED = "dynamic-import-unsupported";
 const EXPORTS_REQUIRED = "cmx-exports-required";
 const EXTERNAL_CONTRACT_INVALID = "cmx-external-contract-invalid";
-const EXTERNAL_IMPLEMENTATION_EXPORTS_COMPLEX =
-  "cmx-external-implementation-exports-complex";
-
 export type CmxPluginOptions = {
   externals?: CmxExternalEntry[];
   exports: Record<string, CmxExportConfig>;
   unsupportedValues?: UnsupportedValuesPolicy;
   unverifiedOptionalExports?: UnverifiedOptionalExportsPolicy;
-  environment?: CmxEnvironmentEmission;
   cwd?: string;
   getIntegrity?: CmxGetIntegrity;
-};
-
-export type CmxEnvironmentEmission = {
-  fileName: string;
 };
 
 export type { CmxGetIntegrity, CmxIntegrityContext };
@@ -73,12 +55,10 @@ export function cmx(options: CmxPluginOptions): Plugin {
   const externalPolicy = createCmxExternalPolicy(options.externals ?? []);
   const externalStubs = new Map<string, ExternalStub>();
   const bundleDependencies = new Map<string, CmxDependency>();
-  const environmentDependencies = new Map<string, CmxDependency>();
   const sourceExportTypesByEntry = new Map<
     string,
     Record<string, CmxTypeRef | undefined>
   >();
-  let environmentEntries: CmxEnvironmentEntry[] = [];
   let entryOrder = new Map<string, number>();
   let consumerPackageJsonPathResolved!: string;
   let consumerPackage!: ReturnType<typeof readConsumerPackageJson>;
@@ -97,7 +77,6 @@ export function cmx(options: CmxPluginOptions): Plugin {
         });
       }
       bundleDependencies.clear();
-      environmentDependencies.clear();
       sourceExportTypesByEntry.clear();
       consumerPackageJsonPathResolved = path.resolve(
         path.join(options.cwd ?? process.cwd(), "package.json"),
@@ -111,31 +90,6 @@ export function cmx(options: CmxPluginOptions): Plugin {
           code: "cmx-consumer-package-missing",
           message: `Could not read consumer package.json at ${consumerPackageJsonPathResolved}.`,
         });
-      }
-      if (options.environment) {
-        const environmentImporterId = path.join(
-          path.dirname(consumerPackageJsonPathResolved),
-          "__cmx_environment__.ts",
-        );
-        environmentEntries = await toEnvironmentEntries(
-          this,
-          options.externals ?? [],
-          environmentImporterId,
-        );
-        for (const entry of environmentEntries) {
-          const publicImportSpecifier = entry.contract;
-          if (!hasPackageName(publicImportSpecifier)) {
-            continue;
-          }
-          await resolveAndRecordCmxExternalDependency(this, {
-            importSpecifier: publicImportSpecifier,
-            importerId: environmentImporterId,
-            consumerPackageJsonPath: consumerPackageJsonPathResolved,
-            consumerPackage,
-            bundleDependencies: environmentDependencies,
-            getIntegrity: options.getIntegrity,
-          });
-        }
       }
       if (externalPolicy.invalidContracts.length > 0) {
         this.error({
@@ -267,18 +221,6 @@ export function cmx(options: CmxPluginOptions): Plugin {
         fileName: CMX_BUNDLE_FILE_NAME,
         source: `${JSON.stringify(cmxBundle, null, 2)}\n`,
       });
-
-      if (options.environment) {
-        this.emitFile({
-          type: "asset",
-          fileName: options.environment.fileName,
-          source: createCmxEnvironmentModuleSource({
-            entries: environmentEntries,
-            dependencies: [...environmentDependencies.values()],
-            exports: options.exports,
-          }),
-        });
-      }
     },
   };
 }
@@ -324,128 +266,4 @@ function withCmxJsxRuntime(inputOptions: InputOptions): InputOptions {
       },
     },
   };
-}
-
-type CmxEnvironmentEntry = {
-  contract: string;
-  implementation?: string;
-};
-
-async function toEnvironmentEntries(
-  context: PluginContext,
-  externals: CmxExternalEntry[],
-  importerId: string,
-): Promise<CmxEnvironmentEntry[]> {
-  const entries: CmxEnvironmentEntry[] = [];
-
-  for (const entry of externals) {
-    if (typeof entry === "string") {
-      entries.push(
-        ...(await toEnvironmentEntriesForStringImplementation(
-          context,
-          entry,
-          entry,
-          importerId,
-        )),
-      );
-      continue;
-    }
-
-    if (
-      typeof entry.contract === "string" &&
-      typeof entry.implementation === "string"
-    ) {
-      entries.push(
-        ...(await toEnvironmentEntriesForStringImplementation(
-          context,
-          entry.contract,
-          entry.implementation,
-          importerId,
-        )),
-      );
-      continue;
-    }
-
-    if (
-      typeof entry.contract === "string" &&
-      isExactImplementationExportMap(entry.implementation)
-    ) {
-      entries.push(
-        ...Object.entries(entry.implementation).map(
-          ([subpath, implementation]) =>
-            toEnvironmentEntry(
-              contractImportSpecifier(entry.contract, subpath),
-              implementation,
-            ),
-        ),
-      );
-    }
-  }
-
-  return entries.filter((entry) => entry.contract.trim().length > 0);
-}
-
-async function toEnvironmentEntriesForStringImplementation(
-  context: PluginContext,
-  contract: string,
-  implementation: string,
-  importerId: string,
-): Promise<CmxEnvironmentEntry[]> {
-  const discovered = await discoverImplementationPackageExports(context, {
-    implementation,
-    importerId,
-  });
-
-  if (discovered.kind === "complex") {
-    context.error({
-      code: EXTERNAL_IMPLEMENTATION_EXPORTS_COMPLEX,
-      message: `CMX cannot derive environment imports from complex exports for implementation ${JSON.stringify(implementation)}. Use an exact implementation export map instead.`,
-    });
-    return [];
-  }
-
-  if (discovered.kind === "rootOnly") {
-    return [toEnvironmentEntry(contract, implementation)];
-  }
-
-  return discovered.subpaths.map((subpath) =>
-    toEnvironmentEntry(
-      contractImportSpecifier(contract, subpath),
-      implementationImportSpecifier(implementation, subpath),
-    ),
-  );
-}
-
-function toEnvironmentEntry(
-  contract: string,
-  implementation: string,
-): {
-  contract: string;
-  implementation?: string;
-} {
-  return implementation === contract
-    ? { contract }
-    : { contract, implementation };
-}
-
-function contractImportSpecifier(contract: string, subpath: string): string {
-  return subpath === "." ? contract : `${contract}/${subpath.slice(2)}`;
-}
-
-function implementationImportSpecifier(
-  implementation: string,
-  subpath: string,
-): string {
-  return subpath === "."
-    ? implementation
-    : `${implementation}/${subpath.slice(2)}`;
-}
-
-function hasPackageName(importSpecifier: string): boolean {
-  if (importSpecifier.startsWith(".") || path.isAbsolute(importSpecifier)) {
-    return false;
-  }
-
-  const parts = importSpecifier.split("/");
-  return importSpecifier.startsWith("@") ? parts.length >= 2 : parts[0] !== "";
 }

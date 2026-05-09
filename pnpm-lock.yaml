@@ -29,6 +29,9 @@ importers:
       cmx-document:
         specifier: workspace:*
         version: link:packages/cmx-document
+      cmx-environment:
+        specifier: workspace:*
+        version: link:packages/cmx-environment
       cmx-react:
         specifier: workspace:*
         version: link:packages/cmx-react
@@ -62,12 +65,12 @@ importers:
       '@example/ui-library':
         specifier: workspace:*
         version: link:../ui-library
-      cmx-bundle:
-        specifier: workspace:*
-        version: link:../../packages/cmx-bundle
       cmx-contracts:
         specifier: workspace:*
         version: link:../../packages/cmx-contracts
+      cmx-environment:
+        specifier: workspace:*
+        version: link:../../packages/cmx-environment
       cmx-react:
         specifier: workspace:*
         version: link:../../packages/cmx-react
@@ -77,9 +80,6 @@ importers:
       react-dom:
         specifier: ^19.2.5
         version: 19.2.5(react@19.2.5)
-      rolldown:
-        specifier: ^1.0.0-rc.18
-        version: 1.0.0-rc.18
     devDependencies:
       '@types/node':
         specifier: ^24
@@ -180,6 +180,12 @@ importers:
       rolldown:
         specifier: ^1.0.0-rc.18
         version: 1.0.0-rc.18
+
+  packages/cmx-environment:
+    dependencies:
+      cmx-contracts:
+        specifier: workspace:*
+        version: link:../cmx-contracts
 
   packages/cmx-react:
     dependencies:

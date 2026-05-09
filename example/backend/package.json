@@ -9,12 +9,11 @@
   "dependencies": {
     "@example/backend-contract": "workspace:*",
     "@example/ui-library": "workspace:*",
-    "cmx-bundle": "workspace:*",
     "cmx-contracts": "workspace:*",
+    "cmx-environment": "workspace:*",
     "cmx-react": "workspace:*",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5",
-    "rolldown": "^1.0.0-rc.18"
+    "react-dom": "^19.2.5"
   },
   "devDependencies": {
     "@types/node": "^24",
