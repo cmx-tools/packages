@@ -6,10 +6,10 @@
     "strict": true,
     "declaration": true,
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": ".",
     "noUnusedLocals": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts", "dist"]
+  "include": ["src/**/*.ts", "cli/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "cli/**/*.test.ts", "dist"]
 }

@@ -8,16 +8,15 @@
     "build": "corepack pnpm run compile && corepack pnpm run render"
   },
   "dependencies": {
-    "cmx-contracts": "workspace:*",
-    "cmx-bundle": "workspace:*",
-    "cmx-document": "workspace:*",
-    "rolldown": "^1.0.0-rc.18",
     "@example/ui-library": "workspace:*",
     "@example/backend-contract": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cmx-bundle": "workspace:*",
+    "cmx-document": "workspace:*",
+    "rolldown": "^1.0.0-rc.18",
     "cmx-cli": "workspace:*",
     "tsx": "^4.21.0"
   }

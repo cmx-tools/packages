@@ -1,8 +1,9 @@
 import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { runCmxEnvironmentCli } from "./index.js";
+import { runCmxEnvironmentCli } from "./cmxEnvironmentCli.js";
 
 async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "cmx-environment-cli-"));
@@ -179,7 +180,7 @@ describe("cmx-environment cli", () => {
 
     const version = await runCli(process.cwd(), ["--version"]);
     expect(version.exitCode).toBe(0);
-    expect(version.stdout.trim()).toBe("0.1.0");
+    expect(version.stdout.trim()).toBe(readPackageVersion());
   });
 
   it("creates parent directory and overwrites existing file", async () => {
@@ -360,3 +361,14 @@ describe("cmx-environment cli", () => {
     }
   });
 });
+
+function readPackageVersion(): string {
+  const packageJsonPath = new URL("../package.json", import.meta.url);
+  const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
+    version?: unknown;
+  };
+  if (typeof packageJson.version !== "string") {
+    throw new Error("Missing package version");
+  }
+  return packageJson.version;
+}

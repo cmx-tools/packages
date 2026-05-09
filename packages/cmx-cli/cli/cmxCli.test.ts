@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { runCmxCli } from "./cmxCli.js";
 
 async function runCli(
@@ -36,7 +37,7 @@ describe("cmx umbrella cli", () => {
 
     const version = await runCli(["--version"]);
     expect(version.exitCode).toBe(0);
-    expect(version.stdout.trim()).toBe("0.1.0");
+    expect(version.stdout.trim()).toBe(readPackageVersion());
   });
 
   it("fails on unknown verb", async () => {
@@ -72,3 +73,14 @@ describe("cmx umbrella cli", () => {
     expect(result.stdout.trim()).toBe("bundle:--help");
   });
 });
+
+function readPackageVersion(): string {
+  const packageJsonPath = new URL("../package.json", import.meta.url);
+  const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
+    version?: unknown;
+  };
+  if (typeof packageJson.version !== "string") {
+    throw new Error("Missing package version");
+  }
+  return packageJson.version;
+}

@@ -1,50 +1,50 @@
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { CmxConfig } from "cmx-contracts";
-import { compileCmxBundle } from "./compileCmxBundle.js";
-import { resolveBundleEntriesFromGlob } from "./resolveBundleEntriesFromGlob.js";
+import { readPackageVersionFromImportMetaUrl } from "cmx-cli";
+import { generateCmxEnvironment } from "../src/generateCmxEnvironment.js";
 
-const VERSION = "0.1.0";
 type CliModuleLoader = (specifier: string) => Promise<unknown>;
-type RunCmxBundleCliOptions = { importModule?: CliModuleLoader };
+type RunCmxEnvironmentCliOptions = { importModule?: CliModuleLoader };
 
-export async function runCmxBundleCli(
+export async function runCmxEnvironmentCli(
   argv: readonly string[] = process.argv.slice(2),
-  options: RunCmxBundleCliOptions = {},
+  options: RunCmxEnvironmentCliOptions = {},
 ): Promise<number> {
   if (argv.includes("--help") || argv.includes("-h")) {
     writeHelp();
     return 0;
   }
+
   if (argv.includes("--version") || argv.includes("-v")) {
-    process.stdout.write(`${VERSION}\n`);
+    process.stdout.write(
+      `${readPackageVersionFromImportMetaUrl(import.meta.url)}\n`,
+    );
     return 0;
   }
 
   const command = parseCommand(argv);
   if (command === null) {
-    process.stderr.write(
-      "Usage: cmx-bundle compile <glob> <outDir>\nUsage: cmx-bundle <glob> <outDir>\n",
-    );
+    writeUsage();
     return 1;
   }
 
   try {
-    const cwd = command.cwd ?? process.cwd();
-    const { resolveCmxCliConfig, glob } = await loadCmxCli(
+    const { resolveCmxCliConfig } = await loadCmxCli(
       options.importModule ?? ((specifier) => import(specifier)),
     );
-    const config = await resolveCmxCliConfig({ argv, cwd, env: process.env });
-    const entries = await resolveBundleEntriesFromGlob({
-      cwd,
-      globPattern: command.globPattern,
-      glob,
+    const config = await resolveCmxCliConfig({
+      argv,
+      cwd: command.cwd,
+      env: process.env,
     });
-    await compileCmxBundle({
-      cwd,
-      entries,
-      outDir: command.outDir,
-      config,
+    const result = await generateCmxEnvironment({
+      cwd: command.cwd,
+      exports: config.exports ?? {},
+      externals: config.externals,
     });
+    await mkdir(path.dirname(command.outFile), { recursive: true });
+    await writeFile(command.outFile, result.source, "utf8");
     return 0;
   } catch (error) {
     process.stderr.write(formatCliError(error));
@@ -58,12 +58,6 @@ type CmxCliModule = {
     cwd?: string;
     env?: NodeJS.ProcessEnv;
   }) => Promise<CmxConfig>;
-  glob: (
-    pattern: string,
-    options: {
-      cwd: string;
-    },
-  ) => Promise<string[]>;
 };
 
 async function loadCmxCli(
@@ -71,17 +65,14 @@ async function loadCmxCli(
 ): Promise<CmxCliModule> {
   try {
     const module = (await importModule("cmx-cli")) as Record<string, unknown>;
-    if (
-      typeof module.resolveCmxCliConfig !== "function" ||
-      typeof module.glob !== "function"
-    ) {
+    if (typeof module.resolveCmxCliConfig !== "function") {
       throw new Error("Invalid cmx-cli installation");
     }
     return module as CmxCliModule;
   } catch (error) {
     if (isMissingModuleError(error)) {
       throw new Error(
-        'Missing CLI dependency "cmx-cli". Install with: pnpm add -D cmx-cli cmx-bundle',
+        'Missing CLI dependency "cmx-cli". Install with: pnpm add -D cmx-cli cmx-environment',
       );
     }
     throw error;
@@ -97,9 +88,8 @@ function isMissingModuleError(error: unknown): boolean {
 }
 
 type ParsedCommand = {
-  cwd?: string;
-  globPattern: string;
-  outDir: string;
+  cwd: string;
+  outFile: string;
 };
 
 function parseCommand(argv: readonly string[]): ParsedCommand | null {
@@ -141,40 +131,52 @@ function parseCommand(argv: readonly string[]): ParsedCommand | null {
     positionals.push(argument);
   }
 
-  if (positionals[0] === "compile") {
-    if (positionals.length !== 3) {
+  if (positionals[0] === "generate") {
+    if (positionals.length !== 2) {
       return null;
     }
     return {
       cwd: resolveCliCwd(cwd),
-      globPattern: positionals[1],
-      outDir: positionals[2],
+      outFile: resolveOutputFile(positionals[1], cwd),
     };
   }
 
-  if (positionals.length === 2) {
+  if (positionals.length === 1) {
     return {
       cwd: resolveCliCwd(cwd),
-      globPattern: positionals[0],
-      outDir: positionals[1],
+      outFile: resolveOutputFile(positionals[0], cwd),
     };
+  }
+
+  if (positionals.length >= 1) {
+    return null;
   }
 
   return null;
+}
+
+function resolveOutputFile(outFile: string, cliCwd?: string): string {
+  return path.resolve(resolveCliCwd(cliCwd), outFile);
 }
 
 function resolveCliCwd(cliCwd?: string): string {
   return path.resolve(cliCwd ?? process.env.CMX_CWD ?? process.cwd());
 }
 
+function writeUsage(): void {
+  process.stderr.write(
+    "Usage: cmx-environment generate <outFile>\nUsage: cmx-environment <outFile>\n",
+  );
+}
+
 function writeHelp(): void {
   process.stdout.write(
     [
-      "cmx-bundle",
+      "cmx-environment",
       "",
       "Usage:",
-      "  cmx-bundle compile <glob> <outDir>",
-      "  cmx-bundle <glob> <outDir>",
+      "  cmx-environment generate <outFile>",
+      "  cmx-environment <outFile>",
       "",
       "Options:",
       "  --cwd <path>",
