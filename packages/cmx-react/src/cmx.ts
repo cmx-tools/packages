@@ -83,7 +83,8 @@ function hydrateNode(
     return hydrateComponent(node, environment);
   }
 
-  throw new Error("CMX component nodes are not supported yet.");
+  const _exhaustiveCheck: never = node;
+  return _exhaustiveCheck;
 }
 
 function hydrateFragment(
