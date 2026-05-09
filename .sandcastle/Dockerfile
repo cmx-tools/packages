@@ -18,7 +18,11 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
 
 RUN npm install -g pnpm
 RUN npm install -g @openai/codex
-RUN curl -fsSL https://cli.coderabbit.ai/install.sh | sh
+RUN set -eux; \
+  curl -fsSL https://cli.coderabbit.ai/install.sh -o /tmp/coderabbit-install.sh; \
+  CODERABBIT_INSTALL_DIR=/usr/local/bin sh /tmp/coderabbit-install.sh; \
+  rm -f /tmp/coderabbit-install.sh; \
+  coderabbit --version
 
 # Build-args for UID/GID alignment: sandcastle docker build-image
 # defaults these to the host user's UID/GID so image-built files
