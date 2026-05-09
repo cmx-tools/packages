@@ -45,7 +45,7 @@ export async function resolveAndRecordCmxExternalDependency(
 
   if (packageIdentity.result === "external") {
     context.error({
-      code: "cmx-bundler-external-conflict",
+      code: "cmx-bundle-external-conflict",
       message: `CMX external ${JSON.stringify(input.importSpecifier)} is also marked as a Rolldown external. Use CMX "externals" for CMX externals; do not list the same module in Rolldown input.external.`,
     });
     return;

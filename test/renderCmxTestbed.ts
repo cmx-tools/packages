@@ -7,14 +7,14 @@ import {
   parseCmxBundleJson,
   type CmxBundle,
 } from "cmx-contracts";
-import { cmx, type CmxPluginOptions } from "cmx-bundler";
+import { cmx, type CmxPluginOptions } from "cmx-bundle";
 import {
   renderCmxDocuments,
   type RenderCmxDocumentsCompleteResult,
   type RenderCmxDocumentsErrorResult,
   type RenderCmxDocumentsPartialResult,
   type CmxRenderDiagnostic,
-} from "cmx-document-renderer";
+} from "cmx-document";
 import { createCmxTestbedWorkspace } from "./createCmxTestbedWorkspace.js";
 import { toCmxTestbedBuildDiagnostic } from "./toCmxTestbedBuildDiagnostic.js";
 

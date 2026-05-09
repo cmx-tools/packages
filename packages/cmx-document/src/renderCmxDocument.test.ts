@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { renderCmxDocument } from "cmx-document-renderer";
+import { renderCmxDocument } from "cmx-document";
 
-describe("cmx-document-renderer", () => {
+describe("cmx-document", () => {
   it("executes a hand-written prepared bundle into a document", async () => {
     await expect(
       renderCmxDocument({

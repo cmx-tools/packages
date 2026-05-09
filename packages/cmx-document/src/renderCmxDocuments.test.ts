@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 import { transform } from "rolldown/utils";
 import { describe, expect, it } from "vitest";
 import { CMX_BUNDLE_FILE_NAME, type CmxBundle } from "cmx-contracts";
-import { renderCmxDocuments } from "cmx-document-renderer";
+import { renderCmxDocuments } from "cmx-document";
 
 const CMX_RUNTIME_JSX_RUNTIME_IMPORT_SOURCE = import.meta
   .resolve("cmx-runtime/jsx-runtime");

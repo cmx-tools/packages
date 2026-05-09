@@ -20,15 +20,15 @@ importers:
       '@typescript/native-preview':
         specifier: 7.0.0-dev.20260421.2
         version: 7.0.0-dev.20260421.2
-      cmx-bundler:
+      cmx-bundle:
         specifier: workspace:*
-        version: link:packages/cmx-bundler
+        version: link:packages/cmx-bundle
       cmx-contracts:
         specifier: workspace:*
         version: link:packages/cmx-contracts
-      cmx-document-renderer:
+      cmx-document:
         specifier: workspace:*
-        version: link:packages/cmx-document-renderer
+        version: link:packages/cmx-document
       cmx-react:
         specifier: workspace:*
         version: link:packages/cmx-react
@@ -62,9 +62,9 @@ importers:
       '@example/ui-library':
         specifier: workspace:*
         version: link:../ui-library
-      cmx-bundler:
+      cmx-bundle:
         specifier: workspace:*
-        version: link:../../packages/cmx-bundler
+        version: link:../../packages/cmx-bundle
       cmx-contracts:
         specifier: workspace:*
         version: link:../../packages/cmx-contracts
@@ -111,15 +111,15 @@ importers:
       '@example/ui-library':
         specifier: workspace:*
         version: link:../ui-library
-      cmx-bundler:
+      cmx-bundle:
         specifier: workspace:*
-        version: link:../../packages/cmx-bundler
+        version: link:../../packages/cmx-bundle
       cmx-contracts:
         specifier: workspace:*
         version: link:../../packages/cmx-contracts
-      cmx-document-renderer:
+      cmx-document:
         specifier: workspace:*
-        version: link:../../packages/cmx-document-renderer
+        version: link:../../packages/cmx-document
       rolldown:
         specifier: ^1.0.0-rc.18
         version: 1.0.0-rc.18
@@ -147,7 +147,7 @@ importers:
         specifier: ^19
         version: 19.2.3(@types/react@19.2.14)
 
-  packages/cmx-bundler:
+  packages/cmx-bundle:
     dependencies:
       cmx-contracts:
         specifier: workspace:*
@@ -165,7 +165,7 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
-  packages/cmx-document-renderer:
+  packages/cmx-document:
     dependencies:
       '@jridgewell/trace-mapping':
         specifier: ^0.3.31
