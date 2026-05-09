@@ -31,8 +31,6 @@ export function createCmxEnvironmentModuleSource(input: {
         : []),
     ]),
   ];
-  const exportOpen =
-    "export const environment: CmxEnvironment<CmxEnvironmentExports> = {";
 
   return [
     ...importLines,
@@ -45,7 +43,7 @@ export function createCmxEnvironmentModuleSource(input: {
     ),
     "};",
     "",
-    exportOpen,
+    "export const environment: CmxEnvironment<CmxEnvironmentExports> = {",
     `  dependencies: ${formatDependencies(sortedDependencies)},`,
     "  imports: {",
     ...input.entries.map((entry, index) =>
