@@ -8,7 +8,7 @@
     "outDir": "dist",
     "rootDir": "src",
     "noUnusedLocals": true,
-    "types": ["node", "vitest/globals"]
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts", "dist"]

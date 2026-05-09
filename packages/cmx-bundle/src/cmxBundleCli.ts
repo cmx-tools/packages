@@ -145,10 +145,6 @@ function parseCommand(argv: readonly string[]): ParsedCommand | null {
     };
   }
 
-  if (positionals.length >= 1) {
-    return null;
-  }
-
   return null;
 }
 

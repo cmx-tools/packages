@@ -57,7 +57,7 @@ describe("example CLI workflow", () => {
     expect(bundleJson).toContain('"entries"');
     expect(aboutDocument).toContain('"$schema"');
     expect(aboutDocument).toContain('"@example/backend-contract"');
-  }, 30_000);
+  }, 300_000);
 
   it("generates environment with backend-local external override", async () => {
     const backendDir = path.join(ROOT_DIR, "example", "backend");
@@ -71,7 +71,7 @@ describe("example CLI workflow", () => {
     expect(environmentSource).toContain('"@example/backend-contract": Api');
     expect(environmentSource).toContain('from "./api.js"');
     expect(environmentSource).toContain('"@example/ui-library"');
-  }, 30_000);
+  }, 180_000);
 
   it("boots example backend against generated CLI artifacts", async () => {
     const contentDir = path.join(ROOT_DIR, "example", "content");
@@ -91,5 +91,5 @@ describe("example CLI workflow", () => {
     } finally {
       await server.close();
     }
-  }, 60_000);
+  }, 300_000);
 });

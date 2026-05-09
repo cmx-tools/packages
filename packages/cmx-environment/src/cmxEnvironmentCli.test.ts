@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { runCmxEnvironmentCli } from "./cmxEnvironmentCli.js";
+import { runCmxEnvironmentCli } from "./index.js";
 
 async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "cmx-environment-cli-"));
@@ -42,14 +42,12 @@ async function writeStubPackage(
 }
 
 async function runCli(cwd: string, args: readonly string[]) {
-  const previousCwd = process.cwd();
   const previousEnv = process.env;
   let stdout = "";
   let stderr = "";
   const stdoutWrite = process.stdout.write.bind(process.stdout);
   const stderrWrite = process.stderr.write.bind(process.stderr);
 
-  process.chdir(cwd);
   process.env = {
     ...previousEnv,
     CMX_CWD: cwd,
@@ -67,7 +65,6 @@ async function runCli(cwd: string, args: readonly string[]) {
     const exitCode = await runCmxEnvironmentCli(args);
     return { exitCode, stdout, stderr };
   } finally {
-    process.chdir(previousCwd);
     process.env = previousEnv;
     process.stdout.write = stdoutWrite;
     process.stderr.write = stderrWrite;
