@@ -16,17 +16,11 @@
     },
     "exports": {
       "default": {
-        "type": {
-          "from": "cmx-contracts",
-          "import": "CmxNode"
-        },
+        "type": { "from": "cmx-contracts", "import": "CmxNode" },
         "slots": [[]]
       },
       "meta": {
-        "type": {
-          "from": "@example/backend-contract",
-          "import": "Meta"
-        },
+        "type": { "from": "@example/backend-contract", "import": "Meta" },
         "slots": [["accessory"]]
       }
     }
@@ -50,11 +44,7 @@
           "slots": [["accessory"]],
           "children": ["About"]
         },
-        {
-          "type": "element",
-          "tag": "p",
-          "children": ["About"]
-        }
+        { "type": "element", "tag": "p", "children": ["About"] }
       ]
     },
     "meta": {
