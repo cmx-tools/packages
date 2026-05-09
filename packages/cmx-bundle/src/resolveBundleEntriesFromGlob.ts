@@ -8,12 +8,15 @@ export async function resolveBundleEntriesFromGlob(options: {
   const entryFiles = await options.glob(options.globPattern, {
     cwd: options.cwd,
   });
+  const normalizedEntryFiles = entryFiles.map((file) =>
+    path.resolve(options.cwd, file),
+  );
 
-  if (entryFiles.length === 0) {
+  if (normalizedEntryFiles.length === 0) {
     throw new Error(`No files matched glob: ${options.globPattern}`);
   }
 
-  return createEntryMap(entryFiles);
+  return createEntryMap(normalizedEntryFiles);
 }
 
 function createEntryMap(files: readonly string[]): Record<string, string> {
