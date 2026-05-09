@@ -124,6 +124,11 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
     `Implementing: ${bestNextTaskUrl}\n${fullNextTaskMd.split("\n")[0].replace(/^(# )+/, "")}`,
   );
   const implement = await sandcastle.run({
+    hooks: {
+      sandbox: {
+        onSandboxReady: setup,
+      },
+    },
     sandbox: docker({ mounts }),
     name: "implementer",
     agent: sandcastle.codex("gpt-5.3-codex"),
