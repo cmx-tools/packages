@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { renderCmxDocuments } from "cmx-document-renderer";
+import { renderCmxDocuments } from "cmx-document";
 
 const BUNDLE_DIR = "dist";
 const DOCUMENT_DIR = "../backend/_db_content";

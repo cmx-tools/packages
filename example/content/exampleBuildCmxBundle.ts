@@ -6,7 +6,7 @@ import {
   parseCmxBundleJson,
   type CmxBundle,
 } from "cmx-contracts";
-import { cmx, type CmxPluginOptions } from "cmx-bundler";
+import { cmx, type CmxPluginOptions } from "cmx-bundle";
 
 export type ExampleBuildCmxBundleInput = {
   entries: Record<string, string>;

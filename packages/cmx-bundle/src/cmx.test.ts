@@ -11,7 +11,7 @@ import {
 import { cmx, type CmxPluginOptions } from "./cmx.js";
 
 async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
-  const tempDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundler-"));
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
   await run(tempDir);
 }
 
@@ -1935,7 +1935,7 @@ describe("cmx", () => {
         ).rejects.toMatchObject({
           errors: [
             {
-              pluginCode: "cmx-bundler-external-conflict",
+              pluginCode: "cmx-bundle-external-conflict",
             },
           ],
         });

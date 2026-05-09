@@ -1,6 +1,6 @@
 import { unlink } from "node:fs/promises";
 import { rolldown } from "rolldown";
-import { cmx } from "cmx-bundler";
+import { cmx } from "cmx-bundle";
 
 const ENV_ONLY_ENTRY = "virtual:cmx-env-only-entry";
 const ENV_ONLY_ARTIFACTS = [
