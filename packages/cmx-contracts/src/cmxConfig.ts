@@ -13,10 +13,9 @@ export type CmxStructuredExternalEntry = {
   implementation: string | CmxExactImplementationExportMap;
 };
 
-export type CmxContractConfig = {
+export type CmxConfig = {
   exports?: Record<string, CmxExportConfig>;
   externals?: CmxExternalEntry[];
   unsupportedValues?: UnsupportedValuesPolicy;
   unverifiedOptionalExports?: UnverifiedOptionalExportsPolicy;
-  [key: string]: unknown;
 };

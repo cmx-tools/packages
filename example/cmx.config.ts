@@ -1,6 +1,6 @@
-import type { CmxContractConfig } from "cmx-contracts";
+import type { CmxConfig } from "cmx-contracts";
 
-const config: CmxContractConfig = {
+const config: CmxConfig = {
   exports: {
     default: {
       required: true,

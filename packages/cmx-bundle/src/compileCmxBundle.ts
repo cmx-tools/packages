@@ -1,13 +1,13 @@
 import path from "node:path";
 import { rolldown } from "rolldown";
-import type { CmxContractConfig } from "cmx-contracts";
+import type { CmxConfig } from "cmx-contracts";
 import { cmx } from "./cmx.js";
 
 export type CompileCmxBundleOptions = {
   cwd: string;
   entries: Record<string, string>;
   outDir: string;
-  config: CmxContractConfig;
+  config: CmxConfig;
 };
 
 export async function compileCmxBundle(

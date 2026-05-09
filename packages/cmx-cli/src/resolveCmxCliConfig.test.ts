@@ -1,12 +1,16 @@
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { resolveCmxCliConfig } from "./resolveCmxCliConfig.js";
+import { resolveCmxCliConfig } from "./index.js";
 
 async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "cmx-cli-"));
-  await run(tempDir);
+  try {
+    await run(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 }
 
 async function writeFixture(
@@ -306,7 +310,9 @@ describe("resolveCmxCliConfig", () => {
       );
 
       const config = await resolveCmxCliConfig({ cwd: tempDir });
-      expect(config.customSection).toEqual({ enabled: true });
+      expect((config as Record<string, unknown>).customSection).toEqual({
+        enabled: true,
+      });
     });
   });
 
