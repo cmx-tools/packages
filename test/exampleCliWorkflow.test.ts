@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
+import { createExampleBackendTestServer } from "./createExampleBackendTestServer.js";
 
 const execFileAsync = promisify(execFile);
 const ROOT_DIR = process.cwd();
@@ -16,6 +17,29 @@ async function runPackageScript(cwd: string, script: string): Promise<void> {
 }
 
 describe("example CLI workflow", () => {
+  it("uses first-class CMX commands in example package scripts", async () => {
+    const contentPackageJson = JSON.parse(
+      await readFile(
+        path.join(ROOT_DIR, "example", "content", "package.json"),
+        "utf8",
+      ),
+    ) as { scripts: Record<string, string> };
+    const backendPackageJson = JSON.parse(
+      await readFile(
+        path.join(ROOT_DIR, "example", "backend", "package.json"),
+        "utf8",
+      ),
+    ) as { scripts: Record<string, string> };
+
+    expect(contentPackageJson.scripts.compile).toContain("cmx-bundle compile");
+    expect(contentPackageJson.scripts.render).toContain("cmx-document render");
+    expect(contentPackageJson.scripts.build).not.toContain("tsx ");
+    expect(contentPackageJson.scripts.build).not.toContain("scripts/");
+    expect(backendPackageJson.scripts.build).toContain("cmx-environment");
+    expect(backendPackageJson.scripts.build).not.toContain("tsx ");
+    expect(backendPackageJson.scripts.build).not.toContain("scripts/");
+  });
+
   it("compiles and renders documents with first-class CLIs", async () => {
     const contentDir = path.join(ROOT_DIR, "example", "content");
     await runPackageScript(contentDir, "compile");
@@ -48,4 +72,24 @@ describe("example CLI workflow", () => {
     expect(environmentSource).toContain('from "./api.js"');
     expect(environmentSource).toContain('"@example/ui-library"');
   }, 30_000);
+
+  it("boots example backend against generated CLI artifacts", async () => {
+    const contentDir = path.join(ROOT_DIR, "example", "content");
+    const backendDir = path.join(ROOT_DIR, "example", "backend");
+    await runPackageScript(contentDir, "build");
+    await runPackageScript(backendDir, "build");
+
+    const server = await createExampleBackendTestServer();
+
+    try {
+      const fallback = await fetch(new URL("/", server.url));
+      const about = await fetch(new URL("/about", server.url));
+
+      expect(fallback.status).toBe(200);
+      expect(about.status).toBe(200);
+      expect(await about.text()).toContain("<title>About</title>");
+    } finally {
+      await server.close();
+    }
+  }, 60_000);
 });

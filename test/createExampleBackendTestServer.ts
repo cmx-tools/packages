@@ -8,6 +8,8 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const ROOT_DIR = process.cwd();
+const SCRIPT_TIMEOUT = 120_000;
+const SCRIPT_MAX_BUFFER = 10 * 1024 * 1024;
 
 export type ExampleBackendTestServer = {
   url: URL;
@@ -42,9 +44,24 @@ export async function createExampleBackendTestServer(): Promise<ExampleBackendTe
 }
 
 async function prepareExampleBackend(): Promise<void> {
-  await execFileAsync("corepack", ["pnpm", "run", "test:gen-example"], {
-    cwd: ROOT_DIR,
-  });
+  await execFileAsync(
+    "corepack",
+    ["pnpm", "--filter", "@example/content", "run", "build"],
+    {
+      cwd: ROOT_DIR,
+      timeout: SCRIPT_TIMEOUT,
+      maxBuffer: SCRIPT_MAX_BUFFER,
+    },
+  );
+  await execFileAsync(
+    "corepack",
+    ["pnpm", "--filter", "@example/backend", "run", "build"],
+    {
+      cwd: ROOT_DIR,
+      timeout: SCRIPT_TIMEOUT,
+      maxBuffer: SCRIPT_MAX_BUFFER,
+    },
+  );
 }
 
 async function findOpenPort(): Promise<number> {
