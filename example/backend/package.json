@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx server.tsx",
-    "build": "cross-env CMX_CONFIG=../cmx.config.ts node ./node_modules/cmx-environment/dist/cli.js generate _gen_cmx_environment.ts --external @example/backend-contract=./api.js"
+    "build": "cmx-environment generate _gen_cmx_environment.ts --config ../cmx.config.ts --external @example/backend-contract=./api.js"
   },
   "dependencies": {
     "@example/backend-contract": "workspace:*",
@@ -19,7 +19,7 @@
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "tsx": "^4.21.0",
-    "cross-env": "^10.1.0"
+    "cmx-cli": "workspace:*",
+    "tsx": "^4.21.0"
   }
 }
