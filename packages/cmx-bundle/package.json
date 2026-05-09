@@ -27,7 +27,6 @@
   },
   "dependencies": {
     "cmx-contracts": "workspace:*",
-    "fast-glob": "^3.3.3",
     "rolldown": "^1.0.0-rc.18"
   },
   "peerDependencies": {
