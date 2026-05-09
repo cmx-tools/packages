@@ -36,7 +36,7 @@ You will NOT write code here, nor execute tests. This is purely a planning step.
      - transport the "why" from the workstream to the ticket.
      - instruct implementer to verify and sense-check feedback technically before acting.
      - add a detailed list of feedback links this is task addressing
-     - instruct the implementer to sign-off on every feedback link once the task is complete (via definition of done)
+     - instruct the implementer to add a sign-off comment on every feedback link once the task is complete (via definition of done)
 5. Raise anything that requires conceptual direction or clarification
    as HITL labeled.
 
