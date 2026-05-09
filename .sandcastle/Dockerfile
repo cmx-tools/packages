@@ -15,9 +15,9 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
   && apt-get update && apt-get install -y gh \
   && rm -rf /var/lib/apt/lists/*
 
-
 RUN npm install -g pnpm
 RUN npm install -g @openai/codex
+RUN curl -fsSL https://cli.coderabbit.ai/install.sh | sh
 
 # Build-args for UID/GID alignment: sandcastle docker build-image
 # defaults these to the host user's UID/GID so image-built files
@@ -39,6 +39,7 @@ USER ${AGENT_UID}:${AGENT_GID}
 RUN npx skills add -g -y https://github.com/Xiphe/skills --skill golden-commit-ralph
 RUN npx skills add -g -y https://github.com/mattpocock/skills --skill caveman
 RUN npx skills add -g -y https://github.com/mattpocock/skills --skill tdd
+RUN npx skills add -g -y https://github.com/coderabbitai/skills --skill code-review
 
 WORKDIR /home/agent
 

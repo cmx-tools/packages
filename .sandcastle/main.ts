@@ -35,6 +35,7 @@ const EXCLUDED_LABELS = ["in_progress", "in_review"];
 
 const mounts: sandcastle.MountConfig[] = [
   { hostPath: "~/.codex", sandboxPath: "~/.codex" },
+  { hostPath: "~/.coderabbit", sandboxPath: "~/.coderabbit" },
 ];
 
 // ---------------------------------------------------------------------------

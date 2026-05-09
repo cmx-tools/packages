@@ -119,7 +119,14 @@ Continuing to implement a misaligned solution is a HUGE **failure**.
 2. Re-run the **full** suite of validation scripts.
    Green: Commit; Red: Adjust accordingly.
 
-## (7) COMMIT
+## (7) CODE REVIEW
+
+1. Review your uncommitted changes with CodeRabbit /code-review skill.
+   This step may take a while, let it take as long as it needs, and check on it periodically.
+2. Address all valid feedback by jumping back to "(5) IMPLEMENTATION".
+3. Cycle until no more valid feedback is presented.
+
+## (8) COMMIT
 
 Pause caveman mode ONLY for this step.
 
@@ -127,14 +134,13 @@ Pause caveman mode ONLY for this step.
 2. commit using /golden-commit-ralph skill
    - use your WHY from "(3) UNDERSTAND WHY"
    - be detailed!
-   - when issue is fully addressed, reference it as `fix:`
-     otherwise reference as `ref:`
+   - when issue is fully addressed, reference it as `fix:`, otherwise as `ref:`
    - reference relevant related external documents and parent issues with `ref:`
    - no blank lines between references
    - prefer full url references
    - add yourself as co-author
 
-## (8) REPORT PROGRESS
+## (9) REPORT PROGRESS
 
 ALWAYS do exactly ONE of these:
 
@@ -142,7 +148,7 @@ ALWAYS do exactly ONE of these:
 - When partially complete, remove `in_progress` label and add progress report as comment.
 - When implementation not straight forward, add `needs_feedback` label and remove `in_progress` and `afk` labels.
 
-## (9) COMPLETE
+## (10) COMPLETE
 
 Output exactly: <promise>COMPLETE</promise> when done.
 
@@ -158,6 +164,7 @@ Only work on the task at hand.
 4. claim issue
 5. implement
 6. validate
-7. commit
-8. report progress
-9. complete
+7. code review
+8. commit
+9. report progress
+10. complete
