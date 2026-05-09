@@ -22,7 +22,7 @@ describe("CLI package topology", () => {
   it("keeps cmx-cli independent from capability packages", async () => {
     const cmxCli = await readPackageJson("packages/cmx-cli/package.json");
     expect(cmxCli.name).toBe("cmx-cli");
-    expect(cmxCli.bin).toEqual({ cmx: "./dist/cli.js" });
+    expect(cmxCli.bin).toEqual({ cmx: "./dist/cli/cli.js" });
     expect(cmxCli.dependencies).not.toHaveProperty("cmx-bundle");
     expect(cmxCli.dependencies).not.toHaveProperty("cmx-document");
     expect(cmxCli.dependencies).not.toHaveProperty("cmx-environment");
@@ -32,7 +32,9 @@ describe("CLI package topology", () => {
     for (const pkg of ["cmx-bundle", "cmx-document", "cmx-environment"]) {
       const packageJson = await readPackageJson(`packages/${pkg}/package.json`);
       expect(packageJson.dependencies).not.toHaveProperty("cmx-cli");
-      expect(packageJson.peerDependencies?.["cmx-cli"]).toBe("*");
+      expect(packageJson.peerDependencies?.["cmx-cli"]).toBe(
+        "^0.1.0 || ^1.0.0",
+      );
       expect(packageJson.peerDependenciesMeta?.["cmx-cli"]?.optional).toBe(
         true,
       );

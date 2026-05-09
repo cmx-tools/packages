@@ -1,19 +1,18 @@
 {
   "name": "cmx-document",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "bin": {
-    "cmx-document": "./dist/cli.js"
+    "cmx-document": "./dist/cli/cli.js"
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
     },
     "./cli": {
-      "types": "./dist/cmxDocumentCli.d.ts",
-      "import": "./dist/cmxDocumentCli.js"
+      "types": "./dist/cli/cmxDocumentCli.d.ts",
+      "import": "./dist/cli/cmxDocumentCli.js"
     }
   },
   "files": [
@@ -31,7 +30,7 @@
     "cmx-runtime": "workspace:*"
   },
   "peerDependencies": {
-    "cmx-cli": "*"
+    "cmx-cli": "^0.1.0 || ^1.0.0"
   },
   "peerDependenciesMeta": {
     "cmx-cli": {

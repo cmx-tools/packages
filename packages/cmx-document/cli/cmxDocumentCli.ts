@@ -1,8 +1,8 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { renderCmxDocuments } from "./renderCmxDocuments.js";
+import { readPackageVersionFromImportMetaUrl } from "cmx-cli";
+import { renderCmxDocuments } from "../src/renderCmxDocuments.js";
 
-const VERSION = "0.1.0";
 type CliModuleLoader = (specifier: string) => Promise<unknown>;
 type RunCmxDocumentCliOptions = { importModule?: CliModuleLoader };
 
@@ -16,7 +16,9 @@ export async function runCmxDocumentCli(
   }
 
   if (argv.includes("--version") || argv.includes("-v")) {
-    process.stdout.write(`${VERSION}\n`);
+    process.stdout.write(
+      `${readPackageVersionFromImportMetaUrl(import.meta.url)}\n`,
+    );
     return 0;
   }
 

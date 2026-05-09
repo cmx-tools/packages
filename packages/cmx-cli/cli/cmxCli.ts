@@ -1,4 +1,4 @@
-const VERSION = "0.1.0";
+import { readPackageVersionFromImportMetaUrl } from "../src/readPackageVersionFromImportMetaUrl.js";
 
 const CAPABILITY_RUNNERS = {
   bundle: {
@@ -39,7 +39,9 @@ export async function runCmxCli(
   }
 
   if (firstArg === "--version" || firstArg === "-v") {
-    process.stdout.write(`${VERSION}\n`);
+    process.stdout.write(
+      `${readPackageVersionFromImportMetaUrl(import.meta.url)}\n`,
+    );
     return 0;
   }
 

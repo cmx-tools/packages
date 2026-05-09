@@ -1,19 +1,18 @@
 {
   "name": "cmx-environment",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "bin": {
-    "cmx-environment": "./dist/cli.js"
+    "cmx-environment": "./dist/cli/cli.js"
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
     },
     "./cli": {
-      "types": "./dist/cmxEnvironmentCli.d.ts",
-      "import": "./dist/cmxEnvironmentCli.js"
+      "types": "./dist/cli/cmxEnvironmentCli.d.ts",
+      "import": "./dist/cli/cmxEnvironmentCli.js"
     }
   },
   "files": [
@@ -29,7 +28,7 @@
     "cmx-contracts": "workspace:*"
   },
   "peerDependencies": {
-    "cmx-cli": "*"
+    "cmx-cli": "^0.1.0 || ^1.0.0"
   },
   "peerDependenciesMeta": {
     "cmx-cli": {
