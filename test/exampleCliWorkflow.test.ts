@@ -23,21 +23,41 @@ describe("example CLI workflow", () => {
         path.join(ROOT_DIR, "example", "content", "package.json"),
         "utf8",
       ),
-    ) as { scripts: Record<string, string> };
+    ) as {
+      scripts: Record<string, string>;
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
     const backendPackageJson = JSON.parse(
       await readFile(
         path.join(ROOT_DIR, "example", "backend", "package.json"),
         "utf8",
       ),
-    ) as { scripts: Record<string, string> };
+    ) as {
+      scripts: Record<string, string>;
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
 
     expect(contentPackageJson.scripts.compile).toContain("cmx-bundle compile");
+    expect(contentPackageJson.scripts.compile).toContain(
+      "--config ../cmx.config.ts",
+    );
+    expect(contentPackageJson.scripts.compile).not.toContain("cross-env");
     expect(contentPackageJson.scripts.render).toContain("cmx-document render");
     expect(contentPackageJson.scripts.build).not.toContain("tsx ");
     expect(contentPackageJson.scripts.build).not.toContain("scripts/");
+    expect(contentPackageJson.devDependencies?.["cmx-cli"]).toBeDefined();
     expect(backendPackageJson.scripts.build).toContain("cmx-environment");
+    expect(backendPackageJson.scripts.build).toContain(
+      "--config ../cmx.config.ts",
+    );
+    expect(backendPackageJson.scripts.build).not.toContain("cross-env");
+    expect(backendPackageJson.scripts.build).not.toContain("node_modules");
+    expect(backendPackageJson.scripts.build).not.toContain("dist/cli.js");
     expect(backendPackageJson.scripts.build).not.toContain("tsx ");
     expect(backendPackageJson.scripts.build).not.toContain("scripts/");
+    expect(backendPackageJson.devDependencies?.["cmx-cli"]).toBeDefined();
   });
 
   it("compiles and renders documents with first-class CLIs", async () => {

@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "compile": "cross-env CMX_CONFIG=../cmx.config.ts cmx-bundle compile \"pages/**/*.tsx\" dist",
+    "compile": "cmx-bundle compile \"pages/**/*.tsx\" dist --config ../cmx.config.ts",
     "render": "cmx-document render dist --out-dir ../backend/_db_content",
     "build": "corepack pnpm run compile && corepack pnpm run render"
   },
@@ -18,7 +18,7 @@
   "devDependencies": {
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "tsx": "^4.21.0",
-    "cross-env": "^10.1.0"
+    "cmx-cli": "workspace:*",
+    "tsx": "^4.21.0"
   }
 }
