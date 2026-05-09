@@ -1,4 +1,4 @@
-import type { CmxContractConfig, CmxExternalEntry } from "cmx-contracts";
+import type { CmxConfig, CmxExternalEntry } from "cmx-contracts";
 import { loadConfig } from "c12";
 
 export type ResolveCmxCliConfigOptions = {
@@ -11,13 +11,13 @@ type ParsedCliOptions = {
   cwd?: string;
   configFile?: string;
   externals: string[];
-  sectionOverrides: Partial<CmxContractConfig>;
+  sectionOverrides: Partial<CmxConfig>;
   dottedOverrides: Array<{ path: string[]; value: unknown }>;
 };
 
 export async function resolveCmxCliConfig(
   options: ResolveCmxCliConfigOptions = {},
-): Promise<CmxContractConfig> {
+): Promise<CmxConfig> {
   const env = options.env ?? process.env;
   const parsed = parseCliOptions(options.argv ?? []);
   const resolvedCwd = parsed.cwd ?? env.CMX_CWD ?? options.cwd ?? process.cwd();
@@ -48,11 +48,11 @@ type LoadCmxConfigOptions = {
 
 async function loadCmxConfig(
   options: LoadCmxConfigOptions,
-): Promise<CmxContractConfig> {
+): Promise<CmxConfig> {
   try {
     const loaded = await withScopedProcessEnv(
       async () =>
-        loadConfig<CmxContractConfig>({
+        loadConfig<CmxConfig>({
           name: "cmx",
           cwd: options.cwd,
           configFile: options.configFile,
@@ -100,7 +100,7 @@ function parseCliOptions(argv: readonly string[]): ParsedCliOptions {
       parsed.sectionOverrides.exports = parseJsonFlag(
         readFlagValue(argv, index, "--exports"),
         "--exports",
-      ) as CmxContractConfig["exports"];
+      ) as CmxConfig["exports"];
       index += 1;
       continue;
     }
@@ -108,7 +108,7 @@ function parseCliOptions(argv: readonly string[]): ParsedCliOptions {
       parsed.sectionOverrides.externals = parseJsonFlag(
         readFlagValue(argv, index, "--externals"),
         "--externals",
-      ) as CmxContractConfig["externals"];
+      ) as CmxConfig["externals"];
       index += 1;
       continue;
     }
@@ -137,9 +137,9 @@ function readFlagValue(
 }
 
 function mergeExternalOverrides(
-  config: CmxContractConfig,
+  config: CmxConfig,
   externalFlags: readonly string[],
-): CmxContractConfig {
+): CmxConfig {
   if (externalFlags.length === 0) {
     return config;
   }
@@ -219,9 +219,9 @@ function coerceDottedValue(input: string): unknown {
 }
 
 function applyDottedOverrides(
-  config: CmxContractConfig,
+  config: CmxConfig,
   overrides: ParsedCliOptions["dottedOverrides"],
-): CmxContractConfig {
+): CmxConfig {
   if (overrides.length === 0) {
     return config;
   }
@@ -238,7 +238,7 @@ function applyDottedOverrides(
     }
     cursor[override.path[override.path.length - 1]] = override.value;
   }
-  return resolved as CmxContractConfig;
+  return resolved as CmxConfig;
 }
 
 function isRecord(input: unknown): input is Record<string, unknown> {

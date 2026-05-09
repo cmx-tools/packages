@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { CmxContractConfig } from "cmx-contracts";
+import type { CmxConfig } from "cmx-contracts";
 import { generateCmxEnvironment } from "./generateCmxEnvironment.js";
 
 const VERSION = "0.1.0";
@@ -55,7 +55,7 @@ type CmxCliModule = {
     argv?: readonly string[];
     cwd?: string;
     env?: NodeJS.ProcessEnv;
-  }) => Promise<CmxContractConfig>;
+  }) => Promise<CmxConfig>;
 };
 
 async function loadCmxCli(

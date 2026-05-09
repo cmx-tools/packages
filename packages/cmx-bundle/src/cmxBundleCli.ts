@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { CmxContractConfig } from "cmx-contracts";
+import type { CmxConfig } from "cmx-contracts";
 import { compileCmxBundle } from "./compileCmxBundle.js";
 import { resolveBundleEntriesFromGlob } from "./resolveBundleEntriesFromGlob.js";
 
@@ -57,7 +57,7 @@ type CmxCliModule = {
     argv?: readonly string[];
     cwd?: string;
     env?: NodeJS.ProcessEnv;
-  }) => Promise<CmxContractConfig>;
+  }) => Promise<CmxConfig>;
   glob: (
     pattern: string,
     options: {
