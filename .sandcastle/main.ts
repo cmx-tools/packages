@@ -20,6 +20,10 @@ import * as sandcastle from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import { collectBestNextTaskInput, collectIssueSnapshot } from "./collectTasks";
 
+type Setup = NonNullable<
+  NonNullable<sandcastle.SandboxHooks["sandbox"]>["onSandboxReady"]
+>[number];
+
 const args = process.argv.slice(2);
 const issueLinkOrFolder = args[0];
 
@@ -36,6 +40,22 @@ const EXCLUDED_LABELS = ["in_progress", "in_review"];
 const mounts: sandcastle.MountConfig[] = [
   { hostPath: "~/.codex", sandboxPath: "/home/agent/.codex" },
   { hostPath: "~/.coderabbit", sandboxPath: "/home/agent/.coderabbit" },
+];
+
+const setup: Setup[] = [
+  {
+    command: "coderabbit auth status --agent | rg '\"authenticated\":\\s*true'",
+  },
+  {
+    command: 'codex login status | rg "Logged in using ChatGPT"',
+  },
+  {
+    command: 'test -z "$(git status --porcelain)"',
+  },
+  {
+    command:
+      "CI=true pnpm install --config.confirmModulesPurge=false && corepack pnpm run verify",
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -56,6 +76,11 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
   }
 
   const plan = await sandcastle.run({
+    hooks: {
+      sandbox: {
+        onSandboxReady: setup,
+      },
+    },
     sandbox: docker({ mounts }),
     name: "planner",
     promptArgs: {
@@ -99,15 +124,6 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
     `Implementing: ${bestNextTaskUrl}\n${fullNextTaskMd.split("\n")[0].replace(/^(# )+/, "")}`,
   );
   const implement = await sandcastle.run({
-    hooks: {
-      sandbox: {
-        onSandboxReady: [
-          {
-            command: "CI=true pnpm install --config.confirmModulesPurge=false",
-          },
-        ],
-      },
-    },
     sandbox: docker({ mounts }),
     name: "implementer",
     agent: sandcastle.codex("gpt-5.3-codex"),
