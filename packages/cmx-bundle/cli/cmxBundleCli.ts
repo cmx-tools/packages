@@ -2,7 +2,7 @@ import path from "node:path";
 import type { CmxConfig } from "cmx-contracts";
 import { readPackageVersionFromImportMetaUrl } from "cmx-cli";
 import { compileCmxBundle } from "../src/compileCmxBundle.js";
-import { resolveBundleEntriesFromGlob } from "../src/resolveBundleEntriesFromGlob.js";
+import { resolveBundleEntriesFromGlob } from "./resolveBundleEntriesFromGlob.js";
 
 type CliModuleLoader = (specifier: string) => Promise<unknown>;
 type RunCmxBundleCliOptions = { importModule?: CliModuleLoader };
