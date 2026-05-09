@@ -162,6 +162,14 @@ describe("cmx-document cli", () => {
     });
   });
 
+  it("fails unknown flags", async () => {
+    await withTempDir(async (tempDir) => {
+      const result = await runCli(tempDir, ["render", "bundle", "--outdir"]);
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("Unknown option: --outdir");
+    });
+  });
+
   it("supports --help and --version", async () => {
     const help = await runCli(process.cwd(), ["--help"]);
     expect(help.exitCode).toBe(0);

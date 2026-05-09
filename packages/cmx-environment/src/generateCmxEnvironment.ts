@@ -121,7 +121,14 @@ async function toEnvironmentEntries(
     }
   }
 
-  return entries.filter((entry) => entry.contract.trim().length > 0);
+  const emptyContractEntry = entries.find(
+    (entry) => entry.contract.trim().length === 0,
+  );
+  if (emptyContractEntry) {
+    throw new Error("CMX environment external contract must not be empty");
+  }
+
+  return entries;
 }
 
 async function toEnvironmentEntriesForStringImplementation(

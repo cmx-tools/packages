@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { generateCmxEnvironment } from "./generateCmxEnvironment.js";
+import { generateCmxEnvironment } from "./index.js";
 
 async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "cmx-environment-"));
@@ -174,6 +174,41 @@ describe("generateCmxEnvironment", () => {
           externals: ["@theme/ui"],
         }),
       ).rejects.toThrow("cmx-external-implementation-exports-complex");
+    });
+  });
+
+  it("rejects empty external contract", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        `${JSON.stringify(
+          {
+            name: "cmx-environment-empty-contract",
+            private: true,
+            dependencies: {},
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      await writeFixture(tempDir, "api.ts", "export default {};\n");
+
+      await expect(
+        generateCmxEnvironment({
+          cwd: tempDir,
+          exports: {
+            default: {
+              required: true,
+              type: {
+                from: "cmx-contracts",
+                import: "CmxNode",
+              },
+            },
+          },
+          externals: [{ contract: "  ", implementation: "./api.ts" }],
+        }),
+      ).rejects.toThrow("CMX environment external contract must not be empty");
     });
   });
 });

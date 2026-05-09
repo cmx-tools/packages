@@ -29,14 +29,12 @@ async function writePackageJson(rootDir: string): Promise<void> {
 }
 
 async function runCli(cwd: string, args: readonly string[]) {
-  const previousCwd = process.cwd();
   const previousEnv = process.env;
   let stdout = "";
   let stderr = "";
   const stdoutWrite = process.stdout.write.bind(process.stdout);
   const stderrWrite = process.stderr.write.bind(process.stderr);
 
-  process.chdir(cwd);
   process.env = {
     ...previousEnv,
     CMX_CWD: cwd,
@@ -54,7 +52,6 @@ async function runCli(cwd: string, args: readonly string[]) {
     const exitCode = await runCmxBundleCli(args);
     return { exitCode, stdout, stderr };
   } finally {
-    process.chdir(previousCwd);
     process.env = previousEnv;
     process.stdout.write = stdoutWrite;
     process.stderr.write = stderrWrite;

@@ -136,7 +136,8 @@ function parseOptions(argv: readonly string[]): ParsedOptions | null {
       continue;
     }
     if (argument.startsWith("-")) {
-      continue;
+      process.stderr.write(`Unknown option: ${argument}\n`);
+      return null;
     }
     positionals.push(argument);
   }
