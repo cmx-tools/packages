@@ -1,0 +1,222 @@
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { describe, expect, it } from "vitest";
+import { CMX_BUNDLE_FILE_NAME, type CmxBundle } from "cmx-contracts";
+import { runCmxDocumentCli } from "./cmxDocumentCli.js";
+
+async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "cmx-document-cli-"));
+  await run(tempDir);
+}
+
+async function runCli(cwd: string, args: readonly string[]) {
+  const previousCwd = process.cwd();
+  let stdout = "";
+  let stderr = "";
+  const stdoutWrite = process.stdout.write.bind(process.stdout);
+  const stderrWrite = process.stderr.write.bind(process.stderr);
+
+  process.chdir(cwd);
+  process.stdout.write = ((chunk: string | Uint8Array) => {
+    stdout += String(chunk);
+    return true;
+  }) as typeof process.stdout.write;
+  process.stderr.write = ((chunk: string | Uint8Array) => {
+    stderr += String(chunk);
+    return true;
+  }) as typeof process.stderr.write;
+
+  try {
+    const exitCode = await runCmxDocumentCli(args);
+    return { exitCode, stdout, stderr };
+  } finally {
+    process.chdir(previousCwd);
+    process.stdout.write = stdoutWrite;
+    process.stderr.write = stderrWrite;
+  }
+}
+
+async function writeBundleFixture(input: {
+  bundleDir: string;
+  entries: Array<{ name: string; file: string; source: string }>;
+}): Promise<void> {
+  const runtimeFile = path.join(input.bundleDir, "runtime.js");
+
+  await mkdir(input.bundleDir, { recursive: true });
+  await writeFile(
+    runtimeFile,
+    [
+      "export function isRuntimeNode(value) {",
+      "  return value && value.kind === 'element';",
+      "}",
+    ].join("\n"),
+    "utf8",
+  );
+
+  const bundle: CmxBundle = {
+    version: 1,
+    runtime: {
+      importSource: pathToFileURL(runtimeFile).href,
+    },
+    dependencies: [],
+    entries: input.entries.map((entry) => ({
+      name: entry.name,
+      file: entry.file,
+      sourcemap: `${entry.file}.map`,
+      sourceExports: {
+        default: {
+          type: {
+            from: "cmx-contracts",
+            import: "CmxNode",
+          },
+        },
+      },
+    })),
+    chunks: [],
+    exports: {
+      default: {
+        required: true,
+        type: {
+          from: "cmx-contracts",
+          import: "CmxNode",
+        },
+      },
+    },
+    unsupportedValues: "error",
+    unverifiedOptionalExports: "error",
+  };
+
+  await writeFile(
+    path.join(input.bundleDir, CMX_BUNDLE_FILE_NAME),
+    `${JSON.stringify(bundle, null, 2)}\n`,
+    "utf8",
+  );
+
+  for (const entry of input.entries) {
+    await writeFile(
+      path.join(input.bundleDir, entry.file),
+      entry.source,
+      "utf8",
+    );
+    await writeFile(
+      path.join(input.bundleDir, `${entry.file}.map`),
+      JSON.stringify({ version: 3, sources: ["source.tsx"], mappings: "" }),
+      "utf8",
+    );
+  }
+}
+
+describe("cmx-document cli", () => {
+  it("renders with explicit render verb", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeBundleFixture({
+        bundleDir: path.join(tempDir, "bundle"),
+        entries: [
+          {
+            name: "home",
+            file: "home.js",
+            source: 'export default { kind: "element", tag: "main" };\n',
+          },
+        ],
+      });
+
+      const result = await runCli(tempDir, ["render", "bundle"]);
+
+      expect(result.exitCode).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        home: {
+          $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
+        },
+      });
+      expect(result.stderr).toBe("");
+    });
+  });
+
+  it("supports omitted render verb", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeBundleFixture({
+        bundleDir: path.join(tempDir, "bundle"),
+        entries: [
+          {
+            name: "index",
+            file: "index.js",
+            source: 'export default { kind: "element", tag: "main" };\n',
+          },
+        ],
+      });
+
+      const result = await runCli(tempDir, ["bundle"]);
+
+      expect(result.exitCode).toBe(0);
+      expect(JSON.parse(result.stdout)).toHaveProperty("index");
+    });
+  });
+
+  it("fails invalid verb", async () => {
+    await withTempDir(async (tempDir) => {
+      const result = await runCli(tempDir, ["invalid", "bundle"]);
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("Usage: cmx-document render <bundleDir>");
+    });
+  });
+
+  it("supports --help and --version", async () => {
+    const help = await runCli(process.cwd(), ["--help"]);
+    expect(help.exitCode).toBe(0);
+    expect(help.stdout).toContain("cmx-document render <bundleDir>");
+
+    const version = await runCli(process.cwd(), ["--version"]);
+    expect(version.exitCode).toBe(0);
+    expect(version.stdout.trim()).toBe("0.1.0");
+  });
+
+  it("returns partial result with stdout documents and stderr diagnostics", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeBundleFixture({
+        bundleDir: path.join(tempDir, "bundle"),
+        entries: [
+          {
+            name: "ok",
+            file: "ok.js",
+            source: 'export default { kind: "element", tag: "main" };\n',
+          },
+          {
+            name: "broken",
+            file: "broken.js",
+            source: "throw new Error('broken render');\n",
+          },
+        ],
+      });
+
+      const result = await runCli(tempDir, ["render", "bundle"]);
+
+      expect(result.exitCode).toBe(1);
+      expect(JSON.parse(result.stdout)).toHaveProperty("ok");
+      expect(JSON.parse(result.stdout)).not.toHaveProperty("broken");
+      expect(result.stderr).toContain("broken render");
+    });
+  });
+
+  it("returns error with diagnostics and no stdout documents", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeBundleFixture({
+        bundleDir: path.join(tempDir, "bundle"),
+        entries: [
+          {
+            name: "broken",
+            file: "broken.js",
+            source: "throw new Error('all broken');\n",
+          },
+        ],
+      });
+
+      const result = await runCli(tempDir, ["render", "bundle"]);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("all broken");
+    });
+  });
+});
