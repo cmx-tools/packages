@@ -47,6 +47,32 @@ const documentFixture: CmxDocument = {
 };
 
 describe("reduceCmxDocumentNodes", () => {
+  it("skips missing slot values", async () => {
+    const withMissingSlot: CmxDocument = {
+      ...documentFixture,
+      interface: {
+        ...documentFixture.interface,
+        exports: {
+          ...documentFixture.interface.exports,
+          meta: { slots: [["missing"]] },
+        },
+      },
+    };
+    const seen: CmxNode[] = [];
+
+    await reduceCmxDocumentNodes({
+      document: withMissingSlot,
+      context: seen,
+      reduceNode(node, context) {
+        context.push(node);
+        return node;
+      },
+    });
+
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen).not.toContain(undefined);
+  });
+
   it("starts only from declared export slots", async () => {
     const seen: string[] = [];
     await reduceCmxDocumentNodes({
