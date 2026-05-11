@@ -18,11 +18,7 @@
 
 import * as sandcastle from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
-import {
-  collectBestNextTaskInput,
-  collectIssueSnapshot,
-  resolvePullRequestFixReferences,
-} from "./collectTasks";
+import { collectBestNextTaskInput, collectIssueSnapshot } from "./collectTasks";
 
 type Setup = NonNullable<
   NonNullable<sandcastle.SandboxHooks["sandbox"]>["onSandboxReady"]
@@ -72,43 +68,6 @@ const setup: Setup[] = [
 // ---------------------------------------------------------------------------
 // Main loop
 // ---------------------------------------------------------------------------
-
-const pullRequestFixRefs =
-  await resolvePullRequestFixReferences(issueLinkOrFolder);
-if (pullRequestFixRefs) {
-  const issueSnapshot = await collectIssueSnapshot(
-    [pullRequestFixRefs.prdUrl],
-    {
-      requiredLabels: REQUIRED_LABELS,
-      excludedLabels: EXCLUDED_LABELS,
-    },
-  );
-
-  if (!issueSnapshot) {
-    console.log("Addressing PR feedback...");
-    const feedback = await sandcastle.run({
-      hooks: {
-        sandbox: {
-          onSandboxReady: authCheck,
-        },
-      },
-      sandbox: docker({ mounts }),
-      name: "scope-pr-feedback",
-      promptArgs: {
-        PRD_URL: pullRequestFixRefs.prdUrl,
-        PR_URL: issueLinkOrFolder,
-        WORKSTREAM_MD: pullRequestFixRefs.summary,
-      },
-      agent: sandcastle.codex("gpt-5.4", { effort: "high" }),
-      promptFile: "./.sandcastle/scope-pr-feedback.md",
-    });
-  } else {
-    console.log("PRD still has open issues, skipping PR feedback.");
-  }
-
-  issueLinkOrFolder = pullRequestFixRefs.prdUrl;
-}
-
 for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
   console.log(`\n=== Iteration ${iteration}/${MAX_ITERATIONS} ===\n`);
 
