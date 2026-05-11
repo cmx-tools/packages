@@ -16,6 +16,11 @@ const CAPABILITY_RUNNERS = {
     exportName: "runCmxEnvironmentCli",
     packageName: "cmx-environment",
   },
+  verify: {
+    entrypoint: "cmx-verify/cli",
+    exportName: "runCmxVerifyCli",
+    packageName: "cmx-verify",
+  },
 } as const;
 
 type CapabilityName = keyof typeof CAPABILITY_RUNNERS;
@@ -99,7 +104,9 @@ function isMissingModuleError(error: unknown): boolean {
 }
 
 function writeUsage(): void {
-  process.stderr.write("Usage: cmx <bundle|document|environment> [...args]\n");
+  process.stderr.write(
+    "Usage: cmx <bundle|document|environment|verify> [...args]\n",
+  );
 }
 
 function writeHelp(): void {
@@ -108,12 +115,13 @@ function writeHelp(): void {
       "cmx",
       "",
       "Usage:",
-      "  cmx <bundle|document|environment> [...args]",
+      "  cmx <bundle|document|environment|verify> [...args]",
       "",
       "Examples:",
       '  cmx bundle compile "pages/**/*.tsx" dist',
       "  cmx document render dist --out-dir documents",
       "  cmx environment generate dist/cmx-environment.ts",
+      "  cmx verify validate documents/home.json",
       "",
       "Options:",
       "  --help",
