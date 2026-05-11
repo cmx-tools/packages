@@ -1,3 +1,5 @@
+import type { CmxDocument } from "./cmxDocument.js";
+import type { CmxDiagnostic } from "./cmxDiagnostic.js";
 import type {
   CmxExportConfig,
   UnsupportedValuesPolicy,
@@ -26,6 +28,14 @@ export type CmxIntegrityContext = {
 
 export type CmxGetIntegrity = (context: CmxIntegrityContext) => string | null;
 
+export type CmxDocumentVerificationResult =
+  | { valid: true }
+  | { valid: false; diagnostics: CmxDiagnostic[] };
+
+export type CmxVerifyDocument = (
+  document: CmxDocument,
+) => CmxDocumentVerificationResult | Promise<CmxDocumentVerificationResult>;
+
 export type CmxConfig = {
   cwd?: string;
   exports?: Record<string, CmxExportConfig>;
@@ -33,4 +43,5 @@ export type CmxConfig = {
   unsupportedValues?: UnsupportedValuesPolicy;
   unverifiedOptionalExports?: UnverifiedOptionalExportsPolicy;
   getIntegrity?: CmxGetIntegrity;
+  verifyDocument?: CmxVerifyDocument;
 };

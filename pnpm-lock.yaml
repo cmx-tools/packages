@@ -243,6 +243,16 @@ importers:
 
   packages/cmx-runtime: {}
 
+  packages/cmx-verify:
+    dependencies:
+      cmx-contracts:
+        specifier: workspace:*
+        version: link:../cmx-contracts
+    devDependencies:
+      cmx-cli:
+        specifier: workspace:*
+        version: link:../cmx-cli
+
 packages:
 
   '@ai-hero/sandcastle@0.5.10':
