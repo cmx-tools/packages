@@ -108,7 +108,7 @@ Continuing to implement a misaligned solution is a HUGE **failure**.
 ## (6) CODE REVIEW
 
 Review your uncommitted changes with CodeRabbit /code-review skill.
-_This step may take a while, let it cook._
+_Coderabbit can easily take 10-60 minutes - DO NOT SKIP OR ABORT._
 
 Consider all feedback including nitpicks and suggestions.
 Only discard feedback that is misaligned with the bigger picture from workstream and task.
