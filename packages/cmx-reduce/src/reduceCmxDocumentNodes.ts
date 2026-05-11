@@ -55,6 +55,9 @@ async function reduceExportValue<Context>(
   let resolved = value;
   for (const slotPath of slots) {
     const slotValue = readPath(resolved, slotPath);
+    if (slotValue == null) {
+      continue;
+    }
     const reducedNode = await reduceDocumentNode(
       slotValue as CmxNode,
       reduceNode,
@@ -122,6 +125,9 @@ async function reduceSlots<Context>(
   let resolved: unknown = node;
   for (const slotPath of node.slots) {
     const slotValue = readPath(resolved, slotPath);
+    if (slotValue === undefined) {
+      continue;
+    }
     const reducedSlot = await reduceDocumentNode(
       slotValue as CmxNode,
       reduceNode,
