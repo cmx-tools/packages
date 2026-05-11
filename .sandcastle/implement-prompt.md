@@ -147,6 +147,9 @@ ALWAYS do exactly ONE of these:
 
 ## (9) COMPLETE
 
+Make sure the workspace is clean for your next task.
+Remove any temporary files or uncommitted changes.
+
 Output exactly: <promise>COMPLETE</promise> when done.
 
 # SUMMARY
