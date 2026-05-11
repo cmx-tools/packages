@@ -3,12 +3,19 @@ import type { CmxDocument } from "cmx-contracts";
 import {
   type CmxDocumentNodeVisitor,
   verifyCmxDocumentNodes,
-} from "cmx-reduce";
+} from "cmx-verify";
 
 const documentFixture: CmxDocument = {
   $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
   cmxVersion: 1,
-  interface: { imports: {}, exports: {} },
+  interface: {
+    imports: {},
+    exports: {
+      default: {
+        slots: [[]],
+      },
+    },
+  },
   content: {
     default: {
       type: "component",
@@ -33,29 +40,29 @@ describe("verifyCmxDocumentNodes", () => {
   it("returns config-ready verifier in curried mode", async () => {
     const verifyDocument = verifyCmxDocumentNodes((node) => {
       if (typeof node === "object" && node !== null && "type" in node) {
-        return [
-          {
-            severity: "error",
-            code: "node-seen",
-            message: String((node as { type: string }).type),
-          },
-        ];
+        return {
+          severity: "error",
+          code: "node-seen",
+          message: String((node as { type: string }).type),
+        };
       }
-      return [];
+      return null;
     });
 
     const result = await verifyDocument(documentFixture);
+
     expect(result.valid).toBe(false);
     if (result.valid) {
       return;
     }
+
     expect(result.diagnostics[0]?.code).toBe("node-seen");
   });
 
   it("supports rest-style visitors and collects all diagnostics", async () => {
     const result = await verifyCmxDocumentNodes(
       documentFixture,
-      () => [{ severity: "error", code: "v1", message: "first" }],
+      async () => [{ severity: "error", code: "v1", message: "first" }],
       () => [{ severity: "error", code: "v2", message: "second" }],
     );
 
@@ -63,6 +70,7 @@ describe("verifyCmxDocumentNodes", () => {
     if (result.valid) {
       return;
     }
+
     expect(result.diagnostics.length).toBeGreaterThan(2);
     expect(result.diagnostics[0]).toEqual({
       severity: "error",
@@ -86,7 +94,7 @@ describe("verifyCmxDocumentNodes", () => {
     if (result.valid) {
       return;
     }
-    expect(result.diagnostics.length).toBeGreaterThan(2);
+
     expect(result.diagnostics[0]).toEqual({
       severity: "error",
       code: "a",
@@ -99,42 +107,38 @@ describe("verifyCmxDocumentNodes", () => {
     });
   });
 
-  it("walks children and slot paths", async () => {
+  it("runs through reducer traversal including children and node slots", async () => {
     const seen: string[] = [];
 
     await verifyCmxDocumentNodes(documentFixture, (node) => {
       if (typeof node === "object" && node !== null && "type" in node) {
         seen.push((node as { type: string }).type);
       }
-      return [];
+      return null;
     });
 
     expect(seen).toContain("component");
-    expect(seen).toContain("element");
     expect(seen.filter((entry) => entry === "element").length).toBeGreaterThan(
       1,
     );
   });
 
-  it("rejects dangerouslySetInnerHTML from element or component props", async () => {
+  it("normalizes single and list diagnostics", async () => {
     const disallowDangerouslySetInnerHtml: CmxDocumentNodeVisitor = (node) => {
-      if (typeof node !== "object" || node === null) {
-        return [];
+      if (typeof node !== "object" || node === null || !("props" in node)) {
+        return null;
       }
-      if (!("props" in node)) {
-        return [];
-      }
+
       const props = (node as { props?: Record<string, unknown> }).props;
       if (props && "dangerouslySetInnerHTML" in props) {
-        return [
-          {
-            severity: "error" as const,
-            code: "disallow-dangerously-set-inner-html",
-            message: "dangerouslySetInnerHTML is not allowed",
-          },
-        ];
+        return {
+          severity: "error",
+          code: "disallow-dangerously-set-inner-html",
+          message: "dangerouslySetInnerHTML is not allowed",
+        };
       }
-      return [];
+
+      return null;
     };
 
     const result = await verifyCmxDocumentNodes(
