@@ -52,3 +52,21 @@ export type CmxDocument = {
   interface: CmxDocumentInterface;
   content: Record<string, unknown>;
 };
+
+export function isCmxDocument(value: unknown): value is CmxDocument {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return (
+    candidate.$schema ===
+      "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json" &&
+    typeof candidate.cmxVersion === "number" &&
+    typeof candidate.interface === "object" &&
+    candidate.interface !== null &&
+    !Array.isArray(candidate.interface) &&
+    typeof candidate.content === "object" &&
+    candidate.content !== null &&
+    !Array.isArray(candidate.content)
+  );
+}

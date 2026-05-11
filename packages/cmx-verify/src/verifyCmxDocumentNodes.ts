@@ -6,6 +6,7 @@ import type {
   CmxVerifyDocument,
   SlotPath,
 } from "cmx-contracts";
+import { isCmxDocument } from "cmx-contracts";
 
 export type CmxDocumentNodeVisitor = (
   node: CmxNode,
@@ -107,20 +108,4 @@ function flattenVisitors(input: VisitorsArg): CmxDocumentNodeVisitor[] {
     return [...input[0]];
   }
   return input as CmxDocumentNodeVisitor[];
-}
-
-function isCmxDocument(value: unknown): value is CmxDocument {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return false;
-  }
-  const candidate = value as Record<string, unknown>;
-  return (
-    candidate.$schema ===
-      "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json" &&
-    typeof candidate.cmxVersion === "number" &&
-    typeof candidate.interface === "object" &&
-    candidate.interface !== null &&
-    typeof candidate.content === "object" &&
-    candidate.content !== null
-  );
 }

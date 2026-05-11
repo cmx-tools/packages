@@ -130,6 +130,27 @@ describe("cmx-verify cli", () => {
     });
   });
 
+  it("fails with clear file location for invalid JSON", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFile(path.join(tempDir, "broken.json"), "{", "utf8");
+      const result = await runCli(tempDir, ["validate", "broken.json"]);
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("Invalid JSON in broken.json");
+    });
+  });
+
+  it("fails with clear stdin location for invalid JSON", async () => {
+    await withTempDir(async (tempDir) => {
+      const result = await runCli(tempDir, ["validate", "-"], {
+        readStdin: async () => "{",
+      });
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("Invalid JSON in stdin");
+    });
+  });
+
   it("writes single file input to --out-dir with input basename", async () => {
     await withTempDir(async (tempDir) => {
       await writeFile(
