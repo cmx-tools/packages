@@ -129,14 +129,7 @@ function parseCommand(argv: readonly string[]): ParsedCommand | null {
   let cwd = process.cwd();
   let outDirOption: string | null = null;
 
-  const valueFlags = new Set([
-    "--cwd",
-    "--config",
-    "--external",
-    "--exports",
-    "--externals",
-    "--out-dir",
-  ]);
+  const valueFlags = new Set(["--cwd", "--config", "--out-dir"]);
 
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];

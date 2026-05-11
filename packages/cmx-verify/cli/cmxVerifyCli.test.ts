@@ -49,6 +49,20 @@ async function runCli(
 }
 
 describe("cmx-verify cli", () => {
+  it("documents only verify-owned flags in help output", async () => {
+    await withTempDir(async (tempDir) => {
+      const result = await runCli(tempDir, ["--help"]);
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("--out-dir <dir>");
+      expect(result.stdout).toContain("--cwd <path>");
+      expect(result.stdout).toContain("--config <path>");
+      expect(result.stdout).not.toContain("--external");
+      expect(result.stdout).not.toContain("--exports");
+      expect(result.stdout).not.toContain("--externals");
+    });
+  });
+
   it("supports explicit validate verb with file input", async () => {
     await withTempDir(async (tempDir) => {
       await writeFile(
@@ -358,6 +372,26 @@ describe("cmx-verify cli", () => {
       expect(result.stdout).toBe("");
       expect(result.stderr).toContain("no-dangerous-html");
       expect(result.stderr).toContain("no-script-tag");
+    });
+  });
+
+  it("does not treat non-verify flags as native value flags", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFile(
+        path.join(tempDir, "doc.json"),
+        `${JSON.stringify(documentFixture)}\n`,
+        "utf8",
+      );
+
+      const result = await runCli(tempDir, [
+        "--external",
+        "@theme/ui",
+        "doc.json",
+      ]);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("Usage:");
     });
   });
 });
