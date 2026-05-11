@@ -4,9 +4,9 @@ import type {
   CmxDocumentVerificationResult,
   CmxNode,
   CmxVerifyDocument,
-  SlotPath,
 } from "cmx-contracts";
 import { isCmxDocument } from "cmx-contracts";
+import { reduceCmxDocumentNodes } from "cmx-reduce";
 
 export type CmxDocumentNodeVisitor = (
   node: CmxNode,
@@ -42,70 +42,42 @@ async function runVisitors(
   document: CmxDocument,
   visitors: CmxDocumentNodeVisitor[],
 ): Promise<CmxDocumentVerificationResult> {
-  const diagnostics: CmxDiagnostic[] = [];
-  for (const value of Object.values(document.content)) {
-    await walkNode(value as CmxNode, visitors, diagnostics);
-  }
-  if (diagnostics.length === 0) {
+  const reduction = await reduceCmxDocumentNodes({
+    document,
+    context: [] as CmxDiagnostic[],
+    async reduceNode(node, diagnostics) {
+      for (const visitor of visitors) {
+        const result = await visitor(node);
+        if (result === null || result === undefined) {
+          continue;
+        }
+
+        if (Array.isArray(result)) {
+          diagnostics.push(...result);
+          continue;
+        }
+
+        diagnostics.push(result);
+      }
+
+      return node;
+    },
+  });
+
+  if (reduction.context.length === 0) {
     return { valid: true };
   }
-  return { valid: false, diagnostics };
-}
 
-async function walkNode(
-  node: CmxNode,
-  visitors: CmxDocumentNodeVisitor[],
-  diagnostics: CmxDiagnostic[],
-): Promise<void> {
-  for (const visitor of visitors) {
-    const result = await visitor(node);
-    if (result === null || result === undefined) {
-      continue;
-    }
-    if (Array.isArray(result)) {
-      diagnostics.push(...result);
-      continue;
-    }
-    diagnostics.push(result);
-  }
-
-  if (typeof node !== "object" || node === null || !("type" in node)) {
-    return;
-  }
-  if (
-    node.type === "fragment" ||
-    node.type === "element" ||
-    node.type === "component"
-  ) {
-    for (const child of node.children ?? []) {
-      await walkNode(child, visitors, diagnostics);
-    }
-  }
-  if (node.type === "element" || node.type === "component") {
-    for (const slotPath of node.slots ?? []) {
-      await walkNode(
-        readPath(node, slotPath) as CmxNode,
-        visitors,
-        diagnostics,
-      );
-    }
-  }
-}
-
-function readPath(owner: unknown, slotPath: SlotPath): unknown {
-  let value = owner;
-  for (const segment of slotPath) {
-    if (typeof value !== "object" || value === null) {
-      return undefined;
-    }
-    value = (value as Record<string | number, unknown>)[segment];
-  }
-  return value;
+  return {
+    valid: false,
+    diagnostics: reduction.context,
+  };
 }
 
 function flattenVisitors(input: VisitorsArg): CmxDocumentNodeVisitor[] {
   if (input.length === 1 && Array.isArray(input[0])) {
     return [...input[0]];
   }
+
   return input as CmxDocumentNodeVisitor[];
 }

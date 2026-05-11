@@ -25,7 +25,8 @@
     "typecheck": "tsgo -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "cmx-contracts": "workspace:*"
+    "cmx-contracts": "workspace:*",
+    "cmx-reduce": "workspace:*"
   },
   "peerDependencies": {
     "cmx-cli": "^0.1.0 || ^1.0.0"

@@ -248,6 +248,9 @@ importers:
       cmx-contracts:
         specifier: workspace:*
         version: link:../cmx-contracts
+      cmx-reduce:
+        specifier: workspace:*
+        version: link:../cmx-reduce
     devDependencies:
       cmx-cli:
         specifier: workspace:*
