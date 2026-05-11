@@ -6,6 +6,7 @@ import type {
   CmxDocument,
   CmxVerifyDocument,
 } from "cmx-contracts";
+import { isCmxDocument } from "cmx-contracts";
 import { readPackageVersionFromImportMetaUrl } from "cmx-cli";
 import { validateCmxDocument } from "../src/validateCmxDocument.js";
 
@@ -293,7 +294,18 @@ async function readInputJson(input: ReadInputJsonInput): Promise<unknown> {
     input.inputPath === "-"
       ? await (input.readStdin ?? defaultReadStdin)()
       : await readFile(path.resolve(input.cwd, input.inputPath), "utf8");
-  return JSON.parse(rawInput);
+  try {
+    return JSON.parse(rawInput);
+  } catch (error) {
+    const location =
+      input.inputPath === "-"
+        ? "stdin"
+        : path.relative(input.cwd, path.resolve(input.cwd, input.inputPath));
+    throw new Error(
+      `Invalid JSON in ${location}: ${formatErrorMessage(error)}`,
+      { cause: error },
+    );
+  }
 }
 
 async function defaultReadStdin(): Promise<string> {
@@ -304,22 +316,15 @@ async function defaultReadStdin(): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-function isCmxDocument(value: unknown): value is CmxDocument {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  return (
-    value.$schema ===
-      "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json" &&
-    typeof value.cmxVersion === "number" &&
-    isRecord(value.interface) &&
-    isRecord(value.content)
-  );
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function formatErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.length > 0) {
+    return error.message;
+  }
+  return "Unknown parse error";
 }
 
 async function loadCmxCli(
