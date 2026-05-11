@@ -3,7 +3,7 @@ import type { CmxDocument } from "cmx-contracts";
 import {
   type CmxDocumentNodeVisitor,
   verifyCmxDocumentNodes,
-} from "./verifyCmxDocumentNodes.js";
+} from "cmx-reduce";
 
 const documentFixture: CmxDocument = {
   $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",

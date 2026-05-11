@@ -3,3 +3,4 @@ export type {
   CmxSlotResolver,
   CmxSlotResolverResult,
 } from "./resolveCmxSlots.js";
+export * from "./verifyCmxDocumentNodes.js";
