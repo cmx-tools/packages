@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type {
   CmxConfig,
@@ -26,6 +26,7 @@ type CmxCliModule = {
 type ParsedCommand = {
   input: string;
   cwd: string;
+  outDir: string | null;
 };
 
 type DocumentInput =
@@ -88,6 +89,21 @@ export async function runCmxVerifyCli(
       ]);
       return 1;
     }
+    if (
+      command.outDir !== null &&
+      command.input === "-" &&
+      input.kind === "document"
+    ) {
+      writeDiagnostics([
+        {
+          severity: "error",
+          code: "invalid-out-dir-input",
+          message:
+            "stdin single document input is not supported with --out-dir",
+        },
+      ]);
+      return 1;
+    }
 
     const result = await validateInput(input, config.verifyDocument);
     if (result.result === "invalid") {
@@ -95,7 +111,11 @@ export async function runCmxVerifyCli(
       return 1;
     }
 
-    process.stdout.write(`${JSON.stringify(result.output)}\n`);
+    if (command.outDir === null) {
+      process.stdout.write(`${JSON.stringify(result.output)}\n`);
+      return 0;
+    }
+    await writeValidatedOutput(command, input, result.output);
     return 0;
   } catch (error) {
     process.stderr.write(formatCliError(error));
@@ -106,6 +126,7 @@ export async function runCmxVerifyCli(
 function parseCommand(argv: readonly string[]): ParsedCommand | null {
   const positionals: string[] = [];
   let cwd = process.cwd();
+  let outDirOption: string | null = null;
 
   const valueFlags = new Set([
     "--cwd",
@@ -113,6 +134,7 @@ function parseCommand(argv: readonly string[]): ParsedCommand | null {
     "--external",
     "--exports",
     "--externals",
+    "--out-dir",
   ]);
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -123,6 +145,15 @@ function parseCommand(argv: readonly string[]): ParsedCommand | null {
         return null;
       }
       cwd = path.resolve(value);
+      index += 1;
+      continue;
+    }
+    if (argument === "--out-dir") {
+      const value = argv[index + 1];
+      if (value === undefined || value.startsWith("-")) {
+        return null;
+      }
+      outDirOption = value;
       index += 1;
       continue;
     }
@@ -150,14 +181,25 @@ function parseCommand(argv: readonly string[]): ParsedCommand | null {
     if (positionals.length !== 2 || input === undefined) {
       return null;
     }
-    return { input, cwd };
+    return { input, cwd, outDir: resolveOutDir(cwd, outDirOption) };
   }
 
   if (positionals.length === 1) {
-    return { input: positionals[0], cwd };
+    return {
+      input: positionals[0],
+      cwd,
+      outDir: resolveOutDir(cwd, outDirOption),
+    };
   }
 
   return null;
+}
+
+function resolveOutDir(cwd: string, outDir: string | null): string | null {
+  if (outDir === null) {
+    return null;
+  }
+  return path.resolve(cwd, outDir);
 }
 
 function parseDocumentInput(input: unknown): DocumentInput | null {
@@ -326,6 +368,7 @@ function writeHelp(): void {
       "  <input> file path or - for stdin",
       "",
       "Options:",
+      "  --out-dir <dir>",
       "  --cwd <path>",
       "  --config <path>",
       "  --help",
@@ -333,6 +376,32 @@ function writeHelp(): void {
       "",
     ].join("\n"),
   );
+}
+
+async function writeValidatedOutput(
+  command: ParsedCommand,
+  input: DocumentInput,
+  output: CmxDocument | Record<string, CmxDocument>,
+): Promise<void> {
+  const outDir = command.outDir;
+  if (outDir === null) {
+    return;
+  }
+  await mkdir(outDir, { recursive: true });
+  if (input.kind === "document") {
+    const outputName = path.basename(command.input);
+    await writeFile(
+      path.resolve(outDir, outputName),
+      `${JSON.stringify(output)}\n`,
+      "utf8",
+    );
+    return;
+  }
+  for (const [entryName, document] of Object.entries(output)) {
+    const outputPath = path.resolve(outDir, `${entryName}.json`);
+    await mkdir(path.dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, `${JSON.stringify(document)}\n`, "utf8");
+  }
 }
 
 function writeDiagnostics(diagnostics: CmxDiagnostic[]): void {

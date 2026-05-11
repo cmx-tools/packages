@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -127,6 +127,216 @@ describe("cmx-verify cli", () => {
       expect(result.exitCode).toBe(1);
       expect(result.stdout).toBe("");
       expect(result.stderr).toContain("invalid-document-input");
+    });
+  });
+
+  it("writes single file input to --out-dir with input basename", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFile(
+        path.join(tempDir, "about.json"),
+        `${JSON.stringify(documentFixture)}\n`,
+        "utf8",
+      );
+
+      const result = await runCli(tempDir, [
+        "validate",
+        "about.json",
+        "--out-dir",
+        "docs",
+      ]);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toBe("");
+      expect(
+        JSON.parse(
+          await readFile(path.join(tempDir, "docs", "about.json"), "utf8"),
+        ),
+      ).toEqual(documentFixture);
+    });
+  });
+
+  it("writes one file per entry for entry map plus --out-dir", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFile(
+        path.join(tempDir, "docs.json"),
+        `${JSON.stringify({ home: documentFixture, about: documentFixture })}\n`,
+        "utf8",
+      );
+
+      const result = await runCli(tempDir, [
+        "validate",
+        "docs.json",
+        "--out-dir",
+        "out",
+      ]);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toBe("");
+      expect(
+        JSON.parse(
+          await readFile(path.join(tempDir, "out", "home.json"), "utf8"),
+        ),
+      ).toEqual(documentFixture);
+      expect(
+        JSON.parse(
+          await readFile(path.join(tempDir, "out", "about.json"), "utf8"),
+        ),
+      ).toEqual(documentFixture);
+    });
+  });
+
+  it("fails stdin single document with --out-dir", async () => {
+    await withTempDir(async (tempDir) => {
+      const result = await runCli(
+        tempDir,
+        ["validate", "-", "--out-dir", "docs"],
+        {
+          readStdin: async () => JSON.stringify(documentFixture),
+        },
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("stdin");
+      expect(result.stderr).toContain("--out-dir");
+    });
+  });
+
+  it("keeps --out-dir entry-map writes all-or-nothing", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFile(
+        path.join(tempDir, "cmx.config.ts"),
+        [
+          "import type { CmxConfig } from 'cmx-contracts';",
+          "export default {",
+          "  verifyDocument(document) {",
+          "    if ('blocked' in document.content) {",
+          "      return { valid: false, diagnostics: [{ severity: 'error', code: 'blocked', message: 'blocked export' }] };",
+          "    }",
+          "    return { valid: true };",
+          "  },",
+          "} satisfies CmxConfig;",
+        ].join("\n"),
+        "utf8",
+      );
+      await writeFile(
+        path.join(tempDir, "docs.json"),
+        `${JSON.stringify({ ok: documentFixture, bad: { ...documentFixture, content: { blocked: true } } })}\n`,
+        "utf8",
+      );
+
+      const result = await runCli(tempDir, [
+        "validate",
+        "docs.json",
+        "--out-dir",
+        "safe-docs",
+      ]);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("blocked: blocked export");
+      await expect(
+        readFile(path.join(tempDir, "safe-docs", "ok.json"), "utf8"),
+      ).rejects.toThrow();
+      await expect(
+        readFile(path.join(tempDir, "safe-docs", "bad.json"), "utf8"),
+      ).rejects.toThrow();
+    });
+  });
+
+  it("supports stdin entry map with --out-dir", async () => {
+    await withTempDir(async (tempDir) => {
+      const result = await runCli(
+        tempDir,
+        ["validate", "-", "--out-dir", "docs"],
+        {
+          readStdin: async () =>
+            JSON.stringify({
+              home: documentFixture,
+              about: documentFixture,
+            }),
+        },
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toBe("");
+      expect(
+        JSON.parse(
+          await readFile(path.join(tempDir, "docs", "home.json"), "utf8"),
+        ),
+      ).toEqual(documentFixture);
+      expect(
+        JSON.parse(
+          await readFile(path.join(tempDir, "docs", "about.json"), "utf8"),
+        ),
+      ).toEqual(documentFixture);
+    });
+  });
+
+  it("uses config-composed visitors to reject unsafe documents", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFile(
+        path.join(tempDir, "cmx.config.ts"),
+        [
+          "import type { CmxConfig } from 'cmx-contracts';",
+          "const disallowDangerouslySetInnerHtml = (node) => {",
+          "  if (!node || typeof node !== 'object' || !('type' in node)) return [];",
+          "  if (!('props' in node)) return [];",
+          "  return node.props && 'dangerouslySetInnerHTML' in node.props",
+          "    ? [{ severity: 'error', code: 'no-dangerous-html', message: 'dangerouslySetInnerHTML blocked' }]",
+          "    : [];",
+          "};",
+          "const disallowScriptTags = (node) => {",
+          "  if (!node || typeof node !== 'object' || !('type' in node)) return [];",
+          "  return node.type === 'element' && node.tag === 'script'",
+          "    ? [{ severity: 'error', code: 'no-script-tag', message: 'script tag blocked' }]",
+          "    : [];",
+          "};",
+          "const visitors = [",
+          "  disallowDangerouslySetInnerHtml,",
+          "  disallowScriptTags,",
+          "];",
+          "const verifyDocument = (document) => {",
+          "  const diagnostics = [];",
+          "  const visit = (node) => {",
+          "    for (const visitor of visitors) diagnostics.push(...visitor(node));",
+          "    if (!node || typeof node !== 'object' || !('type' in node)) return;",
+          "    for (const child of node.children ?? []) visit(child);",
+          "  };",
+          "  for (const value of Object.values(document.content)) visit(value);",
+          "  return diagnostics.length === 0 ? { valid: true } : { valid: false, diagnostics };",
+          "};",
+          "export default {",
+          "  verifyDocument,",
+          "} satisfies CmxConfig;",
+        ].join("\n"),
+        "utf8",
+      );
+      await writeFile(
+        path.join(tempDir, "docs.json"),
+        `${JSON.stringify({
+          home: {
+            ...documentFixture,
+            content: {
+              default: {
+                type: "element",
+                tag: "script",
+                props: { dangerouslySetInnerHTML: { __html: "<x/>" } },
+              },
+            },
+          },
+        })}\n`,
+        "utf8",
+      );
+
+      const result = await runCli(tempDir, ["validate", "docs.json"]);
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("no-dangerous-html");
+      expect(result.stderr).toContain("no-script-tag");
     });
   });
 });
