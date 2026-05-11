@@ -280,7 +280,7 @@ function bodyDeclaresParent(
   const normalizedParentUrl = normalizeParentRefText(parentUrl);
   const parentRef = `(?:#\\s*${parentNumber}(?!\\d)|${escapeRegExp(normalizedParentUrl)})`;
   const re = new RegExp(
-    `(?:^|\\s)(?:#+\\s*)?parent\\s*:?\\s*${parentRef}(?=\\s|$)`,
+    `(?:^|\\s)(?:#+\\s*)?parent\\s*:?\\s*(?:[-*+]\\s*)?${parentRef}(?=\\s|$)`,
     "i",
   );
   return re.test(normalizedBody);
