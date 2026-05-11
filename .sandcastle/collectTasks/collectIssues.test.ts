@@ -27,6 +27,15 @@ describe("collectTaskIssues", () => {
     expect(text).toContain("## Child issue");
   });
 
+  test("accepts parent heading with list item issue ref", async () => {
+    mockParentCrossRefs("## Parent\n\n- #37");
+
+    const text = await collectTaskIssues(parentUrl);
+
+    expect(text).toContain("ISSUE #41");
+    expect(text).toContain("## Child issue");
+  });
+
   test("accepts exact parent issue link with loose marker", async () => {
     mockParentCrossRefs(`PARENT\n\n${parentUrl}`);
 
