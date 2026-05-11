@@ -33,7 +33,7 @@ describe("cmx umbrella cli", () => {
   it("supports --help and --version", async () => {
     const help = await runCli(["--help"]);
     expect(help.exitCode).toBe(0);
-    expect(help.stdout).toContain("cmx <bundle|document|environment>");
+    expect(help.stdout).toContain("cmx <bundle|document|environment|verify>");
 
     const version = await runCli(["--version"]);
     expect(version.exitCode).toBe(0);
@@ -43,7 +43,9 @@ describe("cmx umbrella cli", () => {
   it("fails on unknown verb", async () => {
     const result = await runCli(["invalid"]);
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("Usage: cmx <bundle|document|environment>");
+    expect(result.stderr).toContain(
+      "Usage: cmx <bundle|document|environment|verify>",
+    );
   });
 
   it("prints install hint when capability package is missing", async () => {
@@ -71,6 +73,19 @@ describe("cmx umbrella cli", () => {
     });
     expect(result.exitCode).toBe(0);
     expect(result.stdout.trim()).toBe("bundle:--help");
+  });
+
+  it("delegates verify subcommand args", async () => {
+    const result = await runCli(["verify", "--help"], {
+      importModule: async () => ({
+        runCmxVerifyCli: async (args: readonly string[]) => {
+          process.stdout.write(`verify:${args.join(" ")}\n`);
+          return 0;
+        },
+      }),
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.trim()).toBe("verify:--help");
   });
 });
 
