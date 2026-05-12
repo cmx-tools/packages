@@ -1,7 +1,6 @@
 {
   "name": "@cmx-tools/contracts",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "exports": {
     ".": {
@@ -24,5 +23,17 @@
   "devDependencies": {
     "json-schema-to-typescript": "^15.0.4",
     "typescript": "^6.0.3"
+  },
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Xiphe/content-management-jsx.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Xiphe/content-management-jsx/issues"
+  },
+  "homepage": "https://github.com/Xiphe/content-management-jsx#readme",
+  "publishConfig": {
+    "access": "public"
   }
 }
