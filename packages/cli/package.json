@@ -28,5 +28,17 @@
     "c12": "^3.3.1",
     "@cmx-tools/contracts": "workspace:^",
     "fast-glob": "^3.3.3"
+  },
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Xiphe/content-management-jsx.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Xiphe/content-management-jsx/issues"
+  },
+  "homepage": "https://github.com/Xiphe/content-management-jsx#readme",
+  "publishConfig": {
+    "access": "public"
   }
 }
