@@ -1,27 +1,18 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type {
-  CmxConfig,
   CmxDiagnostic,
   CmxDocument,
   CmxVerifyDocument,
 } from "@cmx-tools/contracts";
 import { isCmxDocument } from "@cmx-tools/contracts";
-import { readPackageVersionFromImportMetaUrl } from "@cmx-tools/cli";
+import type * as CliModule from "@cmx-tools/cli";
 import { validateCmxDocument } from "../src/validateCmxDocument.js";
 
 type CliModuleLoader = (specifier: string) => Promise<unknown>;
 type RunCmxVerifyCliOptions = {
   importModule?: CliModuleLoader;
   readStdin?: () => Promise<string>;
-};
-
-type CmxCliModule = {
-  resolveCmxCliConfig: (options: {
-    argv?: readonly string[];
-    cwd?: string;
-    env?: NodeJS.ProcessEnv;
-  }) => Promise<CmxConfig>;
 };
 
 type ParsedCommand = {
@@ -50,6 +41,9 @@ export async function runCmxVerifyCli(
   }
 
   if (argv.includes("--version") || argv.includes("-v")) {
+    const { readPackageVersionFromImportMetaUrl } = await loadCmxCli(
+      options.importModule ?? ((specifier) => import(specifier)),
+    );
     process.stdout.write(
       `${readPackageVersionFromImportMetaUrl(import.meta.url)}\n`,
     );
@@ -320,9 +314,7 @@ function formatErrorMessage(error: unknown): string {
   return "Unknown parse error";
 }
 
-async function loadCmxCli(
-  importModule: CliModuleLoader,
-): Promise<CmxCliModule> {
+async function loadCmxCli(importModule: CliModuleLoader) {
   try {
     const module = (await importModule("@cmx-tools/cli")) as Record<
       string,
@@ -331,12 +323,10 @@ async function loadCmxCli(
     if (typeof module.resolveCmxCliConfig !== "function") {
       throw new Error("Invalid cmx-cli installation");
     }
-    return module as CmxCliModule;
+    return module as typeof CliModule;
   } catch (error) {
     if (isMissingModuleError(error)) {
-      throw new Error(
-        'Missing CLI dependency "@cmx-tools/cli". Install with: pnpm add -D @cmx-tools/cli',
-      );
+      throw new Error('Missing CLI dependency "@cmx-tools/cli".');
     }
     throw error;
   }

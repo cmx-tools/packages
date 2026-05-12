@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { readPackageVersionFromImportMetaUrl } from "@cmx-tools/cli";
+import type * as CliModule from "@cmx-tools/cli";
 import { renderCmxDocuments } from "../src/renderCmxDocuments.js";
 
 type CliModuleLoader = (specifier: string) => Promise<unknown>;
@@ -16,6 +16,9 @@ export async function runCmxDocumentCli(
   }
 
   if (argv.includes("--version") || argv.includes("-v")) {
+    const { readPackageVersionFromImportMetaUrl } = await loadCmxCli(
+      options.importModule ?? ((specifier) => import(specifier)),
+    );
     process.stdout.write(
       `${readPackageVersionFromImportMetaUrl(import.meta.url)}\n`,
     );
@@ -223,13 +226,7 @@ function formatCliError(error: unknown): string {
   return "Unknown error\n";
 }
 
-type CmxCliModule = {
-  resolveCliCwd: (cliCwd?: string, env?: NodeJS.ProcessEnv) => string;
-};
-
-async function loadCmxCli(
-  importModule: CliModuleLoader,
-): Promise<CmxCliModule> {
+async function loadCmxCli(importModule: CliModuleLoader) {
   try {
     const module = (await importModule("@cmx-tools/cli")) as Record<
       string,
@@ -238,12 +235,10 @@ async function loadCmxCli(
     if (typeof module.resolveCliCwd !== "function") {
       throw new Error("Invalid @cmx-tools/cli installation");
     }
-    return module as CmxCliModule;
+    return module as typeof CliModule;
   } catch (error) {
     if (isMissingModuleError(error)) {
-      throw new Error(
-        'Missing CLI dependency "@cmx-tools/cli". Install with: pnpm add -D @cmx-tools/cli @cmx-tools/document',
-      );
+      throw new Error('Missing CLI dependency "@cmx-tools/cli".');
     }
     throw error;
   }

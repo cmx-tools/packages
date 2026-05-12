@@ -1,7 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { CmxConfig } from "@cmx-tools/contracts";
-import { readPackageVersionFromImportMetaUrl } from "@cmx-tools/cli";
+import type * as CliModule from "@cmx-tools/cli";
 import { generateCmxEnvironment } from "../src/generateCmxEnvironment.js";
 
 type CliModuleLoader = (specifier: string) => Promise<unknown>;
@@ -17,6 +16,9 @@ export async function runCmxEnvironmentCli(
   }
 
   if (argv.includes("--version") || argv.includes("-v")) {
+    const { readPackageVersionFromImportMetaUrl } = await loadCmxCli(
+      options.importModule ?? ((specifier) => import(specifier)),
+    );
     process.stdout.write(
       `${readPackageVersionFromImportMetaUrl(import.meta.url)}\n`,
     );
@@ -39,7 +41,6 @@ export async function runCmxEnvironmentCli(
       env: process.env,
     });
     const result = await generateCmxEnvironment({
-      cwd: command.cwd,
       ...config,
     });
     await mkdir(path.dirname(command.outFile), { recursive: true });
@@ -51,17 +52,7 @@ export async function runCmxEnvironmentCli(
   }
 }
 
-type CmxCliModule = {
-  resolveCmxCliConfig: (options: {
-    argv?: readonly string[];
-    cwd?: string;
-    env?: NodeJS.ProcessEnv;
-  }) => Promise<CmxConfig>;
-};
-
-async function loadCmxCli(
-  importModule: CliModuleLoader,
-): Promise<CmxCliModule> {
+async function loadCmxCli(importModule: CliModuleLoader) {
   try {
     const module = (await importModule("@cmx-tools/cli")) as Record<
       string,
@@ -70,12 +61,10 @@ async function loadCmxCli(
     if (typeof module.resolveCmxCliConfig !== "function") {
       throw new Error("Invalid cmx-cli installation");
     }
-    return module as CmxCliModule;
+    return module as typeof CliModule;
   } catch (error) {
     if (isMissingModuleError(error)) {
-      throw new Error(
-        'Missing CLI dependency "@cmx-tools/cli". Install with: pnpm add -D @cmx-tools/cli @cmx-tools/environment',
-      );
+      throw new Error('Missing CLI dependency "@cmx-tools/cli".');
     }
     throw error;
   }
