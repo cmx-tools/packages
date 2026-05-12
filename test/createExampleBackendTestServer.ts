@@ -4,10 +4,13 @@ import {
   type ChildProcessWithoutNullStreams,
 } from "node:child_process";
 import { createServer } from "node:net";
+import path from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const ROOT_DIR = process.cwd();
+const EXAMPLE_CONTENT_DIR = path.join(ROOT_DIR, "example", "content");
+const EXAMPLE_BACKEND_DIR = path.join(ROOT_DIR, "example", "backend");
 const SCRIPT_TIMEOUT = 120_000;
 const SCRIPT_MAX_BUFFER = 10 * 1024 * 1024;
 
@@ -21,17 +24,13 @@ export async function createExampleBackendTestServer(): Promise<ExampleBackendTe
 
   const port = await findOpenPort();
   const url = new URL(`http://127.0.0.1:${port}`);
-  const server = spawn(
-    "corepack",
-    ["pnpm", "--filter", "@example/backend", "start"],
-    {
-      cwd: ROOT_DIR,
-      env: {
-        ...process.env,
-        PORT: String(port),
-      },
+  const server = spawn("corepack", ["pnpm", "run", "start"], {
+    cwd: EXAMPLE_BACKEND_DIR,
+    env: {
+      ...process.env,
+      PORT: String(port),
     },
-  );
+  });
 
   await waitForServer(url, server);
 
@@ -44,24 +43,16 @@ export async function createExampleBackendTestServer(): Promise<ExampleBackendTe
 }
 
 async function prepareExampleBackend(): Promise<void> {
-  await execFileAsync(
-    "corepack",
-    ["pnpm", "--filter", "@example/content", "run", "build"],
-    {
-      cwd: ROOT_DIR,
-      timeout: SCRIPT_TIMEOUT,
-      maxBuffer: SCRIPT_MAX_BUFFER,
-    },
-  );
-  await execFileAsync(
-    "corepack",
-    ["pnpm", "--filter", "@example/backend", "run", "build"],
-    {
-      cwd: ROOT_DIR,
-      timeout: SCRIPT_TIMEOUT,
-      maxBuffer: SCRIPT_MAX_BUFFER,
-    },
-  );
+  await execFileAsync("corepack", ["pnpm", "run", "build"], {
+    cwd: EXAMPLE_CONTENT_DIR,
+    timeout: SCRIPT_TIMEOUT,
+    maxBuffer: SCRIPT_MAX_BUFFER,
+  });
+  await execFileAsync("corepack", ["pnpm", "run", "build"], {
+    cwd: EXAMPLE_BACKEND_DIR,
+    timeout: SCRIPT_TIMEOUT,
+    maxBuffer: SCRIPT_MAX_BUFFER,
+  });
 }
 
 async function findOpenPort(): Promise<number> {
