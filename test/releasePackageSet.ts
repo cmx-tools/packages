@@ -7,6 +7,7 @@ export const REAL_PACKAGE_DIRS = [
   "react",
   "reduce",
   "runtime",
+  "verify",
 ] as const;
 
 export const REAL_PACKAGE_NAMES = REAL_PACKAGE_DIRS.map(

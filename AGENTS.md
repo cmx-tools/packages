@@ -1,4 +1,4 @@
-GitHub: `Xiphe/content-management-jsx`
+GitHub: `cmx-tools/packages`
 Commit Messages Format: Conventional Commits
 Package manager: pnpm
 Skills in: `~/.agents/skills` or `./.agents/skills`

@@ -74,14 +74,12 @@ describe("release readiness", () => {
       expect(manifest.publishConfig?.access).toBe("public");
       expect(manifest.repository?.type).toBe("git");
       expect(manifest.repository?.url).toContain(
-        "github.com/Xiphe/content-management-jsx",
+        "github.com/cmx-tools/packages",
       );
       expect(manifest.bugs?.url).toContain(
-        "github.com/Xiphe/content-management-jsx/issues",
+        "github.com/cmx-tools/packages/issues",
       );
-      expect(manifest.homepage).toContain(
-        "github.com/Xiphe/content-management-jsx",
-      );
+      expect(manifest.homepage).toContain("github.com/cmx-tools/packages");
     }
   });
 
