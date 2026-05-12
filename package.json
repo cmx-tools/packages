@@ -20,7 +20,9 @@
     "verify:example": "git update-index -q --refresh && test -z \"$(git status --porcelain -- ./example/content/dist ./example/backend/_db_content ./example/backend/_gen_cmx_environment.ts ./example/backend-contract)\"",
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check .",
-    "test:release-readiness": "vitest run test/releaseReadiness.test.ts test/packageSmoke.test.ts"
+    "test:release-readiness": "vitest run test/releaseReadiness.test.ts test/packageSmoke.test.ts test/releaseAutomation.test.ts",
+    "release:ci": "bash ./scripts/release-ci.sh",
+    "release:dry-run": "CI_DRY_RUN=true corepack pnpm run release:ci"
   },
   "devDependencies": {
     "@ai-hero/sandcastle": "^0.5.10",
@@ -38,6 +40,12 @@
     "tsx": "^4.21.0",
     "vitest": "^4.1.5",
     "cross-env": "^10.1.0",
-    "if-env": "^1.0.4"
+    "if-env": "^1.0.4",
+    "semantic-release": "^25.0.3",
+    "semantic-release-monorepo": "^8.0.2",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/release-notes-generator": "^14.1.1",
+    "@semantic-release/npm": "^13.1.5",
+    "@semantic-release/github": "^12.0.8"
   }
 }
