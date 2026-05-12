@@ -1,5 +1,5 @@
 {
-  "name": "cmx-verify",
+  "name": "@cmx-tools/verify",
   "version": "0.1.0",
   "type": "module",
   "bin": {

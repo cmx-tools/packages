@@ -335,7 +335,7 @@ async function loadCmxCli(
   } catch (error) {
     if (isMissingModuleError(error)) {
       throw new Error(
-        'Missing CLI dependency "@cmx-tools/cli". Install with: pnpm add -D @cmx-tools/cli cmx-verify',
+        'Missing CLI dependency "@cmx-tools/cli". Install with: pnpm add -D @cmx-tools/cli',
       );
     }
     throw error;
