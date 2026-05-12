@@ -14,10 +14,10 @@
   "devDependencies": {
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "cmx-bundle": "workspace:*",
-    "cmx-document": "workspace:*",
+    "@cmx-tools/bundle": "workspace:^",
+    "@cmx-tools/document": "workspace:^",
     "rolldown": "^1.0.0-rc.18",
-    "cmx-cli": "workspace:*",
+    "@cmx-tools/cli": "workspace:^",
     "tsx": "^4.21.0"
   }
 }

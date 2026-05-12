@@ -47,7 +47,9 @@ describe("example CLI workflow", () => {
     expect(contentPackageJson.scripts.render).toContain("cmx-document render");
     expect(contentPackageJson.scripts.build).not.toContain("tsx ");
     expect(contentPackageJson.scripts.build).not.toContain("scripts/");
-    expect(contentPackageJson.devDependencies?.["cmx-cli"]).toBeDefined();
+    expect(
+      contentPackageJson.devDependencies?.["@cmx-tools/cli"],
+    ).toBeDefined();
     expect(backendPackageJson.scripts.build).toContain("cmx-environment");
     expect(backendPackageJson.scripts.build).toContain(
       "--config ../cmx.config.ts",
@@ -57,7 +59,9 @@ describe("example CLI workflow", () => {
     expect(backendPackageJson.scripts.build).not.toContain("dist/cli.js");
     expect(backendPackageJson.scripts.build).not.toContain("tsx ");
     expect(backendPackageJson.scripts.build).not.toContain("scripts/");
-    expect(backendPackageJson.devDependencies?.["cmx-cli"]).toBeDefined();
+    expect(
+      backendPackageJson.devDependencies?.["@cmx-tools/cli"],
+    ).toBeDefined();
   });
 
   it("compiles and renders documents with first-class CLIs", async () => {

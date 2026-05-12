@@ -9,8 +9,8 @@
   "dependencies": {
     "@example/backend-contract": "workspace:*",
     "@example/ui-library": "workspace:*",
-    "cmx-contracts": "workspace:*",
-    "cmx-react": "workspace:*",
+    "@cmx-tools/contracts": "workspace:^",
+    "@cmx-tools/react": "workspace:^",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },
@@ -18,8 +18,8 @@
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "cmx-cli": "workspace:*",
-    "cmx-environment": "workspace:*",
+    "@cmx-tools/cli": "workspace:^",
+    "@cmx-tools/environment": "workspace:^",
     "tsx": "^4.21.0"
   }
 }

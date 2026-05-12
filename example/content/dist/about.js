@@ -1,4 +1,4 @@
-import { __registerExternal, jsx, jsxs } from "cmx-runtime/jsx-runtime";
+import { __registerExternal, jsx, jsxs } from "@cmx-tools/runtime/jsx-runtime";
 const UserProfile$1 = __registerExternal({
 	from: "@example/backend-contract",
 	import: "UserProfile"

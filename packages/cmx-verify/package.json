@@ -25,18 +25,18 @@
     "typecheck": "tsgo -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "cmx-contracts": "workspace:*",
-    "cmx-reduce": "workspace:*"
+    "@cmx-tools/contracts": "workspace:^",
+    "@cmx-tools/reduce": "workspace:^"
   },
   "peerDependencies": {
-    "cmx-cli": "^0.1.0 || ^1.0.0"
+    "@cmx-tools/cli": "^0.1.0 || ^1.0.0"
   },
   "peerDependenciesMeta": {
-    "cmx-cli": {
+    "@cmx-tools/cli": {
       "optional": true
     }
   },
   "devDependencies": {
-    "cmx-cli": "workspace:*"
+    "@cmx-tools/cli": "workspace:^"
   }
 }

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "runtime": {
-    "importSource": "cmx-runtime"
+    "importSource": "@cmx-tools/runtime"
   },
   "exports": {
     "default": {
       "required": true,
       "type": {
-        "from": "cmx-contracts",
+        "from": "@cmx-tools/contracts",
         "import": "CmxNode"
       }
     },

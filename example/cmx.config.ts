@@ -1,11 +1,11 @@
-import type { CmxConfig } from "cmx-contracts";
+import type { CmxConfig } from "@cmx-tools/contracts";
 
 const config: CmxConfig = {
   exports: {
     default: {
       required: true,
       type: {
-        from: "cmx-contracts",
+        from: "@cmx-tools/contracts",
         import: "CmxNode",
       },
     },

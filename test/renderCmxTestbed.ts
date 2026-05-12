@@ -7,15 +7,15 @@ import {
   parseCmxBundleJson,
   type CmxBundle,
   CmxConfig,
-} from "cmx-contracts";
-import { cmx } from "cmx-bundle";
+} from "@cmx-tools/contracts";
+import { cmx } from "@cmx-tools/bundle";
 import {
   renderCmxDocuments,
   type RenderCmxDocumentsCompleteResult,
   type RenderCmxDocumentsErrorResult,
   type RenderCmxDocumentsPartialResult,
   type CmxRenderDiagnostic,
-} from "cmx-document";
+} from "@cmx-tools/document";
 import { createCmxTestbedWorkspace } from "./createCmxTestbedWorkspace.js";
 import { toCmxTestbedBuildDiagnostic } from "./toCmxTestbedBuildDiagnostic.js";
 
@@ -251,7 +251,7 @@ const defaultExports: CmxConfig["exports"] = {
   default: {
     required: true,
     type: {
-      from: "cmx-contracts",
+      from: "@cmx-tools/contracts",
       import: "CmxNode",
     },
   },

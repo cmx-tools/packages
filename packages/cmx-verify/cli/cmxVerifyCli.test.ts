@@ -2,7 +2,7 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import type { CmxDocument } from "cmx-contracts";
+import type { CmxDocument } from "@cmx-tools/contracts";
 import { runCmxVerifyCli } from "./cmxVerifyCli.js";
 
 const documentFixture: CmxDocument = {
@@ -108,7 +108,7 @@ describe("cmx-verify cli", () => {
       await writeFile(
         path.join(tempDir, "cmx.config.ts"),
         [
-          "import type { CmxConfig } from 'cmx-contracts';",
+          "import type { CmxConfig } from '@cmx-tools/contracts';",
           "export default {",
           "  verifyDocument(document) {",
           "    if ('blocked' in document.content) {",
@@ -244,7 +244,7 @@ describe("cmx-verify cli", () => {
       await writeFile(
         path.join(tempDir, "cmx.config.ts"),
         [
-          "import type { CmxConfig } from 'cmx-contracts';",
+          "import type { CmxConfig } from '@cmx-tools/contracts';",
           "export default {",
           "  verifyDocument(document) {",
           "    if ('blocked' in document.content) {",
@@ -316,7 +316,7 @@ describe("cmx-verify cli", () => {
       await writeFile(
         path.join(tempDir, "cmx.config.ts"),
         [
-          "import type { CmxConfig } from 'cmx-contracts';",
+          "import type { CmxConfig } from '@cmx-tools/contracts';",
           "const disallowDangerouslySetInnerHtml = (node) => {",
           "  if (!node || typeof node !== 'object' || !('type' in node)) return [];",
           "  if (!('props' in node)) return [];",

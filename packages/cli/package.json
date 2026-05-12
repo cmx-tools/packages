@@ -1,0 +1,32 @@
+{
+  "name": "@cmx-tools/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "cmx": "./dist/cli/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli/cmxCli.d.ts",
+      "import": "./dist/cli/cmxCli.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsgo -p tsconfig.json",
+    "pretest": "corepack pnpm run build",
+    "test": "vitest run",
+    "typecheck": "tsgo -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "c12": "^3.3.1",
+    "@cmx-tools/contracts": "workspace:^",
+    "fast-glob": "^3.3.3"
+  }
+}

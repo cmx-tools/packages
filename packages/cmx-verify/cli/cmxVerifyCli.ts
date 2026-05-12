@@ -5,9 +5,9 @@ import type {
   CmxDiagnostic,
   CmxDocument,
   CmxVerifyDocument,
-} from "cmx-contracts";
-import { isCmxDocument } from "cmx-contracts";
-import { readPackageVersionFromImportMetaUrl } from "cmx-cli";
+} from "@cmx-tools/contracts";
+import { isCmxDocument } from "@cmx-tools/contracts";
+import { readPackageVersionFromImportMetaUrl } from "@cmx-tools/cli";
 import { validateCmxDocument } from "../src/validateCmxDocument.js";
 
 type CliModuleLoader = (specifier: string) => Promise<unknown>;
@@ -324,7 +324,10 @@ async function loadCmxCli(
   importModule: CliModuleLoader,
 ): Promise<CmxCliModule> {
   try {
-    const module = (await importModule("cmx-cli")) as Record<string, unknown>;
+    const module = (await importModule("@cmx-tools/cli")) as Record<
+      string,
+      unknown
+    >;
     if (typeof module.resolveCmxCliConfig !== "function") {
       throw new Error("Invalid cmx-cli installation");
     }
@@ -332,7 +335,7 @@ async function loadCmxCli(
   } catch (error) {
     if (isMissingModuleError(error)) {
       throw new Error(
-        'Missing CLI dependency "cmx-cli". Install with: pnpm add -D cmx-cli cmx-verify',
+        'Missing CLI dependency "@cmx-tools/cli". Install with: pnpm add -D @cmx-tools/cli cmx-verify',
       );
     }
     throw error;

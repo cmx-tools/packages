@@ -4,9 +4,9 @@ import type {
   CmxDocumentVerificationResult,
   CmxNode,
   CmxVerifyDocument,
-} from "cmx-contracts";
-import { isCmxDocument } from "cmx-contracts";
-import { reduceCmxDocumentNodes } from "cmx-reduce";
+} from "@cmx-tools/contracts";
+import { isCmxDocument } from "@cmx-tools/contracts";
+import { reduceCmxDocumentNodes } from "@cmx-tools/reduce";
 
 export type CmxDocumentNodeVisitor = (
   node: CmxNode,
