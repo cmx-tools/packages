@@ -80,4 +80,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI_DRY_RUN: "false"
           GITHUB_REF_NAME: ${{ github.ref_name }}
-        run: corepack pnpm run release:ci
+        run: ./.github/workflows/release-ci.sh
