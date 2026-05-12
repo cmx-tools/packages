@@ -5,9 +5,10 @@ DRY_RUN_ARGS=()
 if [ "${CI_DRY_RUN:-false}" = "true" ]; then
   DRY_RUN_ARGS=(--dry-run)
 fi
+RELEASE_CONFIG="$(pwd)/release.config.js"
 
 corepack pnpm -r --filter './packages/*' --workspace-concurrency=1 exec \
-  semantic-release --extends ./release.config.js -e semantic-release-monorepo "${DRY_RUN_ARGS[@]}"
+  semantic-release --extends "${RELEASE_CONFIG}" -e semantic-release-monorepo "${DRY_RUN_ARGS[@]}"
 
 if [ "${CI_DRY_RUN:-false}" = "true" ]; then
   echo "dry-run done, skip publish"
