@@ -19,8 +19,7 @@
     "preverify:example": "corepack pnpm run test:gen-example",
     "verify:example": "git update-index -q --refresh && test -z \"$(git status --porcelain -- ./example/content/dist ./example/backend/_db_content ./example/backend/_gen_cmx_environment.ts ./example/backend-contract)\"",
     "fmt": "prettier --write .",
-    "fmt:check": "prettier --check .",
-    "test:release-readiness": "vitest run test/releaseReadiness.test.ts test/packageSmoke.test.ts"
+    "fmt:check": "prettier --check ."
   },
   "devDependencies": {
     "@ai-hero/sandcastle": "^0.5.10",
