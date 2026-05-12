@@ -18,7 +18,8 @@
     "test": "vitest run --dir src",
     "pretest:integration": "corepack pnpm run build",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "typecheck": "tsgo -p tsconfig.json --noEmit"
+    "typecheck": "tsgo -p tsconfig.json --noEmit",
+    "prepare": "corepack pnpm run build"
   },
   "devDependencies": {
     "json-schema-to-typescript": "^15.0.4",
