@@ -193,19 +193,6 @@ importers:
         specifier: ^3.3.3
         version: 3.3.3
 
-  packages/cmx-verify:
-    dependencies:
-      '@cmx-tools/contracts':
-        specifier: workspace:^
-        version: link:../contracts
-      '@cmx-tools/reduce':
-        specifier: workspace:^
-        version: link:../reduce
-    devDependencies:
-      '@cmx-tools/cli':
-        specifier: workspace:^
-        version: link:../cli
-
   packages/contracts:
     devDependencies:
       json-schema-to-typescript:
@@ -273,6 +260,19 @@ importers:
         version: link:../contracts
 
   packages/runtime: {}
+
+  packages/verify:
+    dependencies:
+      '@cmx-tools/contracts':
+        specifier: workspace:^
+        version: link:../contracts
+      '@cmx-tools/reduce':
+        specifier: workspace:^
+        version: link:../reduce
+    devDependencies:
+      '@cmx-tools/cli':
+        specifier: workspace:^
+        version: link:../cli
 
 packages:
 

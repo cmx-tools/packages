@@ -17,9 +17,9 @@ const CAPABILITY_RUNNERS = {
     packageName: "@cmx-tools/environment",
   },
   verify: {
-    entrypoint: "cmx-verify/cli",
+    entrypoint: "@cmx-tools/verify/cli",
     exportName: "runCmxVerifyCli",
-    packageName: "cmx-verify",
+    packageName: "@cmx-tools/verify",
   },
 } as const;
 
