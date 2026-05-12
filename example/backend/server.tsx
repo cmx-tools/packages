@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { StrictMode } from "react";
 import { renderToString } from "react-dom/server";
 import { environment } from "./_gen_cmx_environment.js";
-import { cmx } from "cmx-react";
+import { cmx } from "@cmx-tools/react";
 
 type AppProps = {
   title?: string;

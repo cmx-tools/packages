@@ -5,7 +5,7 @@
     "imports": {},
     "exports": {
       "default": {
-        "type": { "from": "cmx-contracts", "import": "CmxNode" },
+        "type": { "from": "@cmx-tools/contracts", "import": "CmxNode" },
         "slots": [[]]
       }
     }

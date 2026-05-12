@@ -1,0 +1,42 @@
+{
+  "name": "@cmx-tools/bundle",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "cmx-bundle": "./dist/cli/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli/cmxBundleCli.d.ts",
+      "import": "./dist/cli/cmxBundleCli.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsgo -p tsconfig.json",
+    "pretest": "corepack pnpm run build",
+    "test": "vitest run",
+    "typecheck": "tsgo -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@cmx-tools/contracts": "workspace:^",
+    "rolldown": "^1.0.0-rc.18"
+  },
+  "peerDependencies": {
+    "@cmx-tools/cli": "^0.1.0 || ^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@cmx-tools/cli": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@cmx-tools/cli": "workspace:^"
+  }
+}

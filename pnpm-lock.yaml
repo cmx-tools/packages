@@ -11,6 +11,24 @@ importers:
       '@ai-hero/sandcastle':
         specifier: ^0.5.10
         version: 0.5.10(@effect/cluster@0.57.0(@effect/platform@0.95.0(effect@3.21.2))(@effect/rpc@0.74.0(@effect/platform@0.95.0(effect@3.21.2))(effect@3.21.2))(@effect/sql@0.50.0(@effect/experimental@0.59.0(@effect/platform@0.95.0(effect@3.21.2))(effect@3.21.2))(@effect/platform@0.95.0(effect@3.21.2))(effect@3.21.2))(@effect/workflow@0.17.0(@effect/experimental@0.59.0(@effect/platform@0.95.0(effect@3.21.2))(effect@3.21.2))(@effect/platform@0.95.0(effect@3.21.2))(@effect/rpc@0.74.0(@effect/platform@0.95.0(effect@3.21.2))(effect@3.21.2))(effect@3.21.2))(effect@3.21.2))(@effect/rpc@0.74.0(@effect/platform@0.95.0(effect@3.21.2))(effect@3.21.2))(@effect/sql@0.50.0(@effect/experimental@0.59.0(@effect/platform@0.95.0(effect@3.21.2))(effect@3.21.2))(@effect/platform@0.95.0(effect@3.21.2))(effect@3.21.2))(@effect/typeclass@0.39.0(effect@3.21.2))
+      '@cmx-tools/bundle':
+        specifier: workspace:^
+        version: link:packages/bundle
+      '@cmx-tools/contracts':
+        specifier: workspace:^
+        version: link:packages/contracts
+      '@cmx-tools/document':
+        specifier: workspace:^
+        version: link:packages/document
+      '@cmx-tools/environment':
+        specifier: workspace:^
+        version: link:packages/environment
+      '@cmx-tools/react':
+        specifier: workspace:^
+        version: link:packages/react
+      '@cmx-tools/runtime':
+        specifier: workspace:^
+        version: link:packages/runtime
       '@jridgewell/trace-mapping':
         specifier: ^0.3.31
         version: 0.3.31
@@ -20,24 +38,6 @@ importers:
       '@typescript/native-preview':
         specifier: 7.0.0-dev.20260421.2
         version: 7.0.0-dev.20260421.2
-      cmx-bundle:
-        specifier: workspace:*
-        version: link:packages/cmx-bundle
-      cmx-contracts:
-        specifier: workspace:*
-        version: link:packages/cmx-contracts
-      cmx-document:
-        specifier: workspace:*
-        version: link:packages/cmx-document
-      cmx-environment:
-        specifier: workspace:*
-        version: link:packages/cmx-environment
-      cmx-react:
-        specifier: workspace:*
-        version: link:packages/cmx-react
-      cmx-runtime:
-        specifier: workspace:*
-        version: link:packages/cmx-runtime
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
@@ -59,18 +59,18 @@ importers:
 
   example/backend:
     dependencies:
+      '@cmx-tools/contracts':
+        specifier: workspace:^
+        version: link:../../packages/contracts
+      '@cmx-tools/react':
+        specifier: workspace:^
+        version: link:../../packages/react
       '@example/backend-contract':
         specifier: workspace:*
         version: link:../backend-contract
       '@example/ui-library':
         specifier: workspace:*
         version: link:../ui-library
-      cmx-contracts:
-        specifier: workspace:*
-        version: link:../../packages/cmx-contracts
-      cmx-react:
-        specifier: workspace:*
-        version: link:../../packages/cmx-react
       react:
         specifier: ^19.2.5
         version: 19.2.5
@@ -78,6 +78,12 @@ importers:
         specifier: ^19.2.5
         version: 19.2.5(react@19.2.5)
     devDependencies:
+      '@cmx-tools/cli':
+        specifier: workspace:^
+        version: link:../../packages/cli
+      '@cmx-tools/environment':
+        specifier: workspace:^
+        version: link:../../packages/environment
       '@types/node':
         specifier: ^24
         version: 24.12.2
@@ -87,12 +93,6 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.2.3(@types/react@19.2.14)
-      cmx-cli:
-        specifier: workspace:*
-        version: link:../../packages/cmx-cli
-      cmx-environment:
-        specifier: workspace:*
-        version: link:../../packages/cmx-environment
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
@@ -115,21 +115,21 @@ importers:
         specifier: workspace:*
         version: link:../ui-library
     devDependencies:
+      '@cmx-tools/bundle':
+        specifier: workspace:^
+        version: link:../../packages/bundle
+      '@cmx-tools/cli':
+        specifier: workspace:^
+        version: link:../../packages/cli
+      '@cmx-tools/document':
+        specifier: workspace:^
+        version: link:../../packages/document
       '@types/react':
         specifier: ^19
         version: 19.2.14
       '@types/react-dom':
         specifier: ^19
         version: 19.2.3(@types/react@19.2.14)
-      cmx-bundle:
-        specifier: workspace:*
-        version: link:../../packages/cmx-bundle
-      cmx-cli:
-        specifier: workspace:*
-        version: link:../../packages/cmx-cli
-      cmx-document:
-        specifier: workspace:*
-        version: link:../../packages/cmx-document
       rolldown:
         specifier: ^1.0.0-rc.18
         version: 1.0.0-rc.18
@@ -150,32 +150,45 @@ importers:
         specifier: ^19
         version: 19.2.3(@types/react@19.2.14)
 
-  packages/cmx-bundle:
+  packages/bundle:
     dependencies:
-      cmx-contracts:
-        specifier: workspace:*
-        version: link:../cmx-contracts
+      '@cmx-tools/contracts':
+        specifier: workspace:^
+        version: link:../contracts
       rolldown:
         specifier: ^1.0.0-rc.18
-        version: 1.0.0-rc.18
+        version: 1.0.0
     devDependencies:
-      cmx-cli:
-        specifier: workspace:*
-        version: link:../cmx-cli
+      '@cmx-tools/cli':
+        specifier: workspace:^
+        version: link:../cli
 
-  packages/cmx-cli:
+  packages/cli:
     dependencies:
+      '@cmx-tools/contracts':
+        specifier: workspace:^
+        version: link:../contracts
       c12:
         specifier: ^3.3.1
         version: 3.3.4
-      cmx-contracts:
-        specifier: workspace:*
-        version: link:../cmx-contracts
       fast-glob:
         specifier: ^3.3.3
         version: 3.3.3
 
-  packages/cmx-contracts:
+  packages/cmx-verify:
+    dependencies:
+      '@cmx-tools/contracts':
+        specifier: workspace:^
+        version: link:../contracts
+      '@cmx-tools/reduce':
+        specifier: workspace:^
+        version: link:../reduce
+    devDependencies:
+      '@cmx-tools/cli':
+        specifier: workspace:^
+        version: link:../cli
+
+  packages/contracts:
     devDependencies:
       json-schema-to-typescript:
         specifier: ^15.0.4
@@ -184,43 +197,43 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
-  packages/cmx-document:
+  packages/document:
     dependencies:
+      '@cmx-tools/contracts':
+        specifier: workspace:^
+        version: link:../contracts
+      '@cmx-tools/runtime':
+        specifier: workspace:^
+        version: link:../runtime
       '@jridgewell/trace-mapping':
         specifier: ^0.3.31
         version: 0.3.31
-      cmx-contracts:
-        specifier: workspace:*
-        version: link:../cmx-contracts
-      cmx-runtime:
-        specifier: workspace:*
-        version: link:../cmx-runtime
     devDependencies:
-      cmx-cli:
-        specifier: workspace:*
-        version: link:../cmx-cli
+      '@cmx-tools/cli':
+        specifier: workspace:^
+        version: link:../cli
       rolldown:
         specifier: ^1.0.0-rc.18
-        version: 1.0.0-rc.18
+        version: 1.0.0
 
-  packages/cmx-environment:
+  packages/environment:
     dependencies:
-      cmx-contracts:
-        specifier: workspace:*
-        version: link:../cmx-contracts
+      '@cmx-tools/contracts':
+        specifier: workspace:^
+        version: link:../contracts
     devDependencies:
-      cmx-cli:
-        specifier: workspace:*
-        version: link:../cmx-cli
+      '@cmx-tools/cli':
+        specifier: workspace:^
+        version: link:../cli
 
-  packages/cmx-react:
+  packages/react:
     dependencies:
-      cmx-contracts:
-        specifier: workspace:*
-        version: link:../cmx-contracts
-      cmx-reduce:
-        specifier: workspace:*
-        version: link:../cmx-reduce
+      '@cmx-tools/contracts':
+        specifier: workspace:^
+        version: link:../contracts
+      '@cmx-tools/reduce':
+        specifier: workspace:^
+        version: link:../reduce
       react:
         specifier: ^19
         version: 19.2.5
@@ -235,26 +248,13 @@ importers:
         specifier: ^19.2.5
         version: 19.2.5(react@19.2.5)
 
-  packages/cmx-reduce:
+  packages/reduce:
     dependencies:
-      cmx-contracts:
-        specifier: workspace:*
-        version: link:../cmx-contracts
+      '@cmx-tools/contracts':
+        specifier: workspace:^
+        version: link:../contracts
 
-  packages/cmx-runtime: {}
-
-  packages/cmx-verify:
-    dependencies:
-      cmx-contracts:
-        specifier: workspace:*
-        version: link:../cmx-contracts
-      cmx-reduce:
-        specifier: workspace:*
-        version: link:../cmx-reduce
-    devDependencies:
-      cmx-cli:
-        specifier: workspace:*
-        version: link:../cmx-cli
+  packages/runtime: {}
 
 packages:
 

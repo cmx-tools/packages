@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CmxDocument } from "cmx-contracts";
+import type { CmxDocument } from "@cmx-tools/contracts";
 import {
   type CmxDocumentNodeVisitor,
   verifyCmxDocumentNodes,

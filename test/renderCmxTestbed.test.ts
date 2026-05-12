@@ -245,7 +245,7 @@ describe("renderCmxTestbed", () => {
           exports: {
             default: {
               type: {
-                from: "cmx-contracts",
+                from: "@cmx-tools/contracts",
                 import: "CmxNode",
               },
               slots: [[]],
@@ -263,7 +263,7 @@ describe("renderCmxTestbed", () => {
       diagnostics: [],
       bundle: {
         runtime: {
-          importSource: "cmx-runtime",
+          importSource: "@cmx-tools/runtime",
         },
         entries: [
           {
@@ -273,7 +273,9 @@ describe("renderCmxTestbed", () => {
         ],
       },
       files: {
-        "entry.js": expect.stringContaining('from "cmx-runtime/jsx-runtime"'),
+        "entry.js": expect.stringContaining(
+          'from "@cmx-tools/runtime/jsx-runtime"',
+        ),
         "entry.js.map": expect.stringContaining("entry.tsx"),
         "cmx-bundle.json": expect.stringContaining('"entries"'),
       },
@@ -290,7 +292,7 @@ describe("renderCmxTestbed", () => {
     );
 
     await expect(
-      access(path.join(result.outDir, "node_modules", "cmx-runtime")),
+      access(path.join(result.outDir, "node_modules", "@cmx-tools/runtime")),
     ).rejects.toMatchObject({ code: "ENOENT" });
   });
 
@@ -683,7 +685,7 @@ describe("renderCmxTestbed", () => {
       exports: {
         default: {
           type: {
-            from: "cmx-contracts",
+            from: "@cmx-tools/contracts",
             import: "CmxNode",
           },
           slots: [[]],
@@ -728,7 +730,7 @@ describe("renderCmxTestbed", () => {
           default: {
             required: true,
             type: {
-              from: "cmx-contracts",
+              from: "@cmx-tools/contracts",
               import: "CmxNode",
             },
           },
@@ -749,7 +751,7 @@ describe("renderCmxTestbed", () => {
     expect(result.document.interface.exports).toEqual({
       default: {
         type: {
-          from: "cmx-contracts",
+          from: "@cmx-tools/contracts",
           import: "CmxNode",
         },
         slots: [[]],

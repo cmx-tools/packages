@@ -2,7 +2,7 @@ import type {
   CmxDiagnostic,
   CmxDocument,
   CmxVerifyDocument,
-} from "cmx-contracts";
+} from "@cmx-tools/contracts";
 
 export type ValidateCmxDocumentInput = {
   document: CmxDocument;
