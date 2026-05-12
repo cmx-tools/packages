@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "verify": "cross-env-shell PRE_BUILD=false \"corepack pnpm run fmt:check && corepack pnpm run build && corepack pnpm run typecheck && corepack pnpm run test\"",
-    "build": "corepack pnpm -r --filter './packages/*' build",
+    "build": "corepack pnpm -r --filter './packages/*' build && corepack pnpm rebuild",
     "test:unit": "vitest run --dir packages",
     "pretest:integration": "if-env PRE_BUILD=false || corepack pnpm run build",
     "test:integration": "vitest run --dir test && corepack pnpm -r test:integration",
