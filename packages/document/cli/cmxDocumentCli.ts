@@ -236,7 +236,7 @@ async function loadCmxCli(
       unknown
     >;
     if (typeof module.resolveCliCwd !== "function") {
-      throw new Error("Invalid cmx-cli installation");
+      throw new Error("Invalid @cmx-tools/cli installation");
     }
     return module as CmxCliModule;
   } catch (error) {
