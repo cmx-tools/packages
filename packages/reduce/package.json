@@ -15,7 +15,8 @@
     "build": "tsgo -p tsconfig.json",
     "pretest": "corepack pnpm run build",
     "test": "vitest run",
-    "typecheck": "tsgo -p tsconfig.json --noEmit"
+    "typecheck": "tsgo -p tsconfig.json --noEmit",
+    "prepare": "corepack pnpm run build"
   },
   "dependencies": {
     "@cmx-tools/contracts": "workspace:^"
