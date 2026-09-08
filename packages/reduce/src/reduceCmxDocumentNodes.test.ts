@@ -29,10 +29,10 @@ const documentFixture: CmxDocument = {
             slotted: { type: "element", tag: "small" },
             notSlotted: { type: "element", tag: "aside" },
           },
-          slots: [["props", "slotted"]],
+          slots: [["slotted"]],
         },
       },
-      slots: [["props", "body"]],
+      slots: [["body"]],
       children: [{ type: "element", tag: "main" }],
     },
     meta: {
@@ -136,6 +136,42 @@ describe("reduceCmxDocumentNodes", () => {
     expect(seenTags).toContain("main");
     expect(seenTags).not.toContain("script");
     expect(seenTags).not.toContain("aside");
+  });
+
+  it("writes rewritten markup back into nested prop slots without changing the input", async () => {
+    const before = structuredClone(documentFixture);
+    const result = await reduceCmxDocumentNodes({
+      document: documentFixture,
+      context: undefined,
+      reduceNode(node) {
+        return node !== null &&
+          typeof node === "object" &&
+          node.type === "element" &&
+          node.tag === "small"
+          ? { ...node, tag: "strong" }
+          : node;
+      },
+    });
+
+    expect(result.document.content.default).toMatchObject({
+      type: "component",
+      from: "@example/ui",
+      slots: [["body"]],
+      children: [{ type: "element", tag: "main" }],
+      props: {
+        ignoredNodeLike: { type: "element", tag: "script" },
+        body: {
+          type: "element",
+          tag: "article",
+          slots: [["slotted"]],
+          props: {
+            slotted: { type: "element", tag: "strong" },
+            notSlotted: { type: "element", tag: "aside" },
+          },
+        },
+      },
+    });
+    expect(documentFixture).toEqual(before);
   });
 
   it("visits node first and traverses replacement subtree", async () => {

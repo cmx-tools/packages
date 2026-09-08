@@ -30,7 +30,7 @@ const documentFixture: CmxDocument = {
           },
         },
       },
-      slots: [["props", "body"]],
+      slots: [["body"]],
       children: [{ type: "element", tag: "main" }],
     },
   },
@@ -123,7 +123,7 @@ describe("verifyCmxDocumentNodes", () => {
     );
   });
 
-  it("normalizes single and list diagnostics", async () => {
+  it("rejects disallowed markup inside a declared component prop slot", async () => {
     const disallowDangerouslySetInnerHtml: CmxDocumentNodeVisitor = (node) => {
       if (typeof node !== "object" || node === null || !("props" in node)) {
         return null;

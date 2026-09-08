@@ -118,13 +118,17 @@ async function reduceSlots<Context>(
   reduceNode: CmxNodeReducer<Context>,
   context: Context,
 ): Promise<Exclude<CmxNode, null | boolean | number | string>> {
-  if ((node.type !== "element" && node.type !== "component") || !node.slots) {
+  if (
+    (node.type !== "element" && node.type !== "component") ||
+    !node.props ||
+    !node.slots
+  ) {
     return node;
   }
 
-  let resolved: unknown = node;
+  let props: unknown = node.props;
   for (const slotPath of node.slots) {
-    const slotValue = readPath(resolved, slotPath);
+    const slotValue = readPath(props, slotPath);
     if (slotValue === undefined) {
       continue;
     }
@@ -133,10 +137,13 @@ async function reduceSlots<Context>(
       reduceNode,
       context,
     );
-    resolved = replacePath(resolved, slotPath, reducedSlot);
+    props = replacePath(props, slotPath, reducedSlot);
   }
 
-  return resolved as Exclude<CmxNode, null | boolean | number | string>;
+  return {
+    ...node,
+    props: props as Record<string, unknown>,
+  };
 }
 
 function readPath(owner: unknown, path: SlotPath): unknown {
