@@ -10,10 +10,12 @@ import type {
   SlotPath,
   UnverifiedOptionalExportsPolicy,
 } from "@cmx-tools/contracts";
-import { CMX_DOCUMENT_VERSION } from "@cmx-tools/contracts";
+import {
+  CMX_DOCUMENT_SCHEMA,
+  CMX_DOCUMENT_VERSION,
+} from "@cmx-tools/contracts";
 
-export const CMX_DOCUMENT_SCHEMA =
-  "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json";
+export { CMX_DOCUMENT_SCHEMA };
 
 export type RuntimeNode = {
   kind: "fragment" | "element" | "component";

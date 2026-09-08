@@ -1,9 +1,11 @@
 import type { CmxDependency } from "./cmxDependency.js";
 import type { CmxTypeRef, CmxVersion } from "./cmxBundle.js";
 
-export type SlotPath = Array<string | number>;
-
+export const CMX_DOCUMENT_SCHEMA =
+  "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json";
 export const CMX_DOCUMENT_VERSION: CmxVersion = 1;
+
+export type SlotPath = Array<string | number>;
 
 export type CmxFragmentNode = {
   type: "fragment";
@@ -47,7 +49,7 @@ export type CmxDocumentInterface = {
 };
 
 export type CmxDocument = {
-  $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json";
+  $schema: typeof CMX_DOCUMENT_SCHEMA;
   cmxVersion: CmxVersion;
   interface: CmxDocumentInterface;
   content: Record<string, unknown>;
@@ -59,8 +61,7 @@ export function isCmxDocument(value: unknown): value is CmxDocument {
   }
   const candidate = value as Record<string, unknown>;
   return (
-    candidate.$schema ===
-      "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json" &&
+    candidate.$schema === CMX_DOCUMENT_SCHEMA &&
     typeof candidate.cmxVersion === "number" &&
     typeof candidate.interface === "object" &&
     candidate.interface !== null &&

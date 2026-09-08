@@ -1,16 +1,51 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { CmxDocument } from "@cmx-tools/contracts";
-import { validateCmxDocument } from "./validateCmxDocument.js";
+import { validateCmxDocument, verifyCmxDocument } from "@cmx-tools/verify";
 
 const documentFixture: CmxDocument = {
   $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
   cmxVersion: 1,
-  interface: { imports: {}, exports: {} },
+  interface: { imports: {}, exports: { default: { slots: [[]] } } },
   content: { default: { type: "element", tag: "main" } },
 };
 
 describe("validateCmxDocument", () => {
-  it("passes through when verifier is absent", async () => {
+  it("respects the caller's decision to trust a document", async () => {
+    const document = {
+      ...documentFixture,
+      content: { default: { type: "element", tag: "p", children: "broken" } },
+    } as CmxDocument;
+    const verifyDocument = vi.fn(() => ({ valid: true as const }));
+
+    expect(await validateCmxDocument({ document })).toEqual({
+      result: "valid",
+      document,
+    });
+    expect(await validateCmxDocument({ document, verifyDocument })).toEqual({
+      result: "valid",
+      document,
+    });
+    expect(verifyDocument).toHaveBeenCalledWith(document);
+  });
+
+  it("lets a caller explicitly reverify a document through the verification hook", async () => {
+    const document = {
+      ...documentFixture,
+      content: { default: { type: "element", tag: "p", children: "broken" } },
+    } as CmxDocument;
+
+    expect(
+      await validateCmxDocument({
+        document,
+        verifyDocument: verifyCmxDocument,
+      }),
+    ).toMatchObject({
+      result: "invalid",
+      diagnostics: [{ code: "invalid-node" }],
+    });
+  });
+
+  it("accepts a valid document without a policy", async () => {
     const result = await validateCmxDocument({ document: documentFixture });
     expect(result).toEqual({ result: "valid", document: documentFixture });
   });

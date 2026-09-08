@@ -24,6 +24,7 @@ const EXPORT_CHECKS = [
   { packageDir: "react", entryFile: "dist/index.js" },
   { packageDir: "reduce", entryFile: "dist/index.js" },
   { packageDir: "runtime", entryFile: "dist/index.js" },
+  { packageDir: "verify", entryFile: "dist/src/index.js" },
 ] as const;
 
 const packedDirs: string[] = [];

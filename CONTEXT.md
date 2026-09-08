@@ -38,6 +38,7 @@ CMX language spans three layers:
 - **Document Import** — Component requirement declared in the Document Interface. Carries compatibility information, not implementation.
 - **Component Reference** — Document Content value pointing to a component source and export.
 - **Contract** — Shared compatibility agreement between Build and Application. The Document Interface carries the document side; the Environment carries the application side.
+- **Document Verification** — Runtime check of CMX-owned fields and their internal consistency. Unrelated data, Environment compatibility, and application content restrictions are outside this check.
 
 Conceptual Document shape:
 
