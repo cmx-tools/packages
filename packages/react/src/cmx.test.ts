@@ -1,6 +1,7 @@
 import { Fragment, isValidElement } from "react";
 import { describe, expect, it } from "vitest";
 import {
+  CmxError,
   verifyCmxDocumentEnvironment,
   type CmxDependency,
   type CmxDocument,
@@ -100,6 +101,7 @@ describe("cmx", () => {
       cmx(document);
     } catch (error) {
       expect(error).toBeInstanceOf(CmxReactError);
+      expect(error).toBeInstanceOf(CmxError);
       expect((error as CmxReactError).diagnostics).toEqual([
         {
           severity: "error",

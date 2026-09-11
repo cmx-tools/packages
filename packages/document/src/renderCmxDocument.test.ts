@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { renderCmxDocument } from "@cmx-tools/document";
+import { CmxError } from "@cmx-tools/contracts";
+import { CmxRenderError, renderCmxDocument } from "@cmx-tools/document";
 
 describe("@cmx-tools/document", () => {
   it("executes a hand-written prepared bundle into a document", async () => {
@@ -339,20 +340,21 @@ describe("@cmx-tools/document", () => {
   });
 
   it("fails required typed export when configured type cannot be verified", async () => {
-    await expect(
-      renderCmxDocument({
-        moduleUrl: new URL("./prepared-bundle.fixture.ts", import.meta.url),
-        exports: {
-          teaser: {
-            required: true,
-            type: {
-              from: "@example/backend-contract",
-              import: "Teaser",
-            },
+    const rendering = renderCmxDocument({
+      moduleUrl: new URL("./prepared-bundle.fixture.ts", import.meta.url),
+      exports: {
+        teaser: {
+          required: true,
+          type: {
+            from: "@example/backend-contract",
+            import: "Teaser",
           },
         },
-      }),
-    ).rejects.toMatchObject({
+      },
+    });
+    await expect(rendering).rejects.toBeInstanceOf(CmxError);
+    await expect(rendering).rejects.toBeInstanceOf(CmxRenderError);
+    await expect(rendering).rejects.toMatchObject({
       diagnostic: {
         severity: "error",
         code: "render-error",

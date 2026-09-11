@@ -1,6 +1,9 @@
-import type { CmxDocumentEnvironmentVerificationDiagnostic } from "@cmx-tools/contracts";
+import {
+  CmxError,
+  type CmxDocumentEnvironmentVerificationDiagnostic,
+} from "@cmx-tools/contracts";
 
-export class CmxReactError extends Error {
+export class CmxReactError extends CmxError {
   readonly diagnostics: CmxDocumentEnvironmentVerificationDiagnostic[];
 
   constructor(diagnostics: CmxDocumentEnvironmentVerificationDiagnostic[]) {

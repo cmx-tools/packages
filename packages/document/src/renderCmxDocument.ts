@@ -11,6 +11,7 @@ import type {
   UnverifiedOptionalExportsPolicy,
 } from "@cmx-tools/contracts";
 import {
+  CmxError,
   CMX_DOCUMENT_SCHEMA,
   CMX_DOCUMENT_VERSION,
 } from "@cmx-tools/contracts";
@@ -66,7 +67,7 @@ export type RenderCmxDocumentInput = {
   dependencies?: CmxDependency[];
 };
 
-export class CmxRenderError extends Error {
+export class CmxRenderError extends CmxError {
   diagnostic: CmxRenderDiagnostic;
 
   constructor(diagnostic: CmxRenderDiagnostic) {
