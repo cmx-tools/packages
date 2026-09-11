@@ -2,7 +2,5 @@ packages:
   - "packages/*"
   - "example/*"
 allowBuilds:
-  "@parcel/watcher": false
   core-js: false
   esbuild: false
-  msgpackr-extract: false
