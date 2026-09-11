@@ -39,6 +39,7 @@ CMX language spans three layers:
 - **Component Reference** — Document Content value pointing to a component source and export.
 - **Contract** — Shared compatibility agreement between Build and Application. The Document Interface carries the document side; the Environment carries the application side.
 - **Document Verification** — Runtime check of CMX-owned fields and their internal consistency. Unrelated data, Environment compatibility, and application content restrictions are outside this check.
+- **UGC Policy** — Application-selected restrictions on author-controlled content in a CMX Document. The React UGC Policy governs intrinsic elements and props, including intrinsic nodes in declared component slots.
 
 Conceptual Document shape:
 
