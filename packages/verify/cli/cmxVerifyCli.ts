@@ -7,7 +7,7 @@ import type {
 } from "@cmx-tools/contracts";
 import { isCmxDocument } from "@cmx-tools/contracts";
 import type * as CliModule from "@cmx-tools/cli";
-import { validateCmxDocument } from "../src/validateCmxDocument.js";
+import { verifyCmxDocument } from "../src/index.js";
 
 type CliModuleLoader = (specifier: string) => Promise<unknown>;
 type RunCmxVerifyCliOptions = {
@@ -234,39 +234,42 @@ async function validateInput(
       diagnostics: CmxDiagnostic[];
     }
 > {
-  if (input.kind === "document") {
-    const validation = await validateCmxDocument({
-      document: input.document,
-      verifyDocument,
-    });
-    if (validation.result === "invalid") {
-      return validation;
+  const documents =
+    input.kind === "document" ? [input.document] : Object.values(input.entries);
+  for (const document of documents) {
+    const structure = verifyCmxDocument(document);
+    if (!structure.valid) {
+      return { result: "invalid", diagnostics: structure.diagnostics };
     }
 
-    return {
-      result: "valid",
-      output: validation.document,
-    };
-  }
-
-  const output: Record<string, CmxDocument> = {};
-  for (const [entryName, document] of Object.entries(input.entries)) {
-    const validation = await validateCmxDocument({
-      document,
-      verifyDocument,
-    });
-    if (validation.result === "invalid") {
+    if (verifyDocument === undefined) {
+      continue;
+    }
+    try {
+      const policy = await verifyDocument(structure.document);
+      if (!policy.valid) {
+        return { result: "invalid", diagnostics: policy.diagnostics };
+      }
+    } catch (error) {
       return {
         result: "invalid",
-        diagnostics: validation.diagnostics,
+        diagnostics: [
+          {
+            severity: "error",
+            code: "document-verifier-error",
+            message:
+              error instanceof Error
+                ? `Document verifier threw: ${error.message}`
+                : "Document verifier threw",
+          },
+        ],
       };
     }
-    output[entryName] = validation.document;
   }
 
   return {
     result: "valid",
-    output,
+    output: input.kind === "document" ? input.document : input.entries,
   };
 }
 

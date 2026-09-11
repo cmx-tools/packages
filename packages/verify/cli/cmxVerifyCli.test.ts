@@ -3,12 +3,12 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { CmxDocument } from "@cmx-tools/contracts";
-import { runCmxVerifyCli } from "./cmxVerifyCli.js";
+import { runCmxVerifyCli } from "@cmx-tools/verify/cli";
 
 const documentFixture: CmxDocument = {
   $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
   cmxVersion: 1,
-  interface: { imports: {}, exports: {} },
+  interface: { imports: {}, exports: { default: { slots: [[]] } } },
   content: { default: { type: "element", tag: "main" } },
 };
 
@@ -123,7 +123,7 @@ describe("cmx-verify cli", () => {
 
       await writeFile(
         path.join(tempDir, "docs.json"),
-        `${JSON.stringify({ ok: documentFixture, bad: { ...documentFixture, content: { blocked: true } } })}\n`,
+        `${JSON.stringify({ ok: documentFixture, bad: { ...documentFixture, interface: { imports: {}, exports: { blocked: {} } }, content: { blocked: true } } })}\n`,
         "utf8",
       );
 
@@ -141,6 +141,64 @@ describe("cmx-verify cli", () => {
       expect(result.exitCode).toBe(1);
       expect(result.stdout).toBe("");
       expect(result.stderr).toContain("invalid-document-input");
+    });
+  });
+
+  it("rejects malformed stored nodes before calling the configured policy", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFile(
+        path.join(tempDir, "cmx.config.ts"),
+        "export default { verifyDocument() { throw new Error('Policy must not run'); } };",
+        "utf8",
+      );
+      const result = await runCli(tempDir, ["validate", "-"], {
+        readStdin: async () =>
+          JSON.stringify({
+            ...documentFixture,
+            content: {
+              default: { type: "element", tag: "p", children: "broken" },
+            },
+          }),
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("invalid-node");
+      expect(result.stderr).toContain("/content/default/children");
+      expect(result.stderr).not.toContain("Policy must not run");
+    });
+  });
+
+  it("rejects malformed stored documents even without a configured policy", async () => {
+    await withTempDir(async (tempDir) => {
+      const result = await runCli(tempDir, ["validate", "-"], {
+        readStdin: async () =>
+          JSON.stringify({ ...documentFixture, content: {} }),
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("invalid-document");
+      expect(result.stderr).toContain("/content/default");
+    });
+  });
+
+  it("reports a failing asynchronous policy without emitting document output", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFile(
+        path.join(tempDir, "cmx.config.ts"),
+        "export default { async verifyDocument() { throw new Error('Policy unavailable'); } };",
+        "utf8",
+      );
+      const result = await runCli(tempDir, ["validate", "-"], {
+        readStdin: async () => JSON.stringify(documentFixture),
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toBe(
+        "document-verifier-error: Document verifier threw: Policy unavailable\n",
+      );
     });
   });
 
@@ -258,7 +316,7 @@ describe("cmx-verify cli", () => {
       );
       await writeFile(
         path.join(tempDir, "docs.json"),
-        `${JSON.stringify({ ok: documentFixture, bad: { ...documentFixture, content: { blocked: true } } })}\n`,
+        `${JSON.stringify({ ok: documentFixture, bad: { ...documentFixture, interface: { imports: {}, exports: { blocked: {} } }, content: { blocked: true } } })}\n`,
         "utf8",
       );
 

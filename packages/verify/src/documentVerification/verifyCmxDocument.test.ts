@@ -1,6 +1,6 @@
-import { describe, expect, expectTypeOf, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import type { CmxDocument, CmxNode } from "@cmx-tools/contracts";
-import { validateCmxDocument, verifyCmxDocument } from "@cmx-tools/verify";
+import { verifyCmxDocument } from "@cmx-tools/verify";
 
 const documentFixture: CmxDocument = {
   $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
@@ -10,40 +10,21 @@ const documentFixture: CmxDocument = {
 };
 
 describe("verifyCmxDocument", () => {
-  it("recovers a typed document from stored JSON before applying an application policy", async () => {
+  it("recovers a typed document from stored JSON", () => {
     const input: unknown = JSON.parse(JSON.stringify(documentFixture));
     const verification = verifyCmxDocument(input);
     expect(verification.valid).toBe(true);
     if (!verification.valid) throw new Error("Stored document was rejected");
     expectTypeOf(verification.document).toEqualTypeOf<CmxDocument>();
     expect(verification.document).toBe(input);
-
-    const verifyDocument = vi.fn(() => ({ valid: true as const }));
-    expect(
-      await validateCmxDocument({
-        document: verification.document,
-        verifyDocument,
-      }),
-    ).toEqual({
-      result: "valid",
-      document: input,
-    });
-    expect(verifyDocument).toHaveBeenCalledWith(input);
   });
 
-  it("reports broken stored children before the caller runs its policy", async () => {
+  it("reports broken stored children", () => {
     const input: unknown = {
       ...documentFixture,
       content: { default: { type: "element", tag: "p", children: "broken" } },
     };
-    const verifyDocument = vi.fn(() => ({ valid: true as const }));
     const verification = verifyCmxDocument(input);
-    if (verification.valid) {
-      await validateCmxDocument({
-        document: verification.document,
-        verifyDocument,
-      });
-    }
     expect(verification).toMatchObject({
       valid: false,
       diagnostics: [
@@ -53,7 +34,6 @@ describe("verifyCmxDocument", () => {
         },
       ],
     });
-    expect(verifyDocument).not.toHaveBeenCalled();
   });
 
   it("verifies nested component slots relative to props without an environment", () => {

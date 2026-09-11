@@ -13,6 +13,7 @@ const DIST_BINARIES = [
   { file: "packages/bundle/dist/cli/cli.js", command: "cmx-bundle" },
   { file: "packages/document/dist/cli/cli.js", command: "cmx-document" },
   { file: "packages/environment/dist/cli/cli.js", command: "cmx-environment" },
+  { file: "packages/verify/dist/cli/cli.js", command: "cmx-verify" },
 ] as const;
 
 const EXPORT_CHECKS = [
