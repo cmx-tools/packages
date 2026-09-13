@@ -9,7 +9,7 @@
     "build": "corepack pnpm -r --filter './packages/*' build && corepack pnpm rebuild",
     "test:unit": "vitest run --dir packages",
     "pretest:integration": "if-env PRE_BUILD=false || corepack pnpm run build",
-    "test:integration": "vitest run --dir test && corepack pnpm -r test:integration",
+    "test:integration": "vitest run --dir test && vitest run --dir .github/release && corepack pnpm -r test:integration",
     "test": "corepack pnpm run test:unit && corepack pnpm run test:integration && corepack pnpm run verify:example",
     "pretypecheck": "if-env PRE_BUILD=false || corepack pnpm run build",
     "typecheck": "tsgo --noEmit",
