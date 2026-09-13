@@ -8,6 +8,7 @@ import { verifyCmxUgcProps } from "./verifyCmxUgcProps.js";
 export function verifyCmxUgcNodes(
   node: CmxNode,
   allowedElements: ReadonlySet<string>,
+  additionalDisallowedProps: ReadonlySet<string>,
 ): CmxDiagnostic[] {
   if (node === null || typeof node !== "object" || node.type !== "element") {
     return [];
@@ -23,7 +24,7 @@ export function verifyCmxUgcNodes(
     );
   }
   if (node.props) {
-    verifyCmxUgcProps(node.props, context);
+    verifyCmxUgcProps(node.props, context, additionalDisallowedProps);
   }
   return context.diagnostics;
 }

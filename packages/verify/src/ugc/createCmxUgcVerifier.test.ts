@@ -2,15 +2,15 @@ import { describe, expect, it } from "vitest";
 import type { CmxDocument, CmxNode } from "@cmx-tools/contracts";
 import { verifyCmxDocument } from "@cmx-tools/verify";
 import {
-  createReactUgcVerifier,
+  createCmxUgcVerifier,
   contentElements,
   tableElements,
   mediaElements,
-} from "@cmx-tools/verify/react";
+} from "@cmx-tools/verify";
 
 const SCHEMA = "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json";
 
-describe("createReactUgcVerifier", () => {
+describe("createCmxUgcVerifier", () => {
   it("checks an article loaded from JSON for document validity before applying content policy", async () => {
     const document = createDocument({
       imports: {
@@ -52,10 +52,99 @@ describe("createReactUgcVerifier", () => {
       throw new Error("Stored document has invalid CMX structure");
     }
 
-    const verifyReactUgc = createReactUgcVerifier();
-    const content = await verifyReactUgc(structure.document);
+    const verifyCmxUgc = createCmxUgcVerifier();
+    const content = await verifyCmxUgc(structure.document);
 
     expect(content).toEqual({ valid: true });
+  });
+
+  it("checks CMX styling, raw markup, and SVG resource links before framework conversion", async () => {
+    const document = createDocument({
+      node: {
+        type: "element",
+        tag: "svg",
+        props: {
+          class: "promoted",
+          style: "fill: red",
+          innerHTML: "<path d='M0 0' />",
+        },
+        children: [
+          {
+            type: "element",
+            tag: "use",
+            props: { xlinkHref: "javascript:run()" },
+          },
+        ],
+      },
+    });
+
+    expect(
+      await createCmxUgcVerifier({ allowedElements: ["svg", "use"] })(document),
+    ).toMatchObject({
+      valid: false,
+      diagnostics: [
+        {
+          code: "ugc-disallowed-prop",
+          message: expect.stringContaining("/props/class"),
+        },
+        {
+          code: "ugc-disallowed-prop",
+          message: expect.stringContaining("/props/style"),
+        },
+        {
+          code: "ugc-disallowed-prop",
+          message: expect.stringContaining("/props/innerHTML"),
+        },
+        {
+          code: "ugc-unsafe-url",
+          message: expect.stringContaining("/props/xlinkHref"),
+        },
+      ],
+    });
+  });
+
+  it("lets an application add prop restrictions while retaining the selected policy for later documents", async () => {
+    const disallowedProps = ["TITLE"];
+    const verifyCmxUgc = createCmxUgcVerifier({ policy: { disallowedProps } });
+    disallowedProps.length = 0;
+    const document = createDocument({
+      node: {
+        type: "element",
+        tag: "a",
+        props: {
+          title: "Advertisement",
+          style: "color: red",
+          href: "javascript:run()",
+        },
+      },
+    });
+
+    expect(await verifyCmxUgc(document)).toMatchObject({
+      valid: false,
+      diagnostics: [
+        {
+          code: "ugc-disallowed-prop",
+          message: expect.stringContaining("/props/title"),
+        },
+        {
+          code: "ugc-disallowed-prop",
+          message: expect.stringContaining("/props/style"),
+        },
+        { code: "ugc-unsafe-url" },
+      ],
+    });
+    expect(
+      await createCmxUgcVerifier({ policy: { disallowedProps } })(document),
+    ).toMatchObject({
+      valid: false,
+      diagnostics: [
+        {
+          code: "ugc-disallowed-prop",
+          message: expect.stringContaining("/props/style"),
+        },
+        { code: "ugc-unsafe-url" },
+      ],
+    });
   });
 
   it("lets a publishing application opt into tables alongside default content", async () => {
@@ -87,15 +176,15 @@ describe("createReactUgcVerifier", () => {
       },
     });
 
-    expect((await createReactUgcVerifier()(document)).valid).toBe(false);
-    const verifyReactUgc = createReactUgcVerifier({
+    expect((await createCmxUgcVerifier()(document)).valid).toBe(false);
+    const verifyCmxUgc = createCmxUgcVerifier({
       allowedElements: [...contentElements, ...tableElements],
     });
-    expect(await verifyReactUgc(document)).toEqual({ valid: true });
+    expect(await verifyCmxUgc(document)).toEqual({ valid: true });
   });
 
   it("lets a comment field replace the defaults with only inline emphasis", async () => {
-    const verifyReactUgc = createReactUgcVerifier({
+    const verifyCmxUgc = createCmxUgcVerifier({
       allowedElements: ["em", "strong"],
     });
     const comment = createDocument({
@@ -111,15 +200,15 @@ describe("createReactUgcVerifier", () => {
       node: { type: "element", tag: "a", props: { href: "/promote" } },
     });
 
-    expect(await verifyReactUgc(comment)).toEqual({ valid: true });
-    expect(await verifyReactUgc(link)).toMatchObject({
+    expect(await verifyCmxUgc(comment)).toEqual({ valid: true });
+    expect(await verifyCmxUgc(link)).toMatchObject({
       valid: false,
       diagnostics: [{ code: "ugc-disallowed-element" }],
     });
   });
 
   it("allows text and trusted components when an application disables all intrinsic elements", async () => {
-    const verifyReactUgc = createReactUgcVerifier({ allowedElements: [] });
+    const verifyCmxUgc = createCmxUgcVerifier({ allowedElements: [] });
     const document = createDocument({
       node: {
         type: "component",
@@ -136,9 +225,9 @@ describe("createReactUgcVerifier", () => {
       },
     });
 
-    expect(await verifyReactUgc(document)).toEqual({ valid: true });
+    expect(await verifyCmxUgc(document)).toEqual({ valid: true });
     expect(
-      await verifyReactUgc(
+      await verifyCmxUgc(
         createDocument({ node: { type: "element", tag: "p" } }),
       ),
     ).toMatchObject({
@@ -180,12 +269,12 @@ describe("createReactUgcVerifier", () => {
         children: [{ type: "element", tag: "strong", children: ["Heading"] }],
       },
     });
-    const verifyReactUgc = createReactUgcVerifier();
+    const verifyCmxUgc = createCmxUgcVerifier();
 
-    expect(await verifyReactUgc(document)).toEqual({ valid: true });
+    expect(await verifyCmxUgc(document)).toEqual({ valid: true });
 
     body.props = { style: { color: "red" } };
-    expect(await verifyReactUgc(document)).toMatchObject({
+    expect(await verifyCmxUgc(document)).toMatchObject({
       valid: false,
       diagnostics: [{ code: "ugc-disallowed-prop" }],
     });
@@ -202,7 +291,7 @@ describe("createReactUgcVerifier", () => {
             tag: "p",
             props: {
               style: { color: "red" },
-              className: "promoted",
+              class: "promoted",
               id: "app",
             },
           },
@@ -231,7 +320,7 @@ describe("createReactUgcVerifier", () => {
             props: {
               href: "javascript:bad()",
               onClick: "bad()",
-              dangerouslySetInnerHTML: { __html: "<img onerror=bad()>" },
+              innerHTML: "<img onerror=bad()>",
             },
           },
           {
@@ -296,7 +385,7 @@ describe("createReactUgcVerifier", () => {
       },
     });
 
-    expect(await createReactUgcVerifier()(document)).toEqual({ valid: true });
+    expect(await createCmxUgcVerifier()(document)).toEqual({ valid: true });
     expect(refCalled).toBe(false);
   });
 
@@ -316,7 +405,7 @@ describe("createReactUgcVerifier", () => {
     });
 
     expect(verifyCmxDocument(document).valid).toBe(true);
-    expect(await createReactUgcVerifier()(document)).toEqual({ valid: true });
+    expect(await createCmxUgcVerifier()(document)).toEqual({ valid: true });
 
     child.props = { style: { color: "red" } };
     expect(await invalidCodes(document)).toEqual(["ugc-disallowed-prop"]);
@@ -332,7 +421,7 @@ describe("createReactUgcVerifier", () => {
         ],
       },
     });
-    const verifyReactUgc = createReactUgcVerifier({
+    const verifyCmxUgc = createCmxUgcVerifier({
       allowedElements: ["script", "site-map"],
     });
 
@@ -340,7 +429,7 @@ describe("createReactUgcVerifier", () => {
       "ugc-disallowed-element",
       "ugc-disallowed-element",
     ]);
-    expect(await verifyReactUgc(document)).toEqual({ valid: true });
+    expect(await verifyCmxUgc(document)).toEqual({ valid: true });
   });
 
   it("lets a publisher explicitly permit media while retaining resource URL checks", async () => {
@@ -366,15 +455,15 @@ describe("createReactUgcVerifier", () => {
         ],
       },
     });
-    const verifyReactUgc = createReactUgcVerifier({
+    const verifyCmxUgc = createCmxUgcVerifier({
       allowedElements: [...contentElements, ...mediaElements],
     });
 
-    expect((await createReactUgcVerifier()(document)).valid).toBe(false);
-    expect(await verifyReactUgc(document)).toEqual({ valid: true });
+    expect((await createCmxUgcVerifier()(document)).valid).toBe(false);
+    expect(await verifyCmxUgc(document)).toEqual({ valid: true });
 
     video.props = { poster: "data:image/svg+xml,<svg></svg>" };
-    expect(await verifyReactUgc(document)).toMatchObject({
+    expect(await verifyCmxUgc(document)).toMatchObject({
       valid: false,
       diagnostics: [{ code: "ugc-unsafe-url" }],
     });
@@ -406,7 +495,7 @@ describe("createReactUgcVerifier", () => {
     });
     const before = structuredClone(document);
 
-    expect(await createReactUgcVerifier()(document)).toEqual({ valid: true });
+    expect(await createCmxUgcVerifier()(document)).toEqual({ valid: true });
     expect(document).toEqual(before);
   });
 
@@ -471,7 +560,7 @@ describe("createReactUgcVerifier", () => {
     };
     const before = JSON.stringify(document);
 
-    expect(await createReactUgcVerifier()(document)).toEqual({ valid: true });
+    expect(await createCmxUgcVerifier()(document)).toEqual({ valid: true });
     expect(JSON.stringify(document)).toBe(before);
   });
 });
@@ -498,7 +587,7 @@ function createDocument(input: {
 }
 
 async function invalidCodes(document: CmxDocument): Promise<string[]> {
-  const result = await createReactUgcVerifier()(document);
+  const result = await createCmxUgcVerifier()(document);
   expect(result.valid).toBe(false);
   return result.valid
     ? []
