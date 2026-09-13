@@ -4,9 +4,10 @@ import {
   assertCmxDocument,
   CmxDocumentVerificationError,
 } from "@cmx-tools/verify";
-import { assertReactUgc, ReactUgcError } from "@cmx-tools/verify/react";
+import { assertCmxUgc, CmxUgcError } from "@cmx-tools/verify";
+import { reactUgcPolicy } from "@cmx-tools/verify/react";
 
-describe("assertReactUgc", () => {
+describe("assertCmxUgc", () => {
   it("accepts stored article content through separate structural and policy assertions", async () => {
     const input: unknown = JSON.parse(`{
       "$schema": "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
@@ -26,7 +27,7 @@ describe("assertReactUgc", () => {
     const original = input;
 
     assertCmxDocument(input);
-    await assertReactUgc(input);
+    await assertCmxUgc(input);
 
     expectTypeOf(input).toEqualTypeOf<CmxDocument>();
     expect(input).toBe(original);
@@ -41,7 +42,7 @@ describe("assertReactUgc", () => {
         default: {
           type: "element",
           tag: "script",
-          props: { dangerouslySetInnerHTML: { __html: "run()" } },
+          props: { innerHTML: "run()" },
         },
       },
     };
@@ -49,19 +50,19 @@ describe("assertReactUgc", () => {
 
     try {
       assertCmxDocument(input);
-      await assertReactUgc(input);
+      await assertCmxUgc(input);
     } catch (error) {
       caught = error;
     }
 
-    expect(caught).toBeInstanceOf(ReactUgcError);
+    expect(caught).toBeInstanceOf(CmxUgcError);
     expect(caught).toBeInstanceOf(CmxError);
     expect(caught).not.toBeInstanceOf(CmxDocumentVerificationError);
-    if (!(caught instanceof ReactUgcError)) {
-      throw new Error("Expected a React UGC error");
+    if (!(caught instanceof CmxUgcError)) {
+      throw new Error("Expected a CMX UGC error");
     }
     expect(caught).toBeInstanceOf(Error);
-    expect(caught.name).toBe("ReactUgcError");
+    expect(caught.name).toBe("CmxUgcError");
     expect(caught.diagnostics).toMatchObject([
       { severity: "error", code: "ugc-disallowed-element" },
       { severity: "error", code: "ugc-disallowed-prop" },
@@ -77,10 +78,40 @@ describe("assertReactUgc", () => {
     };
 
     await expect(
-      assertReactUgc(document, { allowedElements: ["em"] }),
+      assertCmxUgc(document, { allowedElements: ["em"] }),
     ).resolves.toBeUndefined();
     await expect(
-      assertReactUgc(document, { allowedElements: [] }),
-    ).rejects.toBeInstanceOf(ReactUgcError);
+      assertCmxUgc(document, { allowedElements: [] }),
+    ).rejects.toBeInstanceOf(CmxUgcError);
+  });
+  it("lets a React application explicitly assert its dialect in addition to CMX content rules", async () => {
+    const document: CmxDocument = {
+      $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
+      cmxVersion: 1,
+      interface: { imports: {}, exports: { default: { slots: [[]] } } },
+      content: {
+        default: {
+          type: "element",
+          tag: "strong",
+          props: { className: "promoted" },
+        },
+      },
+    };
+
+    await expect(assertCmxUgc(document)).resolves.toBeUndefined();
+    await expect(
+      assertCmxUgc(document, {
+        allowedElements: ["strong"],
+        policy: reactUgcPolicy,
+      }),
+    ).rejects.toMatchObject({
+      name: "CmxUgcError",
+      diagnostics: [
+        {
+          code: "ugc-disallowed-prop",
+          message: expect.stringContaining("/props/className"),
+        },
+      ],
+    });
   });
 });

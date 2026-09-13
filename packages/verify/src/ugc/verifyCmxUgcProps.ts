@@ -8,10 +8,8 @@ const DISALLOWED_PROPS = new Set([
   "as",
   "aschild",
   "class",
-  "classname",
   "contenteditable",
   "css",
-  "dangerouslysetinnerhtml",
   "html",
   "id",
   "imagesrcset",
@@ -22,8 +20,6 @@ const DISALLOWED_PROPS = new Set([
   "srcdoc",
   "srcset",
   "style",
-  "suppresscontenteditablewarning",
-  "suppresshydrationwarning",
   "sx",
 ]);
 
@@ -44,13 +40,15 @@ const RESOURCE_PROTOCOLS = new Set(["http:", "https:"]);
 export function verifyCmxUgcProps(
   props: Record<string, unknown>,
   context: CmxUgcVerificationContext,
+  additionalDisallowedProps: ReadonlySet<string>,
 ): void {
   for (const [name, value] of Object.entries(props)) {
     const propPath = ["props", name];
     const normalizedName = name.toLowerCase();
     if (
       normalizedName.startsWith("on") ||
-      DISALLOWED_PROPS.has(normalizedName)
+      DISALLOWED_PROPS.has(normalizedName) ||
+      additionalDisallowedProps.has(normalizedName)
     ) {
       reportCmxUgcDiagnostic(
         context,
