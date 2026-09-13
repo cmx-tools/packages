@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DRY_RUN_ARGS=()
-if [ "${CI_DRY_RUN:-false}" = "true" ]; then
-  DRY_RUN_ARGS=(--dry-run)
+if [ "${CI_DRY_RUN:-false}" = "true" ] && [ -n "${GITHUB_OUTPUT:-}" ]; then
+  echo "has_releases=false" >> "$GITHUB_OUTPUT"
 fi
-RELEASE_CONFIG="$(pwd)/.github/release/release.config.js"
+RELEASE_RUNNER="$(pwd)/.github/release/releasePackage.js"
 
 corepack pnpm -r --filter './packages/*' --workspace-concurrency=1 exec \
-  semantic-release --extends "${RELEASE_CONFIG}" -e semantic-release-monorepo "${DRY_RUN_ARGS[@]}"
+  node "${RELEASE_RUNNER}"
 
 if [ "${CI_DRY_RUN:-false}" = "true" ]; then
   echo "dry-run done, skip publish"
