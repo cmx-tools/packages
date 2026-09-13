@@ -44,8 +44,43 @@ jobs:
       - name: Verify
         run: corepack pnpm run verify
 
-  release:
+  release-dry-run:
     needs: verify
+    if: github.event_name == 'push'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Dry-run release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CI_DRY_RUN: "true"
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: ./.github/release/release-ci.sh
+
+  release:
+    needs: release-dry-run
     if: github.event_name == 'push'
     permissions:
       contents: write
