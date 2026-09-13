@@ -228,6 +228,15 @@ importers:
         specifier: workspace:^
         version: link:../cli
 
+  packages/intrinsics:
+    dependencies:
+      '@cmx-tools/runtime':
+        specifier: workspace:^
+        version: link:../runtime
+      csstype:
+        specifier: ^3.2.3
+        version: 3.2.3
+
   packages/react:
     dependencies:
       '@cmx-tools/contracts':

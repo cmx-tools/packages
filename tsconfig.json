@@ -10,5 +10,5 @@
     "types": ["node", "vitest/globals"]
   },
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["**/dist/**"]
+  "exclude": ["**/dist/**", "packages/intrinsics/src/authoring-fixtures/**"]
 }
