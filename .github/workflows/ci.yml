@@ -7,10 +7,6 @@ on:
       - alpha
       - beta
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: false
-
 permissions:
   contents: read
 
@@ -40,6 +36,8 @@ jobs:
         run: corepack pnpm run verify
 
   release-dry-run:
+    outputs:
+      has_releases: ${{ steps.dry-run.outputs.has_releases }}
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -66,6 +64,7 @@ jobs:
         run: corepack pnpm install --frozen-lockfile
 
       - name: Dry-run release
+        id: dry-run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI_DRY_RUN: "true"
@@ -74,6 +73,10 @@ jobs:
 
   release:
     needs: [verify, release-dry-run]
+    if: needs.release-dry-run.outputs.has_releases == 'true'
+    concurrency:
+      group: npm-publication
+      cancel-in-progress: false
     permissions:
       contents: write
       issues: write
