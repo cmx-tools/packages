@@ -9,6 +9,7 @@ import type {
 } from "@cmx-tools/contracts";
 import { verifyCmxDocumentEnvironment } from "@cmx-tools/contracts";
 import { resolveCmxSlots } from "@cmx-tools/reduce";
+import { mapCmxIntrinsicProps } from "./intrinsicProps/index.js";
 import { CmxReactError } from "./CmxReactError.js";
 
 type CmxHydratableNode = CmxFragmentNode | CmxElementNode | CmxComponentNode;
@@ -104,7 +105,7 @@ function hydrateElement(
 ): ReactNode {
   return createElement(
     node.tag,
-    hydrateProps(node, environment),
+    mapCmxIntrinsicProps(node.tag, hydrateProps(node, environment)),
     ...hydrateChildren(node, environment),
   );
 }
