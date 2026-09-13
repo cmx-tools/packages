@@ -4,6 +4,7 @@ export const REAL_PACKAGE_DIRS = [
   "contracts",
   "document",
   "environment",
+  "intrinsics",
   "react",
   "reduce",
   "runtime",

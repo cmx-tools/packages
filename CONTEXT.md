@@ -17,6 +17,7 @@ CMX language spans three layers:
 - **Content Project** — Local authoring workspace.
 - **Content Repository** — Source-side location the build side watches or checks out.
 - **Content Source** — Authored modules selected for CMX processing.
+- **CMX Intrinsics** — Optional intrinsic JSX authoring types for Content Projects targeting bare CMX. They describe intrinsic elements and their document-facing props, independently of application content policies.
 - **Asset** — Non-code content colocated with Content Source.
 - **Asset Reference** — Document Content value that points to a host-distributed Asset.
 

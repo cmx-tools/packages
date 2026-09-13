@@ -1,0 +1,45 @@
+{
+  "name": "@cmx-tools/intrinsics",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./jsx-runtime": {
+      "types": "./dist/jsx-runtime.d.ts",
+      "import": "./dist/jsx-runtime.js"
+    },
+    "./jsx-dev-runtime": {
+      "types": "./dist/jsx-dev-runtime.d.ts",
+      "import": "./dist/jsx-dev-runtime.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsgo -p tsconfig.json",
+    "pretest": "corepack pnpm run build",
+    "test": "vitest run",
+    "typecheck": "tsgo -p tsconfig.json --noEmit",
+    "prepare": "corepack pnpm run build"
+  },
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cmx-tools/packages.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cmx-tools/packages/issues"
+  },
+  "homepage": "https://github.com/cmx-tools/packages#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@cmx-tools/runtime": "workspace:^",
+    "csstype": "^3.2.3"
+  }
+}

@@ -21,6 +21,9 @@ const EXPORT_CHECKS = [
   { packageDir: "bundle", entryFile: "dist/src/index.js" },
   { packageDir: "document", entryFile: "dist/src/index.js" },
   { packageDir: "environment", entryFile: "dist/src/index.js" },
+  { packageDir: "intrinsics", entryFile: "dist/index.js", typeOnly: true },
+  { packageDir: "intrinsics", entryFile: "dist/jsx-runtime.js" },
+  { packageDir: "intrinsics", entryFile: "dist/jsx-dev-runtime.js" },
   { packageDir: "contracts", entryFile: "dist/index.js" },
   { packageDir: "react", entryFile: "dist/index.js" },
   { packageDir: "reduce", entryFile: "dist/index.js" },
@@ -74,7 +77,7 @@ describe("package smoke", () => {
         entry.packageDir,
         entry.entryFile,
       );
-      const script = `import * as pkg from ${JSON.stringify(importTarget)};\nif (Object.keys(pkg).length === 0) throw new Error('missing exports');`;
+      const script = `import * as pkg from ${JSON.stringify(importTarget)};\n${"typeOnly" in entry ? "" : "if (Object.keys(pkg).length === 0) throw new Error('missing exports');"}`;
       await runNode(["--input-type=module", "-e", script]);
       const packageJsonPath = path.join(
         ROOT_DIR,
