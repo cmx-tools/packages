@@ -20,9 +20,11 @@
   },
   "dependencies": {
     "@cmx-tools/contracts": "workspace:^",
-    "@cmx-tools/reduce": "workspace:^"
+    "@cmx-tools/reduce": "workspace:^",
+    "css-tree": "^3.2.1"
   },
   "devDependencies": {
+    "@types/css-tree": "^3.2.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "react-dom": "^19.2.5"
