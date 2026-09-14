@@ -1,6 +1,6 @@
 {
   "name": "@cmx-tools/bundle",
-  "version": "0.1.0",
+  "version": "0.0.0-development",
   "type": "module",
   "bin": {
     "cmx-bundle": "./dist/cli/cli.js"
