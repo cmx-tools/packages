@@ -15,12 +15,18 @@ describe("release candidate reporting", () => {
     directory = await mkdtemp(join(tmpdir(), "cmx-release-output-"));
     output = join(directory, "output");
     await writeFile(output, "has_releases=false\n");
+    await writeFile(
+      join(directory, "package.json"),
+      JSON.stringify({ name: "@cmx-tools/contracts", version: "0.2.0" }),
+    );
+    vi.spyOn(process, "cwd").mockReturnValue(directory);
     vi.stubEnv("CI_DRY_RUN", "true");
     vi.stubEnv("GITHUB_OUTPUT", output);
   });
 
   afterEach(async () => {
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
     vi.resetAllMocks();
     await rm(directory, { recursive: true, force: true });
   });
@@ -82,5 +88,28 @@ describe("release candidate reporting", () => {
     expect(await readFile(output, "utf8")).toBe(
       "has_releases=false\nhas_releases=true\n",
     );
+  });
+
+  it("blocks publication when a stale checkout skips analysis and keeps its development version", async () => {
+    vi.stubEnv("CI_DRY_RUN", "false");
+    await writeFile(
+      join(directory, "package.json"),
+      JSON.stringify({
+        name: "@cmx-tools/contracts",
+        version: "0.0.0-development",
+      }),
+    );
+    semanticRelease.mockResolvedValue(false);
+
+    await expect(releasePackage()).rejects.toThrow(
+      "Refusing to publish @cmx-tools/contracts with version 0.0.0-development",
+    );
+  });
+
+  it("allows an unchanged dependency after its existing release version was selected", async () => {
+    vi.stubEnv("CI_DRY_RUN", "false");
+    semanticRelease.mockResolvedValue(false);
+
+    await expect(releasePackage()).resolves.toBeUndefined();
   });
 });
