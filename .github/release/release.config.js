@@ -11,6 +11,7 @@ export default {
   tagFormat: "${name}-${version}",
   verifyRelease: fileURLToPath(new URL("./verifyRelease.js", import.meta.url)),
   plugins: [
+    fileURLToPath(new URL("./materializeReleasedVersion.js", import.meta.url)),
     [
       "@semantic-release/commit-analyzer",
       { releaseRules: [{ breaking: true, release: "minor" }] },
