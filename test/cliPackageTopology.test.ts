@@ -31,11 +31,17 @@ describe("CLI package topology", () => {
   });
 
   it("uses @cmx-tools/cli as optional peer in capability packages", async () => {
-    for (const pkg of ["bundle", "document", "environment", "publish"]) {
+    for (const pkg of [
+      "bundle",
+      "document",
+      "environment",
+      "publish",
+      "verify",
+    ]) {
       const packageJson = await readPackageJson(`packages/${pkg}/package.json`);
       expect(packageJson.dependencies).not.toHaveProperty("@cmx-tools/cli");
       expect(packageJson.peerDependencies?.["@cmx-tools/cli"]).toBe(
-        "^0.1.0 || ^1.0.0",
+        "^0.1.0 || ^0.2.0 || ^1.0.0",
       );
       expect(
         packageJson.peerDependenciesMeta?.["@cmx-tools/cli"]?.optional,
