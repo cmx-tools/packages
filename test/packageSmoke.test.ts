@@ -27,6 +27,7 @@ const EXPORT_CHECKS = [
   { packageDir: "contracts", entryFile: "dist/index.js" },
   { packageDir: "react", entryFile: "dist/index.js" },
   { packageDir: "reduce", entryFile: "dist/index.js" },
+  { packageDir: "remix", entryFile: "dist/index.js" },
   { packageDir: "runtime", entryFile: "dist/index.js" },
   { packageDir: "verify", entryFile: "dist/src/index.js" },
   { packageDir: "verify", entryFile: "dist/src/reactUgcPolicy.js" },
