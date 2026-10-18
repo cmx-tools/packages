@@ -14,13 +14,15 @@
     "test": "corepack pnpm run test:unit && corepack pnpm run test:integration && corepack pnpm run verify:example",
     "pretypecheck": "if-env PRE_BUILD=false || corepack pnpm run build",
     "typecheck": "tsgo --noEmit",
-    "example:create-documents": "corepack pnpm -r --filter '@example/content' build",
+    "example:create-bundle": "corepack pnpm -r --filter '@example/content' build",
     "example:create-environment": "corepack pnpm -r --filter '@example/backend' build",
-    "test:gen-example": "corepack pnpm run example:create-documents && corepack pnpm run example:create-environment && prettier --write example/",
+    "test:gen-example": "corepack pnpm run example:create-bundle && corepack pnpm run example:create-environment && prettier --write example/",
     "preverify:example": "corepack pnpm run test:gen-example",
-    "verify:example": "git update-index -q --refresh && test -z \"$(git status --porcelain -- ./example/content/dist ./example/backend/_db_content ./example/backend/_gen_cmx_environment.ts ./example/backend-contract)\"",
+    "verify:example": "git update-index -q --refresh && test -z \"$(git status --porcelain -- ./example/content/dist ./example/backend/_gen_cmx_environment.ts ./example/backend-contract)\"",
     "fmt": "prettier --write .",
-    "fmt:check": "prettier --check ."
+    "fmt:check": "prettier --check .",
+    "example:host": "corepack pnpm --dir example/backend run start",
+    "example:publish": "corepack pnpm --dir example/content run publish"
   },
   "devDependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",

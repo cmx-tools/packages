@@ -104,9 +104,15 @@ importers:
       '@cmx-tools/contracts':
         specifier: workspace:^
         version: link:../../packages/contracts
+      '@cmx-tools/document-host':
+        specifier: workspace:^
+        version: link:../../packages/document-host
       '@cmx-tools/react':
         specifier: workspace:^
         version: link:../../packages/react
+      '@cmx-tools/verify':
+        specifier: workspace:^
+        version: link:../../packages/verify
       '@example/backend-contract':
         specifier: workspace:*
         version: link:../backend-contract

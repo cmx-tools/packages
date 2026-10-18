@@ -8,12 +8,17 @@ import { createExampleBackendTestServer } from "./createExampleBackendTestServer
 const execFileAsync = promisify(execFile);
 const ROOT_DIR = process.cwd();
 
-async function runPackageScript(cwd: string, script: string): Promise<void> {
-  await execFileAsync("corepack", ["pnpm", "run", script], {
-    cwd,
-    timeout: 120_000,
-    maxBuffer: 10 * 1024 * 1024,
-  });
+async function runPackageScript(cwd: string, script: string): Promise<string> {
+  const { stdout } = await execFileAsync(
+    "corepack",
+    ["pnpm", "--silent", "run", script],
+    {
+      cwd,
+      timeout: 120_000,
+      maxBuffer: 10 * 1024 * 1024,
+    },
+  );
+  return stdout;
 }
 
 describe("example CLI workflow", () => {
@@ -67,20 +72,17 @@ describe("example CLI workflow", () => {
   it("compiles and renders documents with first-class CLIs", async () => {
     const contentDir = path.join(ROOT_DIR, "example", "content");
     await runPackageScript(contentDir, "compile");
-    await runPackageScript(contentDir, "render");
+    const documents = JSON.parse(await runPackageScript(contentDir, "render"));
 
     const bundleJson = await readFile(
       path.join(contentDir, "dist", "cmx-bundle.json"),
       "utf8",
     );
-    const aboutDocument = await readFile(
-      path.join(ROOT_DIR, "example", "backend", "_db_content", "about.json"),
-      "utf8",
-    );
-
     expect(bundleJson).toContain('"entries"');
-    expect(aboutDocument).toContain('"$schema"');
-    expect(aboutDocument).toContain('"@example/backend-contract"');
+    expect(documents.about.$schema).toBeDefined();
+    expect(documents.about.interface.imports).toHaveProperty(
+      "@example/backend-contract",
+    );
   }, 300_000);
 
   it("generates environment with backend-local external override", async () => {
@@ -97,15 +99,18 @@ describe("example CLI workflow", () => {
     expect(environmentSource).toContain('"@example/ui-library"');
   }, 180_000);
 
-  it("boots example backend against generated CLI artifacts", async () => {
-    const contentDir = path.join(ROOT_DIR, "example", "content");
-    const backendDir = path.join(ROOT_DIR, "example", "backend");
-    await runPackageScript(contentDir, "build");
-    await runPackageScript(backendDir, "build");
-
+  it("boots the example backend and serves explicitly published CLI output", async () => {
     const server = await createExampleBackendTestServer();
 
     try {
+      expect((await fetch(new URL("/about", server.url))).status).toBe(404);
+      await execFileAsync("corepack", ["pnpm", "run", "example:publish"], {
+        env: {
+          ...process.env,
+          CMX_PUBLISH_ENDPOINT: new URL("/_cmx/publication", server.url).href,
+        },
+        timeout: 30_000,
+      });
       const fallback = await fetch(new URL("/", server.url));
       const about = await fetch(new URL("/about", server.url));
 

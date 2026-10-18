@@ -4,8 +4,9 @@
   "type": "module",
   "scripts": {
     "compile": "cmx-bundle compile \"pages/**/*.tsx\" dist --config ../cmx.config.ts",
-    "render": "cmx-document render dist --out-dir ../backend/_db_content",
-    "build": "corepack pnpm run compile && corepack pnpm run render"
+    "render": "cmx-document render dist --complete-only",
+    "build": "corepack pnpm run compile",
+    "publish": "corepack pnpm run compile && cmx-document render dist --complete-only | cmx publish - \"${CMX_PUBLISH_ENDPOINT:-http://127.0.0.1:3000/_cmx/publication}\""
   },
   "dependencies": {
     "@example/ui-library": "workspace:*",
