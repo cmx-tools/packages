@@ -23,6 +23,9 @@ importers:
       '@cmx-tools/intrinsics':
         specifier: workspace:^
         version: link:packages/intrinsics
+      '@cmx-tools/publish':
+        specifier: workspace:^
+        version: link:packages/publish
       '@cmx-tools/react':
         specifier: workspace:^
         version: link:packages/react
@@ -257,6 +260,16 @@ importers:
       csstype:
         specifier: ^3.2.3
         version: 3.2.3
+
+  packages/publish:
+    dependencies:
+      '@cmx-tools/contracts':
+        specifier: workspace:^
+        version: link:../contracts
+    devDependencies:
+      '@cmx-tools/cli':
+        specifier: workspace:^
+        version: link:../cli
 
   packages/react:
     dependencies:

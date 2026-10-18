@@ -33,7 +33,9 @@ describe("cmx umbrella cli", () => {
   it("supports --help and --version", async () => {
     const help = await runCli(["--help"]);
     expect(help.exitCode).toBe(0);
-    expect(help.stdout).toContain("cmx <bundle|document|environment|verify>");
+    expect(help.stdout).toContain(
+      "cmx <bundle|document|environment|verify|publish>",
+    );
 
     const version = await runCli(["--version"]);
     expect(version.exitCode).toBe(0);
@@ -44,7 +46,7 @@ describe("cmx umbrella cli", () => {
     const result = await runCli(["invalid"]);
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain(
-      "Usage: cmx <bundle|document|environment|verify>",
+      "Usage: cmx <bundle|document|environment|verify|publish>",
     );
   });
 

@@ -64,6 +64,10 @@ export async function runCmxDocumentCli(
   }
 
   if (result.result === "partial") {
+    if (command.completeOnly) {
+      writeDiagnostics(result.diagnostics);
+      return 1;
+    }
     const documents = toDocumentMapFromMixedEntries(result.entries);
     if (command.outDir === null) {
       process.stdout.write(`${JSON.stringify(documents)}\n`);
@@ -83,6 +87,7 @@ export async function runCmxDocumentCli(
 type ParsedCommand = {
   bundleDir: string;
   outDir: string | null;
+  completeOnly: boolean;
 };
 
 async function parseCommand(
@@ -103,6 +108,7 @@ async function parseCommand(
     return {
       bundleDir: resolveBundleDir(options.positionals[1], cwd),
       outDir: resolveOutDir(options.outDir, cwd),
+      completeOnly: options.completeOnly,
     };
   }
 
@@ -110,6 +116,7 @@ async function parseCommand(
     return {
       bundleDir: resolveBundleDir(options.positionals[0], cwd),
       outDir: resolveOutDir(options.outDir, cwd),
+      completeOnly: options.completeOnly,
     };
   }
 
@@ -123,14 +130,20 @@ async function parseCommand(
 type ParsedOptions = {
   positionals: string[];
   outDir: string | null;
+  completeOnly: boolean;
 };
 
 function parseOptions(argv: readonly string[]): ParsedOptions | null {
   const positionals: string[] = [];
   let outDir: string | null = null;
+  let completeOnly = false;
 
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
+    if (argument === "--complete-only") {
+      completeOnly = true;
+      continue;
+    }
     if (argument === "--out-dir") {
       const value = argv[index + 1];
       if (value === undefined || value.startsWith("-")) {
@@ -150,6 +163,7 @@ function parseOptions(argv: readonly string[]): ParsedOptions | null {
   return {
     positionals,
     outDir,
+    completeOnly,
   };
 }
 
@@ -166,7 +180,7 @@ function resolveOutDir(outDir: string | null, cwd: string): string | null {
 
 function writeUsage(): void {
   process.stderr.write(
-    "Usage: cmx-document render <bundleDir> [--out-dir <dir>]\nUsage: cmx-document <bundleDir> [--out-dir <dir>]\n",
+    "Usage: cmx-document render <bundleDir> [--out-dir <dir>] [--complete-only]\nUsage: cmx-document <bundleDir> [--out-dir <dir>] [--complete-only]\n",
   );
 }
 
@@ -176,11 +190,12 @@ function writeHelp(): void {
       "@cmx-tools/document",
       "",
       "Usage:",
-      "  cmx-document render <bundleDir> [--out-dir <dir>]",
-      "  cmx-document <bundleDir> [--out-dir <dir>]",
+      "  cmx-document render <bundleDir> [--out-dir <dir>] [--complete-only]",
+      "  cmx-document <bundleDir> [--out-dir <dir>] [--complete-only]",
       "",
       "Options:",
       "  --out-dir <dir>",
+      "  --complete-only  Emit Documents only when every entry renders successfully",
       "  --help",
       "  --version",
       "",

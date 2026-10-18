@@ -7,6 +7,7 @@
   "scripts": {
     "verify": "cross-env-shell PRE_BUILD=false \"corepack pnpm run fmt:check && corepack pnpm run build && corepack pnpm run typecheck && corepack pnpm run test\"",
     "build": "corepack pnpm -r --filter './packages/*' build && corepack pnpm rebuild",
+    "pretest:unit": "if-env PRE_BUILD=false || corepack pnpm run build",
     "test:unit": "vitest run --dir packages",
     "pretest:integration": "if-env PRE_BUILD=false || corepack pnpm run build",
     "test:integration": "vitest run --dir test && vitest run --dir .github/release && corepack pnpm -r test:integration",
@@ -29,6 +30,7 @@
     "@cmx-tools/contracts": "workspace:^",
     "@cmx-tools/document": "workspace:^",
     "@cmx-tools/environment": "workspace:^",
+    "@cmx-tools/publish": "workspace:^",
     "@cmx-tools/react": "workspace:^",
     "@cmx-tools/remix": "workspace:^",
     "@cmx-tools/runtime": "workspace:^",
