@@ -110,7 +110,10 @@ async function writeBundleFixture(input: {
 }
 
 describe("cmx-document cli", () => {
-  it("renders with explicit render verb", async () => {
+  it.each([
+    { mode: "default", options: [] },
+    { mode: "complete-only", options: ["--complete-only"] },
+  ])("renders a complete Bundle in $mode mode", async ({ options }) => {
     await withTempDir(async (tempDir) => {
       await writeBundleFixture({
         bundleDir: path.join(tempDir, "bundle"),
@@ -123,7 +126,7 @@ describe("cmx-document cli", () => {
         ],
       });
 
-      const result = await runCli(tempDir, ["render", "bundle"]);
+      const result = await runCli(tempDir, ["render", "bundle", ...options]);
 
       expect(result.exitCode).toBe(0);
       expect(JSON.parse(result.stdout)).toMatchObject({
@@ -175,6 +178,7 @@ describe("cmx-document cli", () => {
     const help = await runCli(process.cwd(), ["--help"]);
     expect(help.exitCode).toBe(0);
     expect(help.stdout).toContain("cmx-document render <bundleDir>");
+    expect(help.stdout).toContain("--complete-only");
 
     const version = await runCli(process.cwd(), ["--version"]);
     expect(version.exitCode).toBe(0);
@@ -229,38 +233,90 @@ describe("cmx-document cli", () => {
     });
   });
 
-  it("writes rendered documents to --out-dir and emits no stdout", async () => {
-    await withTempDir(async (tempDir) => {
-      await writeBundleFixture({
-        bundleDir: path.join(tempDir, "bundle"),
-        entries: [
-          {
-            name: "home",
-            file: "home.js",
-            source: 'export default { kind: "element", tag: "main" };\n',
-          },
-        ],
-      });
+  it.each([
+    { mode: "stdout", outputOptions: [] },
+    { mode: "--out-dir", outputOptions: ["--out-dir", "documents"] },
+  ])(
+    "withholds all Documents from an incomplete publish build in $mode mode",
+    async ({ outputOptions }) => {
+      await withTempDir(async (tempDir) => {
+        await writeBundleFixture({
+          bundleDir: path.join(tempDir, "bundle"),
+          entries: [
+            {
+              name: "ok",
+              file: "ok.js",
+              source: 'export default { kind: "element", tag: "main" };\n',
+            },
+            {
+              name: "broken",
+              file: "broken.js",
+              source: "throw new Error('broken render');\n",
+            },
+          ],
+        });
 
-      const result = await runCli(tempDir, [
-        "render",
-        "bundle",
-        "--out-dir",
-        "documents",
-      ]);
+        const result = await runCli(tempDir, [
+          "render",
+          "bundle",
+          "--complete-only",
+          ...outputOptions,
+        ]);
 
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toBe("");
-      expect(result.stderr).toBe("");
-      expect(
-        JSON.parse(
-          await readFile(path.join(tempDir, "documents", "home.json"), "utf8"),
-        ),
-      ).toMatchObject({
-        $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
+        expect(result).toEqual({
+          exitCode: 1,
+          stdout: "",
+          stderr: expect.stringContaining("broken render"),
+        });
+        await expect(
+          readFile(path.join(tempDir, "documents", "ok.json"), "utf8"),
+        ).rejects.toMatchObject({ code: "ENOENT" });
       });
-    });
-  });
+    },
+  );
+
+  it.each([
+    { mode: "default", options: [] },
+    { mode: "complete-only", options: ["--complete-only"] },
+  ])(
+    "writes complete Documents to --out-dir in $mode mode",
+    async ({ options }) => {
+      await withTempDir(async (tempDir) => {
+        await writeBundleFixture({
+          bundleDir: path.join(tempDir, "bundle"),
+          entries: [
+            {
+              name: "home",
+              file: "home.js",
+              source: 'export default { kind: "element", tag: "main" };\n',
+            },
+          ],
+        });
+
+        const result = await runCli(tempDir, [
+          "render",
+          "bundle",
+          "--out-dir",
+          "documents",
+          ...options,
+        ]);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toBe("");
+        expect(result.stderr).toBe("");
+        expect(
+          JSON.parse(
+            await readFile(
+              path.join(tempDir, "documents", "home.json"),
+              "utf8",
+            ),
+          ),
+        ).toMatchObject({
+          $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
+        });
+      });
+    },
+  );
 
   it("writes successful documents on partial render and exits non-zero", async () => {
     await withTempDir(async (tempDir) => {

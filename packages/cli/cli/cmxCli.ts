@@ -21,6 +21,11 @@ const CAPABILITY_RUNNERS = {
     exportName: "runCmxVerifyCli",
     packageName: "@cmx-tools/verify",
   },
+  publish: {
+    entrypoint: "@cmx-tools/publish/cli",
+    exportName: "runCmxPublishCli",
+    packageName: "@cmx-tools/publish",
+  },
 } as const;
 
 type CapabilityName = keyof typeof CAPABILITY_RUNNERS;
@@ -105,7 +110,7 @@ function isMissingModuleError(error: unknown): boolean {
 
 function writeUsage(): void {
   process.stderr.write(
-    "Usage: cmx <bundle|document|environment|verify> [...args]\n",
+    "Usage: cmx <bundle|document|environment|verify|publish> [...args]\n",
   );
 }
 
@@ -115,13 +120,14 @@ function writeHelp(): void {
       "cmx",
       "",
       "Usage:",
-      "  cmx <bundle|document|environment|verify> [...args]",
+      "  cmx <bundle|document|environment|verify|publish> [...args]",
       "",
       "Examples:",
       '  cmx bundle compile "pages/**/*.tsx" dist',
       "  cmx document render dist --out-dir documents",
       "  cmx environment generate dist/cmx-environment.ts",
       "  cmx verify validate documents/home.json",
+      "  cmx publish documents.json http://localhost:3000/cmx",
       "",
       "Options:",
       "  --help",

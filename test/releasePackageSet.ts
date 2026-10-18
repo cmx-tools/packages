@@ -5,6 +5,7 @@ export const REAL_PACKAGE_DIRS = [
   "document",
   "environment",
   "intrinsics",
+  "publish",
   "react",
   "reduce",
   "remix",

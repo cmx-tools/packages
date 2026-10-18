@@ -14,6 +14,7 @@ const DIST_BINARIES = [
   { file: "packages/document/dist/cli/cli.js", command: "cmx-document" },
   { file: "packages/environment/dist/cli/cli.js", command: "cmx-environment" },
   { file: "packages/verify/dist/cli/cli.js", command: "cmx-verify" },
+  { file: "packages/publish/dist/cli/cli.js", command: "cmx-publish" },
 ] as const;
 
 const EXPORT_CHECKS = [
@@ -24,6 +25,7 @@ const EXPORT_CHECKS = [
   { packageDir: "intrinsics", entryFile: "dist/index.js", typeOnly: true },
   { packageDir: "intrinsics", entryFile: "dist/jsx-runtime.js" },
   { packageDir: "intrinsics", entryFile: "dist/jsx-dev-runtime.js" },
+  { packageDir: "publish", entryFile: "dist/src/index.js" },
   { packageDir: "contracts", entryFile: "dist/index.js" },
   { packageDir: "react", entryFile: "dist/index.js" },
   { packageDir: "reduce", entryFile: "dist/index.js" },
