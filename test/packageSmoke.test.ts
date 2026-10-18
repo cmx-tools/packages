@@ -21,6 +21,7 @@ const EXPORT_CHECKS = [
   { packageDir: "cli", entryFile: "dist/src/index.js" },
   { packageDir: "bundle", entryFile: "dist/src/index.js" },
   { packageDir: "document", entryFile: "dist/src/index.js" },
+  { packageDir: "document-host", entryFile: "dist/src/index.js" },
   { packageDir: "environment", entryFile: "dist/src/index.js" },
   { packageDir: "intrinsics", entryFile: "dist/index.js", typeOnly: true },
   { packageDir: "intrinsics", entryFile: "dist/jsx-runtime.js" },

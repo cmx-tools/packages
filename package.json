@@ -29,6 +29,7 @@
     "@cmx-tools/bundle": "workspace:^",
     "@cmx-tools/contracts": "workspace:^",
     "@cmx-tools/document": "workspace:^",
+    "@cmx-tools/document-host": "workspace:^",
     "@cmx-tools/environment": "workspace:^",
     "@cmx-tools/publish": "workspace:^",
     "@cmx-tools/react": "workspace:^",
