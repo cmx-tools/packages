@@ -22,10 +22,10 @@
     "@cmx-tools/contracts": "workspace:^",
     "@cmx-tools/reduce": "workspace:^"
   },
-  "devDependencies": {
+  "peerDependencies": {
     "remix": "^3.0.0"
   },
-  "peerDependencies": {
+  "devDependencies": {
     "remix": "^3.0.0"
   },
   "license": "AGPL-3.0-only",
