@@ -30,7 +30,7 @@
     "@cmx-tools/reduce": "workspace:^"
   },
   "peerDependencies": {
-    "@cmx-tools/cli": "^0.1.0 || ^1.0.0"
+    "@cmx-tools/cli": "^0.1.0 || ^0.2.0 || ^1.0.0"
   },
   "peerDependenciesMeta": {
     "@cmx-tools/cli": {
