@@ -23,11 +23,11 @@
     "@cmx-tools/publish": "workspace:^",
     "@cmx-tools/verify": "workspace:^"
   },
-  "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/cmx-tools/packages.git"
   },
+  "license": "AGPL-3.0-only",
   "bugs": {
     "url": "https://github.com/cmx-tools/packages/issues"
   },
