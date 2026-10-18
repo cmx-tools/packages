@@ -7,6 +7,7 @@ export const REAL_PACKAGE_DIRS = [
   "intrinsics",
   "react",
   "reduce",
+  "remix",
   "runtime",
   "verify",
 ] as const;
