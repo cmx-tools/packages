@@ -58,6 +58,30 @@ describe("createCmxUgcVerifier", () => {
     expect(content).toEqual({ valid: true });
   });
 
+  it("rejects application styling through either class alias before framework hydration", async () => {
+    const document = createDocument({
+      node: {
+        type: "element",
+        tag: "article",
+        props: { class: "site-layout", className: "site-navigation" },
+      },
+    });
+
+    expect(await createCmxUgcVerifier()(document)).toMatchObject({
+      valid: false,
+      diagnostics: [
+        {
+          code: "ugc-disallowed-prop",
+          message: expect.stringContaining("/props/class"),
+        },
+        {
+          code: "ugc-disallowed-prop",
+          message: expect.stringContaining("/props/className"),
+        },
+      ],
+    });
+  });
+
   it("checks CMX styling, raw markup, and SVG resource links before framework conversion", async () => {
     const document = createDocument({
       node: {

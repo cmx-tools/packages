@@ -304,6 +304,9 @@ importers:
         specifier: workspace:^
         version: link:../reduce
     devDependencies:
+      '@cmx-tools/verify':
+        specifier: workspace:^
+        version: link:../verify
       remix:
         specifier: ^3.0.0
         version: 3.0.0(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)

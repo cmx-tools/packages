@@ -16,7 +16,6 @@ describe("reactUgcPolicy", () => {
           type: "element",
           tag: "p",
           props: {
-            className: "promoted",
             dangerouslySetInnerHTML: { __html: "<strong>Hello</strong>" },
             suppressContentEditableWarning: true,
             suppressHydrationWarning: true,
@@ -31,10 +30,6 @@ describe("reactUgcPolicy", () => {
     ).toMatchObject({
       valid: false,
       diagnostics: [
-        {
-          code: "ugc-disallowed-prop",
-          message: expect.stringContaining("/props/className"),
-        },
         {
           code: "ugc-disallowed-prop",
           message: expect.stringContaining("/props/dangerouslySetInnerHTML"),
@@ -111,7 +106,7 @@ describe("reactUgcPolicy", () => {
     const body: CmxNode = {
       type: "element",
       tag: "p",
-      props: { className: "promoted" },
+      props: { dangerouslySetInnerHTML: { __html: "<strong>Hello</strong>" } },
     };
     const document: CmxDocument = {
       $schema: SCHEMA,
@@ -149,7 +144,7 @@ describe("reactUgcPolicy", () => {
       diagnostics: [
         {
           code: "ugc-disallowed-prop",
-          message: expect.stringContaining("/props/className"),
+          message: expect.stringContaining("/props/dangerouslySetInnerHTML"),
         },
       ],
     });
@@ -166,7 +161,9 @@ describe("reactUgcPolicy", () => {
         default: {
           type: "element",
           tag: "strong",
-          props: { className: "promoted" },
+          props: {
+            dangerouslySetInnerHTML: { __html: "<strong>Hello</strong>" },
+          },
         },
       },
     };
@@ -182,7 +179,7 @@ describe("reactUgcPolicy", () => {
       diagnostics: [
         {
           code: "ugc-disallowed-prop",
-          message: expect.stringContaining("/props/className"),
+          message: expect.stringContaining("/props/dangerouslySetInnerHTML"),
         },
       ],
     });

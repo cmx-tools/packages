@@ -8,6 +8,7 @@ const DISALLOWED_PROPS = new Set([
   "as",
   "aschild",
   "class",
+  "classname",
   "contenteditable",
   "css",
   "html",
