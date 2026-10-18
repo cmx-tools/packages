@@ -1,6 +1,10 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { format } from "prettier";
 import { describe, expect, it } from "vitest";
 import { createExampleBackendTestServer } from "./createExampleBackendTestServer.js";
+
+const execFileAsync = promisify(execFile);
 
 async function formatHtml(response: Response): Promise<string> {
   return format(await response.text(), { parser: "html" });
@@ -11,6 +15,17 @@ describe("createExampleBackendTestServer", () => {
     const server = await createExampleBackendTestServer();
 
     try {
+      expect((await fetch(new URL("/about", server.url))).status).toBe(404);
+      const state = await fetch(new URL("/_cmx/publication", server.url));
+      expect(state.status).toBe(200);
+      expect(await state.json()).toMatchObject({ manifest: {} });
+      await execFileAsync("corepack", ["pnpm", "run", "example:publish"], {
+        env: {
+          ...process.env,
+          CMX_PUBLISH_ENDPOINT: new URL("/_cmx/publication", server.url).href,
+        },
+        timeout: 30_000,
+      });
       const fallback = await fetch(new URL("/", server.url));
       const about = await fetch(new URL("/about", server.url));
 
@@ -66,5 +81,5 @@ describe("createExampleBackendTestServer", () => {
     } finally {
       await server.close();
     }
-  }, 30_000);
+  }, 120_000);
 });

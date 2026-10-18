@@ -1,38 +1,45 @@
-import {
-  execFile,
-  spawn,
-  type ChildProcessWithoutNullStreams,
-} from "node:child_process";
+import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createServer } from "node:net";
-import path from "node:path";
-import { promisify } from "node:util";
 
-const execFileAsync = promisify(execFile);
 const ROOT_DIR = process.cwd();
-const EXAMPLE_CONTENT_DIR = path.join(ROOT_DIR, "example", "content");
-const EXAMPLE_BACKEND_DIR = path.join(ROOT_DIR, "example", "backend");
-const SCRIPT_TIMEOUT = 120_000;
-const SCRIPT_MAX_BUFFER = 10 * 1024 * 1024;
+const STARTUP_TIMEOUT = 60_000;
 
 export type ExampleBackendTestServer = {
   url: URL;
   close(): Promise<void>;
 };
 
-export async function createExampleBackendTestServer(): Promise<ExampleBackendTestServer> {
-  await prepareExampleBackend();
-
+export async function createExampleBackendTestServer({
+  rootDir = ROOT_DIR,
+}: {
+  rootDir?: string;
+} = {}): Promise<ExampleBackendTestServer> {
   const port = await findOpenPort();
   const url = new URL(`http://127.0.0.1:${port}`);
-  const server = spawn("corepack", ["pnpm", "run", "start"], {
-    cwd: EXAMPLE_BACKEND_DIR,
+  const server = spawn("corepack", ["pnpm", "run", "example:host"], {
+    cwd: rootDir,
+    detached: true,
     env: {
       ...process.env,
       PORT: String(port),
     },
   });
 
-  await waitForServer(url, server);
+  let output = "";
+  server.stdout.on("data", (chunk) => {
+    output += String(chunk);
+  });
+  server.stderr.on("data", (chunk) => {
+    output += String(chunk);
+  });
+  try {
+    await waitForServer(url, server);
+  } catch (error) {
+    await closeProcess(server);
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)}\n${output}`,
+    );
+  }
 
   return {
     url,
@@ -40,19 +47,6 @@ export async function createExampleBackendTestServer(): Promise<ExampleBackendTe
       return closeProcess(server);
     },
   };
-}
-
-async function prepareExampleBackend(): Promise<void> {
-  await execFileAsync("corepack", ["pnpm", "run", "build"], {
-    cwd: EXAMPLE_CONTENT_DIR,
-    timeout: SCRIPT_TIMEOUT,
-    maxBuffer: SCRIPT_MAX_BUFFER,
-  });
-  await execFileAsync("corepack", ["pnpm", "run", "build"], {
-    cwd: EXAMPLE_BACKEND_DIR,
-    timeout: SCRIPT_TIMEOUT,
-    maxBuffer: SCRIPT_MAX_BUFFER,
-  });
 }
 
 async function findOpenPort(): Promise<number> {
@@ -86,10 +80,10 @@ async function waitForServer(
   server: ChildProcessWithoutNullStreams,
 ): Promise<void> {
   let lastError: unknown;
-  const deadline = Date.now() + 10_000;
+  const deadline = Date.now() + STARTUP_TIMEOUT;
 
   while (Date.now() < deadline) {
-    if (server.exitCode !== null) {
+    if (server.exitCode !== null || server.signalCode !== null) {
       throw new Error(`example backend exited with code ${server.exitCode}`);
     }
 
@@ -110,7 +104,7 @@ async function waitForServer(
 async function closeProcess(
   server: ChildProcessWithoutNullStreams,
 ): Promise<void> {
-  if (server.exitCode !== null) {
+  if (server.exitCode !== null || server.signalCode !== null) {
     return;
   }
 
@@ -118,7 +112,7 @@ async function closeProcess(
     server.once("exit", () => {
       resolve();
     });
-    server.kill();
+    if (server.pid !== undefined) process.kill(-server.pid, "SIGTERM");
   });
 }
 
