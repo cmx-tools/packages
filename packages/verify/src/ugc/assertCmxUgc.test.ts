@@ -5,7 +5,6 @@ import {
   CmxDocumentVerificationError,
 } from "@cmx-tools/verify";
 import { assertCmxUgc, CmxUgcError } from "@cmx-tools/verify";
-import { reactUgcPolicy } from "@cmx-tools/verify/react";
 
 describe("assertCmxUgc", () => {
   it("accepts stored article content through separate structural and policy assertions", async () => {
@@ -83,35 +82,5 @@ describe("assertCmxUgc", () => {
     await expect(
       assertCmxUgc(document, { allowedElements: [] }),
     ).rejects.toBeInstanceOf(CmxUgcError);
-  });
-  it("lets a React application explicitly assert its dialect in addition to CMX content rules", async () => {
-    const document: CmxDocument = {
-      $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
-      cmxVersion: 1,
-      interface: { imports: {}, exports: { default: { slots: [[]] } } },
-      content: {
-        default: {
-          type: "element",
-          tag: "strong",
-          props: { className: "promoted" },
-        },
-      },
-    };
-
-    await expect(assertCmxUgc(document)).resolves.toBeUndefined();
-    await expect(
-      assertCmxUgc(document, {
-        allowedElements: ["strong"],
-        policy: reactUgcPolicy,
-      }),
-    ).rejects.toMatchObject({
-      name: "CmxUgcError",
-      diagnostics: [
-        {
-          code: "ugc-disallowed-prop",
-          message: expect.stringContaining("/props/className"),
-        },
-      ],
-    });
   });
 });

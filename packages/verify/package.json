@@ -13,10 +13,6 @@
     "./cli": {
       "types": "./dist/cli/cmxVerifyCli.d.ts",
       "import": "./dist/cli/cmxVerifyCli.js"
-    },
-    "./react": {
-      "types": "./dist/src/reactUgcPolicy.d.ts",
-      "import": "./dist/src/reactUgcPolicy.js"
     }
   },
   "files": [
