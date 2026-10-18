@@ -14,7 +14,7 @@ The `style` prop accepts CSS declaration strings and serializable style objects.
 
 Move intrinsic content verification to an independently callable CMX UGC verifier. Its base policy checks the CMX intrinsic dialect. Callers explicitly supply a React policy to extend those checks to React-dialect props; the extension adds to the base checks rather than replacing them. Verification runs on Document nodes before framework-specific conversion, including intrinsic nodes in declared slots. Component-owned props remain outside its scope, and Hydration does not apply the policy automatically.
 
-Expose `assertCmxUgc` and `createCmxUgcVerifier` from `@cmx-tools/verify`, with an optional `policy` value that adds checks to the base CMX policy. Export `reactUgcPolicy` from `@cmx-tools/verify/react`. Both verifier entry points retain the `allowedElements` option alongside policy selection.
+Expose `assertCmxUgc` and `createCmxUgcVerifier` from `@cmx-tools/verify`, with an optional `policy` value that adds checks to the base CMX policy. Export `reactUgcPolicy` from `@cmx-tools/react`. Both verifier entry points retain the `allowedElements` option alongside policy selection.
 
 The standalone `@cmx-tools/intrinsics` package owns the opt-in JSX authoring contract. Content Projects select it through `jsxImportSource: "@cmx-tools/intrinsics"` with TypeScript's automatic JSX transform. Its JSX entry points supply the authoring types and forward execution to `@cmx-tools/runtime`, keeping the authoring contract independently selectable while sharing the existing execution behavior. React-oriented authoring configuration remains unchanged.
 

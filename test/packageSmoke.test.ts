@@ -30,7 +30,6 @@ const EXPORT_CHECKS = [
   { packageDir: "remix", entryFile: "dist/index.js" },
   { packageDir: "runtime", entryFile: "dist/index.js" },
   { packageDir: "verify", entryFile: "dist/src/index.js" },
-  { packageDir: "verify", entryFile: "dist/src/reactUgcPolicy.js" },
 ] as const;
 
 const packedDirs: string[] = [];
