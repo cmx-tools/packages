@@ -3,6 +3,7 @@ export const REAL_PACKAGE_DIRS = [
   "cli",
   "contracts",
   "document",
+  "document-host",
   "environment",
   "intrinsics",
   "publish",

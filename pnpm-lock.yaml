@@ -17,6 +17,9 @@ importers:
       '@cmx-tools/document':
         specifier: workspace:^
         version: link:packages/document
+      '@cmx-tools/document-host':
+        specifier: workspace:^
+        version: link:packages/document-host
       '@cmx-tools/environment':
         specifier: workspace:^
         version: link:packages/environment
@@ -241,6 +244,18 @@ importers:
       rolldown:
         specifier: ^1.0.0-rc.18
         version: 1.0.0
+
+  packages/document-host:
+    dependencies:
+      '@cmx-tools/contracts':
+        specifier: workspace:^
+        version: link:../contracts
+      '@cmx-tools/publish':
+        specifier: workspace:^
+        version: link:../publish
+      '@cmx-tools/verify':
+        specifier: workspace:^
+        version: link:../verify
 
   packages/environment:
     dependencies:
