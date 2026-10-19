@@ -4,32 +4,70 @@ CMX turns content authored as JSX or TSX into static JSON Documents. An applicat
 
 The source of truth stays in Git. The application owns its rendering and deployment.
 
-## Publish content to the running example
+## Publish content to your application
 
-From the repository root, install dependencies and build the packages:
+If your application already renders CMX Documents, add a Document Host to accept content updates without rebuilding or redeploying the application. Your content project builds and publishes Documents locally or in CI; the running application reads the latest accepted content.
 
-```sh
-pnpm install
-pnpm build
-```
-
-Start the local application in one terminal:
+### In the application
 
 ```sh
-pnpm example:host
+pnpm add @cmx-tools/document-host
 ```
 
-In another terminal, build and publish the example content:
+Create one host for the lifetime of the server, shared by publication and page requests:
+
+```ts
+import {
+  createCmxDocumentHost,
+  createMemoryCmxDocumentStore,
+} from "@cmx-tools/document-host";
+
+export const documentHost = createCmxDocumentHost({
+  store: createMemoryCmxDocumentStore(),
+});
+```
+
+Mount the publication handler at `/_cmx/publication` using your framework's Fetch-compatible request and response handling. Forward both `GET` and `PUT` requests:
+
+```ts
+import { documentHost } from "./documentHost.js";
+
+export function handlePublication(request: Request): Promise<Response> {
+  return documentHost.handlePublication(request);
+}
+```
+
+For a deployed endpoint, authenticate publication requests in the application before calling this handler.
+
+For page requests, replace loading a build-time JSON file with a lookup by its existing Bundle entry name:
+
+```ts
+const document = await documentHost.getDocument("about");
+```
+
+Return a `404` when the lookup is `undefined`. Otherwise, pass the Document through your existing CMX hydration and framework rendering. The [example server](example/backend/server.tsx) shows this with React.
+
+The memory store starts empty and loses its contents when the server stops. Use it for local development and publish again after restarting. For deployment, provide [persistent storage](packages/document-host/README.md#provide-storage). The same package guide explains [application verification hooks](packages/document-host/README.md#verify-incoming-content), including Environment and UGC checks before accepting content.
+
+### In the content project
+
+Add the publisher alongside your existing CMX build tools:
 
 ```sh
-pnpm example:publish
+pnpm add -D @cmx-tools/cli @cmx-tools/publish
 ```
 
-Open [the about page](http://127.0.0.1:3000/about). Edit `example/content/pages/about.tsx`, publish again, and refresh the page. The application keeps running while the published content changes. Removing a page from the content source removes it on the next publication. A failed build does not publish.
+After your existing content build produces the Bundle in `dist`, render and publish it to the running application:
 
-The host starts empty and stores Documents in memory. Publish again after restarting it. The local publication endpoint has no authentication and is intended for local development.
+```sh
+pnpm exec cmx-document render dist --complete-only | pnpm exec cmx-publish - http://localhost:3000/_cmx/publication
+```
 
-For a different port, start with `PORT=3001 pnpm example:host` and publish with `CMX_PUBLISH_ENDPOINT=http://127.0.0.1:3001/_cmx/publication pnpm example:publish`.
+Publish only after a successful content build. In CI, run the same pipeline against your application's publication endpoint. For an authenticated endpoint, configure an [authenticated HTTP transport](packages/publish/README.md#authentication) in `cmx.config.ts`.
+
+Always publish the complete collection. Entry names come from the Bundle; missing entries delete previously published Documents. The publisher transfers only new and changed Documents. `--complete-only` prevents a partial render from deleting content, and a rejected publication leaves the previous collection available.
+
+Publish again after a content edit, then refresh the application page. The application keeps running throughout. See the [publisher guide](packages/publish/README.md) for file input and the programmatic API.
 
 ## Use CMX in a static site build
 
