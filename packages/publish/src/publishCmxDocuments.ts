@@ -15,10 +15,12 @@ export async function publishCmxDocuments({
   endpoint,
   documents,
   signal,
+  fetch = globalThis.fetch,
 }: {
   endpoint: string;
   documents: Record<string, CmxDocument>;
   signal?: AbortSignal;
+  fetch?: typeof globalThis.fetch;
 }): Promise<CmxPublicationResult> {
   try {
     documents = snapshotCmxDocuments(documents);

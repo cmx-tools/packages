@@ -60,6 +60,52 @@ async function withEndpoint(
 }
 
 describe("publishing CMX Documents", () => {
+  it("publishes through an application-authenticated transport without losing protocol headers or content", async () => {
+    const current = await createCmxPublicationState({});
+    await withEndpoint(
+      async (request, response) => {
+        if (request.headers.authorization !== "Bearer application-token") {
+          response.writeHead(401).end();
+          return;
+        }
+        response.setHeader("Content-Type", "application/json");
+        if (request.method === "GET") {
+          expect(request.headers["cache-control"]).toBe("no-cache");
+          expect(request.headers["if-none-match"]).toBe(
+            `"${unicodeContentHash}"`,
+          );
+          response.setHeader("ETag", `"${current.contentHash}"`);
+          response.end(JSON.stringify(current));
+          return;
+        }
+        expect(request.method).toBe("PUT");
+        expect(request.headers["content-type"]).toBe("application/json");
+        const chunks = [];
+        for await (const chunk of request) chunks.push(chunk);
+        expect(JSON.parse(Buffer.concat(chunks).toString())).toEqual({
+          baseContentHash: current.contentHash,
+          targetContentHash: unicodeContentHash,
+          upsert: { "blog/über": unicodeDocument },
+          remove: [],
+        });
+        response.end(JSON.stringify({ contentHash: unicodeContentHash }));
+      },
+      async (endpoint) => {
+        await expect(
+          publishCmxDocuments({
+            endpoint,
+            documents: { "blog/über": unicodeDocument },
+            fetch: (input, init) => {
+              const headers = new Headers(init?.headers);
+              headers.set("Authorization", "Bearer application-token");
+              return fetch(input, { ...init, headers });
+            },
+          }),
+        ).resolves.toEqual({ contentHash: unicodeContentHash });
+      },
+    );
+  });
+
   it("recognizes an already published Unicode collection by its canonical content hash", async () => {
     let requests = 0;
     await withEndpoint(
@@ -136,7 +182,7 @@ describe("publishing CMX Documents", () => {
     },
   );
 
-  it("recalculates against the new manifest after one conflicting publication", async () => {
+  it("keeps using the authenticated transport when recalculating after a conflicting publication", async () => {
     const empty = await createCmxPublicationState({});
     const concurrent = await createCmxPublicationState({
       contact: unicodeDocument,
@@ -146,6 +192,10 @@ describe("publishing CMX Documents", () => {
     let puts = 0;
     await withEndpoint(
       async (request, response) => {
+        if (request.headers.authorization !== "Bearer application-token") {
+          response.writeHead(401).end();
+          return;
+        }
         response.setHeader("Content-Type", "application/json");
         if (request.method === "GET") {
           const state = gets++ === 0 ? empty : concurrent;
@@ -173,6 +223,11 @@ describe("publishing CMX Documents", () => {
           publishCmxDocuments({
             endpoint,
             documents: { home: unicodeDocument },
+            fetch: (input, init) => {
+              const headers = new Headers(init?.headers);
+              headers.set("Authorization", "Bearer application-token");
+              return fetch(input, { ...init, headers });
+            },
           }),
         ).resolves.toEqual({ contentHash: target.contentHash });
       },
@@ -227,6 +282,52 @@ describe("publishing CMX Documents", () => {
       },
     );
   });
+
+  it.each([
+    { phase: "GET", status: 401 },
+    { phase: "PUT", status: 403 },
+  ])(
+    "preserves HTTP $status when application authentication fails during $phase",
+    async ({ phase, status }) => {
+      const current = await createCmxPublicationState({});
+      const requests: string[] = [];
+      await withEndpoint(
+        (request, response) => {
+          expect(request.headers.authorization).toBe("Bearer expired-token");
+          requests.push(request.method!);
+          response.setHeader("Content-Type", "application/json");
+          if (request.method === phase) {
+            response.writeHead(status).end(
+              JSON.stringify({
+                message: "Application authentication rejected",
+              }),
+            );
+            return;
+          }
+          response.setHeader("ETag", `"${current.contentHash}"`);
+          response.end(JSON.stringify(current));
+        },
+        async (endpoint) => {
+          await expect(
+            publishCmxDocuments({
+              endpoint,
+              documents: { home: unicodeDocument },
+              fetch: (input, init) => {
+                const headers = new Headers(init?.headers);
+                headers.set("Authorization", "Bearer expired-token");
+                return fetch(input, { ...init, headers });
+              },
+            }),
+          ).rejects.toMatchObject({
+            name: "CmxPublicationError",
+            status,
+            message: "Application authentication rejected",
+          });
+        },
+      );
+      expect(requests).toEqual(phase === "GET" ? ["GET"] : ["GET", "PUT"]);
+    },
+  );
 
   it("stops after a second conflict instead of reporting success or retrying indefinitely", async () => {
     const current = await createCmxPublicationState({});
@@ -476,12 +577,15 @@ describe("publishing CMX Documents", () => {
   });
 
   it.each(["GET", "PUT"])(
-    "lets the caller cancel during the %s exchange",
+    "lets the caller cancel during the authenticated %s exchange",
     async (phase) => {
       const controller = new AbortController();
       const current = await createCmxPublicationState({});
       await withEndpoint(
         (request, response) => {
+          expect(request.headers.authorization).toBe(
+            "Bearer application-token",
+          );
           if (request.method === phase) controller.abort();
           response.setHeader("Content-Type", "application/json");
           if (request.method === "GET") {
@@ -497,6 +601,11 @@ describe("publishing CMX Documents", () => {
               endpoint,
               documents: { "blog/über": unicodeDocument },
               signal: controller.signal,
+              fetch: (input, init) => {
+                const headers = new Headers(init?.headers);
+                headers.set("Authorization", "Bearer application-token");
+                return fetch(input, { ...init, headers });
+              },
             }),
           ).rejects.toMatchObject({
             name: "CmxPublicationError",

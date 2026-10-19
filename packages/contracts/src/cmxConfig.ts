@@ -44,4 +44,7 @@ export type CmxConfig = {
   unverifiedOptionalExports?: UnverifiedOptionalExportsPolicy;
   getIntegrity?: CmxGetIntegrity;
   verifyDocument?: CmxVerifyDocument;
+  publish?: {
+    fetch?: typeof globalThis.fetch;
+  };
 };
