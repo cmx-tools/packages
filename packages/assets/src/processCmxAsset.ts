@@ -4,11 +4,11 @@ import path from "node:path";
 import type { CmxAssetJson, CmxAssetProcessor } from "@cmx-tools/contracts";
 import { normalizeCmxAssetData } from "./normalizeCmxAssetData.js";
 
-const CMX_ASSET_CACHE_VERSION = 2;
+const CMX_ASSET_CACHE_VERSION = 3;
 
 export function cmxAssetCacheKey(
   bytes: Uint8Array,
-  name: string,
+  relativePath: string,
   identity: string,
   processor: CmxAssetProcessor,
 ): string {
@@ -23,7 +23,7 @@ export function cmxAssetCacheKey(
       JSON.stringify([
         CMX_ASSET_CACHE_VERSION,
         hash(bytes),
-        name,
+        relativePath,
         identity,
         processor.version,
         options,
@@ -34,7 +34,7 @@ export function cmxAssetCacheKey(
 
 export async function processCmxAsset(
   bytes: Uint8Array,
-  name: string,
+  relativePath: string,
   processor: CmxAssetProcessor,
   cacheDirectory: string,
 ): Promise<CmxAssetJson> {
@@ -42,7 +42,7 @@ export async function processCmxAsset(
   if (cached !== undefined) return cached;
   const result = await processor.process({
     bytes: Uint8Array.from(bytes),
-    name,
+    relativePath,
     options: structuredClone(processor.options),
   });
   const data = normalizeCmxAssetData(result);

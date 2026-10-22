@@ -27,12 +27,12 @@ test("Content Projects cache the complete hook result and skip project uploads o
     version: "1",
     extensions: [".svg"],
     options: { baseUrl: "https://cdn.example.test" },
-    async process({ bytes, name, options }) {
+    async process({ bytes, relativePath, options }) {
       processed += 1;
       await writeFile(path.join(cwd, "uploaded.svg"), bytes);
       uploaded += 1;
       return {
-        src: `${options.baseUrl}/${name}`,
+        src: `${options.baseUrl}/${relativePath}`,
         width: 40,
         colors: ["red"],
         caption: undefined,
@@ -66,7 +66,7 @@ test("Content Projects cache the complete hook result and skip project uploads o
   );
 });
 
-test("processors distinguish named files and receive normalized names outside the project", async () => {
+test("processors distinguish relative paths and normalize files outside the project", async () => {
   const root = await project();
   const cwd = path.join(root, "content");
   await mkdir(path.join(cwd, "images"), { recursive: true });
@@ -81,11 +81,11 @@ test("processors distinguish named files and receive normalized names outside th
       image: {
         version: "1",
         extensions: [".svg"],
-        process({ name }) {
-          processed.push(name);
+        process({ relativePath }) {
+          processed.push(relativePath);
           return {
-            name,
-            src: `https://cdn.example.test/${encodeURIComponent(name)}`,
+            name: relativePath,
+            src: `https://cdn.example.test/${encodeURIComponent(relativePath)}`,
           };
         },
       } satisfies CmxAssetProcessor,
@@ -172,8 +172,8 @@ test("Content Projects type imported metadata from the declared processor result
     const image = {
       version: '1', extensions: ['.svg'],
       options: { width: 40 },
-      process({ name, options }): Image {
-        return { src: 'https://cdn.example.test/' + name, width: options.width, colors: ['warm'], caption: undefined };
+      process({ relativePath, options }): Image {
+        return { src: 'https://cdn.example.test/' + relativePath, width: options.width, colors: ['warm'], caption: undefined };
       }
     } satisfies CmxAssetProcessor<{ width: number }>;
     export default { assets: { processors: { image } } } satisfies CmxConfig;
@@ -218,7 +218,7 @@ test("Content Projects type imported metadata from the declared processor result
           version: "1",
           extensions: [".svg"],
           process: (input) => ({
-            src: `https://cdn.example.test/${input.name}`,
+            src: `https://cdn.example.test/${input.relativePath}`,
             width: 40,
             colors: ["warm"],
           }),
@@ -253,7 +253,7 @@ test("fresh Content Projects prepare aliased Assets through transitive source im
     import type { CmxConfig } from '@cmx-tools/contracts';
     const image = {
       version: '1', extensions: ['.svg'],
-      process({ name }) { return { src: 'https://cdn.example.test/' + name, width: 40 }; }
+      process({ relativePath }) { return { src: 'https://cdn.example.test/' + relativePath, width: 40 }; }
     } satisfies CmxAssetProcessor;
     export default { assets: { processors: { image } } } satisfies CmxConfig;
   `,
@@ -301,7 +301,7 @@ test("fresh Content Projects prepare aliased Assets through transitive source im
           version: "1",
           extensions: [".svg"],
           process: (input) => ({
-            src: `https://cdn.example.test/${input.name}`,
+            src: `https://cdn.example.test/${input.relativePath}`,
             width: 40,
           }),
         },
@@ -339,7 +339,7 @@ test.each(["js", "mjs"])(
       version: '1', extensions: ['.svg'], options: { width: 40 },
       process(input) {
         return {
-          src: 'https://cdn.example.test/' + input.name, width: input.options.width,
+          src: 'https://cdn.example.test/' + input.relativePath, width: input.options.width,
           colors: /** @type {('warm' | 'cool')[]} */ (['warm'])
         };
       }
@@ -383,7 +383,7 @@ test.each(["js", "mjs"])(
             version: "1",
             extensions: [".svg"],
             process: (input) => ({
-              src: `https://cdn.example.test/${input.name}`,
+              src: `https://cdn.example.test/${input.relativePath}`,
               width: 40,
               colors: ["warm"],
             }),
@@ -432,7 +432,7 @@ test("source, processor version and configured options invalidate only affected 
             process(input) {
               processed.push(Buffer.from(input.bytes).toString());
               return {
-                src: `${input.options.baseUrl}/${input.name}`,
+                src: `${input.options.baseUrl}/${input.relativePath}`,
                 width: input.options.width,
               };
             },
@@ -442,7 +442,7 @@ test("source, processor version and configured options invalidate only affected 
             extensions: [".txt"],
             process(input) {
               processed.push("note");
-              return { src: `https://cdn.example.test/${input.name}` };
+              return { src: `https://cdn.example.test/${input.relativePath}` };
             },
           },
         },

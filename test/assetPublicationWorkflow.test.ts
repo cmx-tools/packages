@@ -39,7 +39,7 @@ it("renders project-processed Asset metadata and final URLs into Document Conten
         processors: {
           photo: {
             version: "1", extensions: [".svg"], options: {publicBaseUrl: "https://assets.example"},
-            async process({bytes, name, options}) {
+            async process({bytes, relativePath, options}) {
               await mkdir(new URL(".cmx", import.meta.url), {recursive: true});
               await appendFile(new URL(".cmx/processed", import.meta.url), "1");
               async function store(svg) {
@@ -49,7 +49,7 @@ it("renders project-processed Asset metadata and final URLs into Document Conten
                 return options.publicBaseUrl + "/" + key;
               }
               const preview = new TextDecoder().decode(bytes).replace('width="20"', 'width="10"');
-              return {src: await store(bytes), name, width: 20, preview: await store(new TextEncoder().encode(preview)), colors: ["red"]};
+              return {src: await store(bytes), name: relativePath, width: 20, preview: await store(new TextEncoder().encode(preview)), colors: ["red"]};
             }
           }
         }
@@ -152,8 +152,8 @@ it("prepares Asset import types from declared processor output before CI typeche
       import type {CmxConfig} from "@cmx-tools/contracts";
       const photo = {
         version: "1", extensions: [".svg"], options: {width: 20, publicBaseUrl: "https://assets.example"},
-        process({name, options}): {src: string; width: number; colors: Array<"red" | "blue">; caption?: string} {
-          return {src: options.publicBaseUrl + "/" + name, width: options.width, colors: ["red"], caption: undefined};
+        process({relativePath, options}): {src: string; width: number; colors: Array<"red" | "blue">; caption?: string} {
+          return {src: options.publicBaseUrl + "/" + relativePath, width: options.width, colors: ["red"], caption: undefined};
         }
       } satisfies CmxAssetProcessor<{width: number; publicBaseUrl: string}>;
       export default {exports: {default: {required: true, type: {from: "@cmx-tools/contracts", import: "CmxAssetJson"}}}, assets: {
