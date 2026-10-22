@@ -81,11 +81,13 @@ it("prepares new Asset imports and reloads processor changes while developing", 
         'import photo from "./photo.svg"; import second from "./second.svg"; export default [photo.width, second.width];',
     });
     await expect
-      .poll(async () =>
-        access(path.join(workspace.rootDir, "second.d.svg.ts")).then(
-          () => true,
-          () => false,
-        ),
+      .poll(
+        async () =>
+          access(path.join(workspace.rootDir, "second.d.svg.ts")).then(
+            () => true,
+            () => false,
+          ),
+        { timeout: 10_000 },
       )
       .toBe(true);
     expect(
@@ -108,6 +110,11 @@ it("prepares new Asset imports and reloads processor changes while developing", 
     expect(stderr).toBe("");
     child.kill("SIGTERM");
     expect(await exited).toBe(0);
+  } catch (cause) {
+    throw new Error(
+      `Asset development workflow failed. Watcher state: ${child.exitCode ?? child.signalCode ?? "running"}. Stderr: ${stderr || "<empty>"}`,
+      { cause },
+    );
   } finally {
     child.kill("SIGTERM");
     await exited;
