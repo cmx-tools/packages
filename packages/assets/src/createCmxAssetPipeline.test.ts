@@ -3,10 +3,7 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { afterEach, expect, test } from "vitest";
-import {
-  createCmxAssetPipeline,
-  type CmxAssetProcessor,
-} from "@cmx-tools/assets";
+import { createCmxAssetPipeline, type CmxAssetLoader } from "@cmx-tools/assets";
 
 const projects: string[] = [];
 
@@ -21,14 +18,14 @@ afterEach(async () => {
 test("Content Projects cache the complete hook result and skip project uploads on cache hits", async () => {
   const cwd = await project();
   await writeFile(path.join(cwd, "photo.svg"), '<svg width="40" height="20"/>');
-  let processed = 0;
+  let loaded = 0;
   let uploaded = 0;
   const image = {
     version: "1",
     extensions: [".svg"],
     options: { baseUrl: "https://cdn.example.test" },
-    async process({ bytes, relativePath, options }) {
-      processed += 1;
+    async load({ bytes, relativePath, options }) {
+      loaded += 1;
       await writeFile(path.join(cwd, "uploaded.svg"), bytes);
       uploaded += 1;
       return {
@@ -39,8 +36,8 @@ test("Content Projects cache the complete hook result and skip project uploads o
         provider: { $cmxAsset: "project-owned" },
       };
     },
-  } satisfies CmxAssetProcessor<{ baseUrl: string }>;
-  const assets = { processors: { image } };
+  } satisfies CmxAssetLoader<{ baseUrl: string }>;
+  const assets = { loaders: { image } };
   const pipeline = createCmxAssetPipeline({ cwd, assets });
   const expected = {
     src: "https://cdn.example.test/photo.svg",
@@ -60,13 +57,13 @@ test("Content Projects cache the complete hook result and skip project uploads o
   expect(
     await createCmxAssetPipeline({ cwd, assets }).load("photo.svg"),
   ).toEqual(expected);
-  expect({ processed, uploaded }).toEqual({ processed: 1, uploaded: 1 });
+  expect({ loaded, uploaded }).toEqual({ loaded: 1, uploaded: 1 });
   expect(await readFile(path.join(cwd, "uploaded.svg"), "utf8")).toBe(
     '<svg width="40" height="20"/>',
   );
 });
 
-test("processors distinguish relative paths and normalize files outside the project", async () => {
+test("loaders distinguish relative paths and normalize files outside the project", async () => {
   const root = await project();
   const cwd = path.join(root, "content");
   await mkdir(path.join(cwd, "images"), { recursive: true });
@@ -75,20 +72,20 @@ test("processors distinguish relative paths and normalize files outside the proj
     writeFile(path.join(cwd, "images/copy.svg"), "same image"),
     writeFile(path.join(root, "photo.svg"), "same image"),
   ]);
-  const processed: string[] = [];
+  const loaded: string[] = [];
   const assets = {
-    processors: {
+    loaders: {
       image: {
         version: "1",
         extensions: [".svg"],
-        process({ relativePath }) {
-          processed.push(relativePath);
+        load({ relativePath }) {
+          loaded.push(relativePath);
           return {
             name: relativePath,
             src: `https://cdn.example.test/${encodeURIComponent(relativePath)}`,
           };
         },
-      } satisfies CmxAssetProcessor,
+      } satisfies CmxAssetLoader,
     },
   };
   const filenames = [
@@ -113,7 +110,7 @@ test("processors distinguish relative paths and normalize files outside the proj
   ];
   expect(await build()).toEqual(expected);
   expect(await build()).toEqual(expected);
-  expect(processed.sort()).toEqual([
+  expect(loaded.sort()).toEqual([
     "../photo.svg",
     "images/copy.svg",
     "images/photo.svg",
@@ -125,11 +122,11 @@ test("failed project uploads and invalid metadata can be corrected without cachi
   await writeFile(path.join(cwd, "photo.svg"), "image");
   let attempts = 0;
   const assets = {
-    processors: {
+    loaders: {
       image: {
         version: "1",
         extensions: [".svg"],
-        async process() {
+        async load() {
           attempts += 1;
           if (attempts === 1) throw new Error("Project upload unavailable");
           if (attempts === 2) return { uploadedAt: new Date() };
@@ -155,7 +152,7 @@ test("failed project uploads and invalid metadata can be corrected without cachi
   expect(attempts).toBe(3);
 });
 
-test("Content Projects type imported metadata from the declared processor result", async () => {
+test("Content Projects type imported metadata from the declared loader result", async () => {
   const cwd = await project();
   await writeFile(
     path.join(cwd, "package.json"),
@@ -166,17 +163,17 @@ test("Content Projects type imported metadata from the declared processor result
     path.join(cwd, "cmx.config.ts"),
     `
     import type { CmxConfig } from '@cmx-tools/contracts';
-    import type { CmxAssetProcessor } from '@cmx-tools/assets';
+    import type { CmxAssetLoader } from '@cmx-tools/assets';
     type Color = 'warm' | 'cool';
     type Image = { src: string; width: number; colors: Color[]; caption?: string };
     const image = {
       version: '1', extensions: ['.svg'],
       options: { width: 40 },
-      process({ relativePath, options }): Image {
+      load({ relativePath, options }): Image {
         return { src: 'https://cdn.example.test/' + relativePath, width: options.width, colors: ['warm'], caption: undefined };
       }
-    } satisfies CmxAssetProcessor<{ width: number }>;
-    export default { assets: { processors: { image } } } satisfies CmxConfig;
+    } satisfies CmxAssetLoader<{ width: number }>;
+    export default { assets: { loaders: { image } } } satisfies CmxConfig;
   `,
   );
   await writeFile(
@@ -213,11 +210,11 @@ test("Content Projects type imported metadata from the declared processor result
   const pipeline = createCmxAssetPipeline({
     cwd,
     assets: {
-      processors: {
+      loaders: {
         image: {
           version: "1",
           extensions: [".svg"],
-          process: (input) => ({
+          load: (input) => ({
             src: `https://cdn.example.test/${input.relativePath}`,
             width: 40,
             colors: ["warm"],
@@ -249,13 +246,13 @@ test("fresh Content Projects prepare aliased Assets through transitive source im
   await writeFile(
     path.join(cwd, "cmx.config.ts"),
     `
-    import type { CmxAssetProcessor } from '@cmx-tools/assets';
+    import type { CmxAssetLoader } from '@cmx-tools/assets';
     import type { CmxConfig } from '@cmx-tools/contracts';
     const image = {
       version: '1', extensions: ['.svg'],
-      process({ relativePath }) { return { src: 'https://cdn.example.test/' + relativePath, width: 40 }; }
-    } satisfies CmxAssetProcessor;
-    export default { assets: { processors: { image } } } satisfies CmxConfig;
+      load({ relativePath }) { return { src: 'https://cdn.example.test/' + relativePath, width: 40 }; }
+    } satisfies CmxAssetLoader;
+    export default { assets: { loaders: { image } } } satisfies CmxConfig;
   `,
   );
   await writeFile(
@@ -296,11 +293,11 @@ test("fresh Content Projects prepare aliased Assets through transitive source im
   const pipeline = createCmxAssetPipeline({
     cwd,
     assets: {
-      processors: {
+      loaders: {
         image: {
           version: "1",
           extensions: [".svg"],
-          process: (input) => ({
+          load: (input) => ({
             src: `https://cdn.example.test/${input.relativePath}`,
             width: 40,
           }),
@@ -335,16 +332,16 @@ test.each(["js", "mjs"])(
     await writeFile(
       path.join(cwd, configPath),
       `
-    const image = /** @satisfies {import('@cmx-tools/assets').CmxAssetProcessor<{ width: number }>} */ ({
+    const image = /** @satisfies {import('@cmx-tools/assets').CmxAssetLoader<{ width: number }>} */ ({
       version: '1', extensions: ['.svg'], options: { width: 40 },
-      process(input) {
+      load(input) {
         return {
           src: 'https://cdn.example.test/' + input.relativePath, width: input.options.width,
           colors: /** @type {('warm' | 'cool')[]} */ (['warm'])
         };
       }
     });
-    export default { assets: { processors: { image } } };
+    export default { assets: { loaders: { image } } };
   `,
     );
     await writeFile(
@@ -378,11 +375,11 @@ test.each(["js", "mjs"])(
     const pipeline = createCmxAssetPipeline({
       cwd,
       assets: {
-        processors: {
+        loaders: {
           image: {
             version: "1",
             extensions: [".svg"],
-            process: (input) => ({
+            load: (input) => ({
               src: `https://cdn.example.test/${input.relativePath}`,
               width: 40,
               colors: ["warm"],
@@ -410,12 +407,12 @@ test.each(["js", "mjs"])(
   },
 );
 
-test("source, processor version and configured options invalidate only affected processing", async () => {
+test("source, loader version and configured options invalidate only affected loading", async () => {
   const cwd = await project();
   await writeFile(path.join(cwd, "first.svg"), "first");
   await writeFile(path.join(cwd, "second.svg"), "second");
   await writeFile(path.join(cwd, "note.txt"), "note");
-  const processed: string[] = [];
+  const loaded: string[] = [];
   const build = async (
     version = "1",
     width = 40,
@@ -424,24 +421,24 @@ test("source, processor version and configured options invalidate only affected 
     const pipeline = createCmxAssetPipeline({
       cwd,
       assets: {
-        processors: {
+        loaders: {
           image: {
             version,
             extensions: [".svg"],
             options: { width, baseUrl },
-            process(input) {
-              processed.push(Buffer.from(input.bytes).toString());
+            load(input) {
+              loaded.push(Buffer.from(input.bytes).toString());
               return {
                 src: `${input.options.baseUrl}/${input.relativePath}`,
                 width: input.options.width,
               };
             },
-          } satisfies CmxAssetProcessor<{ width: number; baseUrl: string }>,
+          } satisfies CmxAssetLoader<{ width: number; baseUrl: string }>,
           note: {
             version: "1",
             extensions: [".txt"],
-            process(input) {
-              processed.push("note");
+            load(input) {
+              loaded.push("note");
               return { src: `https://cdn.example.test/${input.relativePath}` };
             },
           },
@@ -455,18 +452,18 @@ test("source, processor version and configured options invalidate only affected 
     ]);
   };
   await build();
-  expect(processed.splice(0).sort()).toEqual(["first", "note", "second"]);
+  expect(loaded.splice(0).sort()).toEqual(["first", "note", "second"]);
   await writeFile(path.join(cwd, "first.svg"), "changed first");
   await build();
-  expect(processed.splice(0)).toEqual(["changed first"]);
+  expect(loaded.splice(0)).toEqual(["changed first"]);
   await build("2");
-  expect(processed.splice(0).sort()).toEqual(["changed first", "second"]);
+  expect(loaded.splice(0).sort()).toEqual(["changed first", "second"]);
   expect(await build("2", 80)).toMatchObject([
     { width: 80 },
     { width: 80 },
     {},
   ]);
-  expect(processed.splice(0).sort()).toEqual(["changed first", "second"]);
+  expect(loaded.splice(0).sort()).toEqual(["changed first", "second"]);
   expect(await build("2", 80, "https://production.example.test")).toMatchObject(
     [
       { src: "https://production.example.test/first.svg" },
@@ -474,7 +471,7 @@ test("source, processor version and configured options invalidate only affected 
       { src: "https://cdn.example.test/note.txt" },
     ],
   );
-  expect(processed.sort()).toEqual(["changed first", "second"]);
+  expect(loaded.sort()).toEqual(["changed first", "second"]);
 });
 
 test("preparation reports a config annotation that erases imported metadata types", async () => {
@@ -490,16 +487,16 @@ test("preparation reports a config annotation that erases imported metadata type
   );
   await writeFile(
     path.join(cwd, "cmx.config.ts"),
-    `import type { CmxConfig } from '@cmx-tools/contracts'; const config: CmxConfig = { assets: { processors: { image: { version: '1', extensions: ['.svg'], process() { return { width: 40 }; } } } } }; export default config;`,
+    `import type { CmxConfig } from '@cmx-tools/contracts'; const config: CmxConfig = { assets: { loaders: { image: { version: '1', extensions: ['.svg'], load() { return { width: 40 }; } } } } }; export default config;`,
   );
   const pipeline = createCmxAssetPipeline({
     cwd,
     assets: {
-      processors: {
+      loaders: {
         image: {
           version: "1",
           extensions: [".svg"],
-          process: () => ({ width: 40 }),
+          load: () => ({ width: 40 }),
         },
       },
     },
@@ -513,11 +510,11 @@ test("concurrent builds share complete cached metadata without partial cache pub
   const cwd = await project();
   await writeFile(path.join(cwd, "photo.svg"), "source");
   const assets = {
-    processors: {
+    loaders: {
       image: {
         version: "1",
         extensions: [".svg"],
-        async process() {
+        async load() {
           await new Promise<void>((resolve) => setImmediate(resolve));
           return { src: "https://cdn.example.test/photo.svg", width: 40 };
         },

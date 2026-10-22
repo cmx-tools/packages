@@ -6,7 +6,7 @@ The source of truth stays in Git. The application owns its rendering and deploym
 
 ## Import Assets with typed metadata
 
-Configure [project Asset processors](packages/assets/README.md), then import colocated files:
+Configure [project Asset loaders](packages/assets/README.md), then import colocated files:
 
 ```tsx
 import photo from "./photo.svg";
@@ -21,7 +21,7 @@ export default (
 );
 ```
 
-Your processor transforms files, stores them, and returns JSON metadata and URL strings. Compilation caches that result and generates the import types. Build before typechecking:
+Your loader transforms files, stores them, and returns JSON metadata and URL strings. Compilation caches that result and generates the import types. Build before typechecking:
 
 ```json
 {

@@ -1,23 +1,23 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { CmxAssetJson, CmxAssetProcessor } from "@cmx-tools/contracts";
+import type { CmxAssetJson, CmxAssetLoader } from "@cmx-tools/contracts";
 import { normalizeCmxAssetData } from "./normalizeCmxAssetData.js";
 
-const CMX_ASSET_CACHE_VERSION = 3;
+const CMX_ASSET_CACHE_VERSION = 4;
 
 export function cmxAssetCacheKey(
   bytes: Uint8Array,
   relativePath: string,
   identity: string,
-  processor: CmxAssetProcessor,
+  loader: CmxAssetLoader,
 ): string {
-  if (typeof processor.version !== "string" || !processor.version.trim())
-    throw new Error("Asset processors require a nonempty cache version");
+  if (typeof loader.version !== "string" || !loader.version.trim())
+    throw new Error("Asset loaders require a nonempty cache version");
   const options =
-    processor.options === undefined
+    loader.options === undefined
       ? ["absent"]
-      : ["configured", canonicalOptions(processor.options)];
+      : ["configured", canonicalOptions(loader.options)];
   return hash(
     Buffer.from(
       JSON.stringify([
@@ -25,25 +25,25 @@ export function cmxAssetCacheKey(
         hash(bytes),
         relativePath,
         identity,
-        processor.version,
+        loader.version,
         options,
       ]),
     ),
   );
 }
 
-export async function processCmxAsset(
+export async function loadCmxAsset(
   bytes: Uint8Array,
   relativePath: string,
-  processor: CmxAssetProcessor,
+  loader: CmxAssetLoader,
   cacheDirectory: string,
 ): Promise<CmxAssetJson> {
   const cached = await readCached(cacheDirectory);
   if (cached !== undefined) return cached;
-  const result = await processor.process({
+  const result = await loader.load({
     bytes: Uint8Array.from(bytes),
     relativePath,
-    options: structuredClone(processor.options),
+    options: structuredClone(loader.options),
   });
   const data = normalizeCmxAssetData(result);
   const temporary = `${cacheDirectory}-${randomUUID()}`;
@@ -63,8 +63,7 @@ export async function processCmxAsset(
       )
         throw error;
       const winner = await readCached(cacheDirectory);
-      if (winner === undefined)
-        throw new Error("Asset processing cache is incomplete");
+      if (winner === undefined) throw new Error("Asset cache is incomplete");
       return winner;
     }
   } finally {
@@ -105,13 +104,13 @@ function canonicalOptions(
   )
     return value;
   if (typeof value !== "object" || ancestors.has(value))
-    throw new Error("Asset processing options must be JSON values");
+    throw new Error("Asset loader options must be JSON values");
   if (
     !Array.isArray(value) &&
     Object.getPrototypeOf(value) !== Object.prototype &&
     Object.getPrototypeOf(value) !== null
   )
-    throw new Error("Asset processing options must contain plain objects");
+    throw new Error("Asset loader options must contain plain objects");
   const next = new Set(ancestors).add(value);
   if (Array.isArray(value))
     return Array.from(value, (item) => canonicalOptions(item, next));

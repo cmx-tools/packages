@@ -1,7 +1,7 @@
 export type {
   CmxAssetInput,
   CmxAssetJson,
-  CmxAssetProcessor,
+  CmxAssetLoader,
   CmxAssetsConfig,
 } from "@cmx-tools/contracts";
 export * from "./createCmxAssetPipeline.js";

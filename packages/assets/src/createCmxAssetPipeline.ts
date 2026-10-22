@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { CmxAssetJson, CmxAssetsConfig } from "@cmx-tools/contracts";
-import { cmxAssetCacheKey, processCmxAsset } from "./processCmxAsset.js";
+import { cmxAssetCacheKey, loadCmxAsset } from "./loadCmxAsset.js";
 import {
   prepareCmxAssetImports,
   type PrepareCmxAssetImportsOptions,
@@ -14,37 +14,37 @@ export type CreateCmxAssetPipelineOptions = {
 
 export function createCmxAssetPipeline(options: CreateCmxAssetPipelineOptions) {
   const cwd = path.resolve(options.cwd ?? process.cwd());
-  const processors = Object.entries(options.assets.processors);
-  const processing = new Map<string, Promise<CmxAssetJson>>();
-  function processorFor(filename: string) {
-    return processors.find(([, processor]) =>
-      processor.extensions.some(
+  const loaders = Object.entries(options.assets.loaders);
+  const loading = new Map<string, Promise<CmxAssetJson>>();
+  function loaderFor(filename: string) {
+    return loaders.find(([, loader]) =>
+      loader.extensions.some(
         (extension) =>
           extension.toLowerCase() === path.extname(filename).toLowerCase(),
       ),
     );
   }
   async function prepareAsset(filename: string) {
-    const selected = processorFor(filename);
-    if (!selected) throw new Error(`No asset processor matches ${filename}`);
-    const [identity, processor] = selected;
+    const selected = loaderFor(filename);
+    if (!selected) throw new Error(`No asset loader matches ${filename}`);
+    const [identity, loader] = selected;
     const absolute = path.resolve(cwd, filename);
     const relativePath = path.relative(cwd, absolute).split(path.sep).join("/");
     const bytes = await readFile(absolute);
-    const key = cmxAssetCacheKey(bytes, relativePath, identity, processor);
-    let pending = processing.get(key);
+    const key = cmxAssetCacheKey(bytes, relativePath, identity, loader);
+    let pending = loading.get(key);
     if (!pending) {
-      pending = processCmxAsset(
+      pending = loadCmxAsset(
         bytes,
         relativePath,
-        processor,
+        loader,
         path.join(
           path.resolve(cwd, options.assets.cacheDir ?? ".cmx/assets"),
           key,
         ),
       );
-      processing.set(key, pending);
-      pending.catch(() => processing.delete(key));
+      loading.set(key, pending);
+      pending.catch(() => loading.delete(key));
     }
     return pending;
   }
@@ -53,12 +53,12 @@ export function createCmxAssetPipeline(options: CreateCmxAssetPipelineOptions) {
       return prepareCmxAssetImports(
         cwd,
         prepareOptions,
-        processorFor,
+        loaderFor,
         prepareAsset,
       );
     },
     matches(filename: string) {
-      return processorFor(filename) !== undefined;
+      return loaderFor(filename) !== undefined;
     },
     async load(filename: string): Promise<CmxAssetJson> {
       return structuredClone(await prepareAsset(filename));

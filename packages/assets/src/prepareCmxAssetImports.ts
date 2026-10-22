@@ -11,7 +11,7 @@ export type PrepareCmxAssetImportsOptions = {
 export async function prepareCmxAssetImports(
   cwd: string,
   options: PrepareCmxAssetImportsOptions,
-  processorFor: (filename: string) => readonly [string, unknown] | undefined,
+  loaderFor: (filename: string) => readonly [string, unknown] | undefined,
   prepareAsset: (filename: string) => Promise<unknown>,
 ): Promise<string[]> {
   const visited = new Set<string>();
@@ -27,7 +27,7 @@ export async function prepareCmxAssetImports(
   function assetForDeclaration(filename: string): string | undefined {
     const original = filename.replace(/\.d(\.[^./\\]+)\.ts$/, "$1");
     return original !== filename &&
-      processorFor(original) &&
+      loaderFor(original) &&
       ts.sys.fileExists(original)
       ? original
       : undefined;
@@ -45,13 +45,13 @@ export async function prepareCmxAssetImports(
   async function visit(filename: string) {
     if (visited.has(filename)) return;
     visited.add(filename);
-    const processor = processorFor(filename);
-    if (processor) {
+    const loader = loaderFor(filename);
+    if (loader) {
       assertTypeSource ??= assertCmxAssetTypeSource(
         path.resolve(cwd, options.configPath),
         compilerOptions,
       );
-      assertTypeSource(processor[0]);
+      assertTypeSource(loader[0]);
       await prepareAsset(filename);
       const extension = path.extname(filename);
       const declaration =
@@ -69,7 +69,7 @@ export async function prepareCmxAssetImports(
         (extension) =>
           extension === ".mts" ? ".mjs" : extension === ".cts" ? ".cjs" : ".js",
       );
-      const source = `type Processor = typeof import(${JSON.stringify(configImport)}).default.assets.processors[${JSON.stringify(processor[0])}];\ndeclare const asset: Awaited<ReturnType<Processor["process"]>>;\nexport default asset;\n`;
+      const source = `type Loader = typeof import(${JSON.stringify(configImport)}).default.assets.loaders[${JSON.stringify(loader[0])}];\ndeclare const asset: Awaited<ReturnType<Loader["load"]>>;\nexport default asset;\n`;
       const existing = await readFile(declaration, "utf8").catch(
         (error: NodeJS.ErrnoException) => {
           if (error.code !== "ENOENT") throw error;
@@ -84,7 +84,7 @@ export async function prepareCmxAssetImports(
     const imports = ts.preProcessFile(source, true, true).importedFiles;
     for (const imported of imports) {
       const direct = path.resolve(path.dirname(filename), imported.fileName);
-      if (imported.fileName.startsWith(".") && processorFor(direct)) {
+      if (imported.fileName.startsWith(".") && loaderFor(direct)) {
         await visit(direct);
         continue;
       }

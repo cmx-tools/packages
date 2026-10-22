@@ -17,7 +17,7 @@ import { CMX_DOCUMENT_SCHEMA, type CmxDocument } from "@cmx-tools/contracts";
 import { createDocumentHostTestServer } from "./createDocumentHostTestServer.js";
 import { createCmxTestbedWorkspace } from "./createCmxTestbedWorkspace.js";
 
-it("renders project-processed Asset metadata and final URLs into Document Content", async () => {
+it("renders project-loaded Asset metadata and final URLs into Document Content", async () => {
   const workspace = await createCmxTestbedWorkspace();
   await workspace.writeSourceFiles({
     "package.json": '{"name":"asset-content","type":"module"}',
@@ -36,12 +36,12 @@ it("renders project-processed Asset metadata and final URLs into Document Conten
       },
       assets: {
         cacheDir: ".cmx/assets",
-        processors: {
+        loaders: {
           photo: {
             version: "1", extensions: [".svg"], options: {publicBaseUrl: "https://assets.example"},
-            async process({bytes, relativePath, options}) {
+            async load({bytes, relativePath, options}) {
               await mkdir(new URL(".cmx", import.meta.url), {recursive: true});
-              await appendFile(new URL(".cmx/processed", import.meta.url), "1");
+              await appendFile(new URL(".cmx/loaded", import.meta.url), "1");
               async function store(svg) {
                 const key = createHash("sha256").update(svg).digest("hex") + ".svg";
                 await writeFile(new URL(".cmx/" + key, import.meta.url), svg);
@@ -102,7 +102,7 @@ it("renders project-processed Asset metadata and final URLs into Document Conten
       ]),
     ).toBe(0);
     expect(
-      await readFile(path.join(workspace.rootDir, ".cmx/processed"), "utf8"),
+      await readFile(path.join(workspace.rootDir, ".cmx/loaded"), "utf8"),
     ).toBe("1");
     expect(
       await readFile(path.join(workspace.rootDir, ".cmx/stored"), "utf8"),
@@ -132,7 +132,7 @@ it("renders project-processed Asset metadata and final URLs into Document Conten
       preview: expect.stringMatching(/^https:\/\/cdn\.example\//u),
     });
     expect(
-      await readFile(path.join(workspace.rootDir, ".cmx/processed"), "utf8"),
+      await readFile(path.join(workspace.rootDir, ".cmx/loaded"), "utf8"),
     ).toBe("11");
     expect(
       await readFile(path.join(workspace.rootDir, ".cmx/stored"), "utf8"),
@@ -142,22 +142,22 @@ it("renders project-processed Asset metadata and final URLs into Document Conten
   }
 });
 
-it("prepares Asset import types from declared processor output before CI typechecking", async () => {
+it("prepares Asset import types from declared loader output before CI typechecking", async () => {
   const workspace = await createCmxTestbedWorkspace();
   await workspace.writeSourceFiles({
     "package.json": '{"name":"typed-assets","type":"module"}',
     "photo.svg": '<svg width="20" height="10"></svg>',
     "page.ts": `import photo from "./photo.svg"; export default photo;`,
-    "cmx.config.ts": `import type {CmxAssetProcessor} from "@cmx-tools/assets";
+    "cmx.config.ts": `import type {CmxAssetLoader} from "@cmx-tools/assets";
       import type {CmxConfig} from "@cmx-tools/contracts";
       const photo = {
         version: "1", extensions: [".svg"], options: {width: 20, publicBaseUrl: "https://assets.example"},
-        process({relativePath, options}): {src: string; width: number; colors: Array<"red" | "blue">; caption?: string} {
+        load({relativePath, options}): {src: string; width: number; colors: Array<"red" | "blue">; caption?: string} {
           return {src: options.publicBaseUrl + "/" + relativePath, width: options.width, colors: ["red"], caption: undefined};
         }
-      } satisfies CmxAssetProcessor<{width: number; publicBaseUrl: string}>;
+      } satisfies CmxAssetLoader<{width: number; publicBaseUrl: string}>;
       export default {exports: {default: {required: true, type: {from: "@cmx-tools/contracts", import: "CmxAssetJson"}}}, assets: {
-        processors: {photo}
+        loaders: {photo}
       }} satisfies CmxConfig;
     `,
     "authoring.ts": `import photo from "./photo.svg";
@@ -212,7 +212,7 @@ function typecheck(cwd: string) {
   );
 }
 
-it.each(["processing", "storage"])(
+it.each(["loading", "storage"])(
   "preserves published Documents when Asset %s fails",
   async (failure) => {
     const workspace = await createCmxTestbedWorkspace();
@@ -241,9 +241,9 @@ it.each(["processing", "storage"])(
         export default {
         exports: {default: {required: true}},
         assets: {
-          processors: {photo: {
+          loaders: {photo: {
             version: "1", extensions: [".svg"],
-            async process({bytes}) {${failure === "processing" ? 'throw new Error("Processor failed");' : 'await writeFile(new URL("missing-directory/photo.svg", import.meta.url), bytes).catch((cause) => {throw new Error("Storage failed", {cause});}); return {src: "/assets/photo.svg"};'}}
+            async load({bytes}) {${failure === "loading" ? 'throw new Error("Loader failed");' : 'await writeFile(new URL("missing-directory/photo.svg", import.meta.url), bytes).catch((cause) => {throw new Error("Storage failed", {cause});}); return {src: "/assets/photo.svg"};'}}
           }}
         }
       };`,
@@ -267,7 +267,7 @@ it.each(["processing", "storage"])(
       expect(result).toBeInstanceOf(Error);
       expect(result).toMatchObject({
         stderr: expect.stringContaining(
-          failure === "processing" ? "Processor failed" : "Storage failed",
+          failure === "loading" ? "Loader failed" : "Storage failed",
         ),
       });
       expect(await host.getDocument("page")).toEqual(previous);

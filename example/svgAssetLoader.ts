@@ -1,6 +1,8 @@
-import type { CmxAssetProcessor } from "@cmx-tools/assets";
+import type { CmxAssetLoader } from "@cmx-tools/assets";
+import { createHash } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { storeSvg } from "./storeSvg.js";
 
 type SvgOptions = {
   previewWidth: number;
@@ -8,7 +10,7 @@ type SvgOptions = {
   publicBaseUrl: string;
 };
 
-export const svgAssetProcessor = {
+export const svgAssetLoader = {
   version: "2",
   extensions: [".svg"],
   options: {
@@ -18,7 +20,19 @@ export const svgAssetProcessor = {
     ),
     publicBaseUrl: "/_assets",
   },
-  async process({ bytes, options }) {
+  async load({ bytes, options }) {
+    async function storeSvg(bytes: Uint8Array): Promise<string> {
+      const key = `${createHash("sha256").update(bytes).digest("hex")}.svg`;
+      await mkdir(options.directory, { recursive: true });
+      try {
+        await writeFile(path.join(options.directory, key), bytes, {
+          flag: "wx",
+        });
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      }
+      return `${options.publicBaseUrl.replace(/\/$/u, "")}/${key}`;
+    }
     const svg = new TextDecoder().decode(bytes);
     const width = Number(svg.match(/\bwidth="(\d+)"/u)?.[1]);
     const height = Number(svg.match(/\bheight="(\d+)"/u)?.[1]);
@@ -27,12 +41,8 @@ export const svgAssetProcessor = {
     const preview = svg
       .replace(`width="${width}"`, `width="${options.previewWidth}"`)
       .replace(`height="${height}"`, `height="${previewHeight}"`);
-    const src = await storeSvg(bytes, options.directory, options.publicBaseUrl);
-    const previewUrl = await storeSvg(
-      new TextEncoder().encode(preview),
-      options.directory,
-      options.publicBaseUrl,
-    );
+    const src = await storeSvg(bytes);
+    const previewUrl = await storeSvg(new TextEncoder().encode(preview));
     return {
       src,
       width,
@@ -41,4 +51,4 @@ export const svgAssetProcessor = {
       srcset: `${previewUrl} ${options.previewWidth}w, ${src} ${width}w`,
     };
   },
-} satisfies CmxAssetProcessor<SvgOptions>;
+} satisfies CmxAssetLoader<SvgOptions>;
