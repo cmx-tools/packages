@@ -69,7 +69,7 @@ export async function prepareCmxAssetImports(
         (extension) =>
           extension === ".mts" ? ".mjs" : extension === ".cts" ? ".cjs" : ".js",
       );
-      const source = `import type { CmxResolvedAsset } from "@cmx-tools/assets";\ntype Processor = typeof import(${JSON.stringify(configImport)}).default.assets.processors[${JSON.stringify(processor[0])}];\ndeclare const asset: CmxResolvedAsset<Awaited<ReturnType<Processor["process"]>>>;\nexport default asset;\n`;
+      const source = `type Processor = typeof import(${JSON.stringify(configImport)}).default.assets.processors[${JSON.stringify(processor[0])}];\ndeclare const asset: Awaited<ReturnType<Processor["process"]>>;\nexport default asset;\n`;
       const existing = await readFile(declaration, "utf8").catch(
         (error: NodeJS.ErrnoException) => {
           if (error.code !== "ENOENT") throw error;

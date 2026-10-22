@@ -1,10 +1,24 @@
-import { defineCmxAssetProcessor } from "@cmx-tools/assets";
+import type { CmxAssetProcessor } from "@cmx-tools/assets";
+import { fileURLToPath } from "node:url";
+import { storeSvg } from "./storeSvg.js";
 
-export const svgAssetProcessor = defineCmxAssetProcessor({
-  version: "1",
+type SvgOptions = {
+  previewWidth: number;
+  directory: string;
+  publicBaseUrl: string;
+};
+
+export const svgAssetProcessor = {
+  version: "2",
   extensions: [".svg"],
-  options: { previewWidth: 12 },
-  process({ bytes, file, emit, options }) {
+  options: {
+    previewWidth: 12,
+    directory: fileURLToPath(
+      new URL("./content/.cmx/assets/files", import.meta.url),
+    ),
+    publicBaseUrl: "/_assets",
+  },
+  async process({ bytes, options }) {
     const svg = new TextDecoder().decode(bytes);
     const width = Number(svg.match(/\bwidth="(\d+)"/u)?.[1]);
     const height = Number(svg.match(/\bheight="(\d+)"/u)?.[1]);
@@ -13,11 +27,18 @@ export const svgAssetProcessor = defineCmxAssetProcessor({
     const preview = svg
       .replace(`width="${width}"`, `width="${options.previewWidth}"`)
       .replace(`height="${height}"`, `height="${previewHeight}"`);
+    const src = await storeSvg(bytes, options.directory, options.publicBaseUrl);
+    const previewUrl = await storeSvg(
+      new TextEncoder().encode(preview),
+      options.directory,
+      options.publicBaseUrl,
+    );
     return {
-      src: file(".svg"),
+      src,
       width,
       height,
-      preview: emit(new TextEncoder().encode(preview), ".svg"),
+      preview: previewUrl,
+      srcset: `${previewUrl} ${options.previewWidth}w, ${src} ${width}w`,
     };
   },
-});
+} satisfies CmxAssetProcessor<SvgOptions>;

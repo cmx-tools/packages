@@ -66,7 +66,7 @@ describe("createExampleBackendTestServer", () => {
             <link
               rel="preload"
               as="image"
-              href="/_assets/bdc5d95bfb0dcda57c928bcc64a82f4afea6dd0177fb322dbce23fc7c87fdb31.svg"
+              imagesrcset="/_assets/bdc5d95bfb0dcda57c928bcc64a82f4afea6dd0177fb322dbce23fc7c87fdb31.svg 12w, /_assets/c5ff722bda9782ae33c23d4bc16ab6832e0056e10cf93ad0df593d1805850c79.svg 24w"
             />
             <title>About</title>
           </head>
@@ -82,6 +82,10 @@ describe("createExampleBackendTestServer", () => {
                 alt="Portrait"
                 height="16"
                 src="/_assets/bdc5d95bfb0dcda57c928bcc64a82f4afea6dd0177fb322dbce23fc7c87fdb31.svg"
+                srcset="
+                  /_assets/bdc5d95bfb0dcda57c928bcc64a82f4afea6dd0177fb322dbce23fc7c87fdb31.svg 12w,
+                  /_assets/c5ff722bda9782ae33c23d4bc16ab6832e0056e10cf93ad0df593d1805850c79.svg 24w
+                "
                 width="24"
               />
             </div>

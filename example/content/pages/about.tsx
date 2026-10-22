@@ -1,7 +1,6 @@
 import { UserProfile, type Meta } from "@example/backend-contract";
 import Header from "../components/header.js";
 import portrait from "../portrait.svg";
-import { AssetImage } from "@example/ui-library";
 
 export const meta: Meta = {
   title: "About",
@@ -13,8 +12,9 @@ export default async function About() {
     <div>
       <Header>About</Header>
       <p>About</p>
-      <AssetImage
+      <img
         src={portrait.preview}
+        srcSet={portrait.srcset}
         width={portrait.width}
         height={portrait.height}
         alt="Portrait"

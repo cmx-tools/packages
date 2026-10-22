@@ -11,20 +11,25 @@ it("rebuilds typed Asset imports and recovers edits through the normal CMX build
     `import type {CmxAssetJson} from "@cmx-tools/contracts"; ${imports} const page: CmxAssetJson = ${value}; export default page;`;
   const config = (
     version: string,
-  ) => `import {appendFile, mkdir} from "node:fs/promises";
-    import {defineCmxAssetProcessor, createLocalAssetStorage} from "@cmx-tools/assets";
+  ) => `import {appendFile, mkdir, writeFile} from "node:fs/promises";
+    import {createHash} from "node:crypto";
+    import type {CmxAssetProcessor} from "@cmx-tools/assets";
     import type {CmxConfig} from "@cmx-tools/contracts";
     export default {exports: {default: {required: true, type: {from: "@cmx-tools/contracts", import: "CmxAssetJson"}}}, assets: {
       cacheDir: "asset-cache",
-      processors: {photo: defineCmxAssetProcessor({
+      processors: {photo: {
         version: "${version}", extensions: [".svg"],
-        async process({bytes, file}) {
+        options: {directory: "served", publicBaseUrl: "https://assets.example"},
+        async process({bytes, name, options}) {
           await mkdir(new URL(".cmx", import.meta.url), {recursive: true});
           await appendFile(new URL(".cmx/processed", import.meta.url), "${version}");
-          return {revision: "${version}", src: file(".svg"), width: Number(new TextDecoder().decode(bytes).match(/width="(\\d+)"/)?.[1])};
+          const key = createHash("sha256").update(bytes).digest("hex") + ".svg";
+          await mkdir(new URL(options.directory, import.meta.url), {recursive: true});
+          try {await writeFile(new URL(options.directory + "/" + key, import.meta.url), bytes, {flag: "wx"});}
+          catch (error) {if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;}
+          return {revision: "${version}", name, src: options.publicBaseUrl + "/" + key, width: Number(new TextDecoder().decode(bytes).match(/width="(\\d+)"/)?.[1])};
         }
-      })},
-      storage: createLocalAssetStorage({directory: new URL("served", import.meta.url).pathname, publicBaseUrl: "https://assets.example"})
+      } satisfies CmxAssetProcessor<{directory: string; publicBaseUrl: string}>}
     }} satisfies CmxConfig;`;
   await workspace.writeSourceFiles({
     "package.json": '{"name":"asset-development","type":"module"}',

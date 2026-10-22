@@ -1,19 +1,34 @@
 # Asset preprocessing
 
-Import files with typed metadata and final URLs. `cmx-bundle compile` processes Assets, stores their files, and generates import types.
+Project processors read imported files and return typed JSON. They own transformations and storage. CMX caches the result and generates import declarations during the normal build.
 
 ```sh
-pnpm add -D @cmx-tools/assets @cmx-tools/bundle @cmx-tools/cli @cmx-tools/contracts @cmx-tools/intrinsics typescript
+pnpm add -D @cmx-tools/assets @cmx-tools/bundle @cmx-tools/cli @cmx-tools/contracts @cmx-tools/intrinsics typescript @types/node
 ```
 
 ## cmx.config.ts
 
 ```ts
-import {
-  createLocalAssetStorage,
-  defineCmxAssetProcessor,
-} from "@cmx-tools/assets";
-import type { CmxConfig } from "@cmx-tools/contracts";
+import { createHash } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+import type { CmxAssetProcessor, CmxConfig } from "@cmx-tools/contracts";
+
+const svg = {
+  version: "1",
+  extensions: [".svg"],
+  options: { directory: "public/assets", publicBaseUrl: "/assets" },
+  async process({ bytes, name, options }) {
+    const source = new TextDecoder().decode(bytes);
+    const width = Number(source.match(/\bwidth="(\d+)"/u)?.[1]);
+    const height = Number(source.match(/\bheight="(\d+)"/u)?.[1]);
+    if (!width || !height) throw new Error(`Missing SVG dimensions: ${name}`);
+    const key = `${createHash("sha256").update(bytes).digest("hex")}.svg`;
+    await mkdir(options.directory, { recursive: true });
+    await writeFile(path.join(options.directory, key), bytes);
+    return { src: `${options.publicBaseUrl}/${key}`, width, height };
+  },
+} satisfies CmxAssetProcessor<{ directory: string; publicBaseUrl: string }>;
 
 export default {
   exports: {
@@ -22,44 +37,11 @@ export default {
       type: { from: "@cmx-tools/contracts", import: "CmxNode" },
     },
   },
-  assets: {
-    cacheDir: ".cmx/assets",
-    storage: createLocalAssetStorage({
-      directory: "public/assets",
-      publicBaseUrl: "/assets",
-    }),
-    processors: {
-      svg: defineCmxAssetProcessor({
-        version: "1",
-        extensions: [".svg"],
-        options: { previewWidth: 120 },
-        process({ bytes, file, emit, options }) {
-          const svg = new TextDecoder().decode(bytes);
-          const width = Number(svg.match(/\bwidth="(\d+)"/u)?.[1]);
-          const height = Number(svg.match(/\bheight="(\d+)"/u)?.[1]);
-          if (!width || !height) {
-            throw new Error("SVG must declare width and height");
-          }
-          const preview = svg
-            .replace(`width="${width}"`, `width="${options.previewWidth}"`)
-            .replace(
-              `height="${height}"`,
-              `height="${(height * options.previewWidth) / width}"`,
-            );
-          return {
-            src: file(".svg"),
-            width,
-            height,
-            preview: emit(new TextEncoder().encode(preview), ".svg"),
-          };
-        },
-      }),
-    },
-  },
+  assets: { processors: { svg } },
 } satisfies CmxConfig;
 ```
 
-Keep `satisfies CmxConfig` to preserve the processor's inferred return type. See the [example SVG processor](../../example/svgAssetProcessor.ts) for the same pattern in a Content Project.
+Use `satisfies` to preserve the processor's inferred return type. `name` is the Asset's path relative to the Content Project, with `/` separators and its extension. `bytes` contains the source file; `options` contains the configured JSON values. The [example processor](../../example/svgAssetProcessor.ts) also creates and stores a smaller preview and returns a `srcset` string.
 
 ## pages/about.tsx
 
@@ -78,7 +60,7 @@ export default (
 );
 ```
 
-`src` and `preview` are strings; `width` and `height` are numbers. Unknown fields fail typechecking. Rendered Documents contain these ordinary values.
+`src` is a string; `width` and `height` are numbers. Unknown fields and incompatible uses fail typechecking. Documents contain these ordinary values, ready for the application's normal hydration flow. An application using UGC verification must explicitly allow `img` in its element policy.
 
 ## tsconfig.json
 
@@ -91,6 +73,7 @@ export default (
     "strict": true,
     "noEmit": true,
     "allowArbitraryExtensions": true,
+    "types": ["node"],
     "jsx": "react-jsx",
     "jsxImportSource": "@cmx-tools/intrinsics"
   },
@@ -99,8 +82,6 @@ export default (
 ```
 
 ## package.json
-
-Build before running TypeScript. Watch uses the same compile flow:
 
 ```json
 {
@@ -113,10 +94,7 @@ Build before running TypeScript. Watch uses the same compile flow:
 }
 ```
 
-```sh
-pnpm run typecheck
-pnpm run dev
-```
+Build generates declarations such as `photo.d.svg.ts` before TypeScript runs. Watch rebuilds source and Asset changes and reloads processor configuration.
 
 ## .gitignore
 
@@ -128,35 +106,10 @@ public/assets/
 
 Serve `public/assets` at `/assets`.
 
-## R2 storage
+The cache key includes source bytes, `name`, processor key, `version`, and JSON `options`. A hit skips the entire hook, including storage. Include the destination and every other value affecting the result in `options`; changing those values reruns the hook. Change `version` when processing behavior or external tools change. Persist or restore `assets.cacheDir`, defaulting to `.cmx/assets`, between builds.
 
-Use this for `assets.storage`:
+Restore project-owned local files alongside the cache. CMX does not recreate stored files on a hit.
 
-```ts
-import { createR2AssetStorage } from "@cmx-tools/assets";
-
-const storage = createR2AssetStorage({
-  endpoint: process.env.R2_ENDPOINT!,
-  bucket: process.env.R2_BUCKET!,
-  accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-  secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  publicBaseUrl: "https://assets.example.com",
-});
-```
-
-Custom storage implements `CmxAssetStorage`: `store({ key, bytes }): Promise<string>`. Return the final URL after storing the file successfully. Supplied adapters reuse matching content-hashed files.
-
-## Cache and processor settings
-
-| Setting          | Usage                                                    |
-| ---------------- | -------------------------------------------------------- |
-| `processors.svg` | Stable processor identity                                |
-| `version`        | Change when processing behavior or external tools change |
-| `options`        | JSON values affecting the processing result              |
-| `cacheDir`       | Persist or restore this directory between CI builds      |
-
-Cache key: source bytes + processor identity + version + options. Changing storage destinations reuses processing. `file(extension)` references original bytes; `emit(bytes, extension)` references processed bytes. Returned metadata must be JSON data.
-
-Compile failure stops the build. Run Document Rendering and publication only after successful compilation with `&&`.
+Return only JSON data and finish storage before returning URLs. A hook failure stops compilation; run Document Rendering and publication only after successful compilation with `&&`.
 
 Type generation supports default ESM config objects. CommonJS `module.exports`, config functions, and merged configuration sources are unsupported.
