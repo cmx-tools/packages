@@ -1,15 +1,12 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { afterEach, expect, test } from "vitest";
 import {
   createCmxAssetPipeline,
-  createLocalAssetStorage,
-  defineCmxAssetProcessor,
+  type CmxAssetProcessor,
 } from "@cmx-tools/assets";
-import type { CmxAssetsConfig } from "@cmx-tools/contracts";
 
 const projects: string[] = [];
 
@@ -21,106 +18,144 @@ afterEach(async () => {
   );
 });
 
-test("a Content Project imports processor metadata and stored original and derived files", async () => {
+test("Content Projects cache the complete hook result and skip project uploads on cache hits", async () => {
   const cwd = await project();
   await writeFile(path.join(cwd, "photo.svg"), '<svg width="40" height="20"/>');
-  const pipeline = createCmxAssetPipeline({
-    cwd,
-    assets: {
-      processors: {
-        image: {
-          version: "1",
-          extensions: [".svg"],
-          process(input) {
-            return {
-              src: input.file(".svg"),
-              width: 40,
-              colors: ["red"],
-              thumbnail: input.emit(
-                Buffer.from('<svg width="10" height="5"/>'),
-                ".svg",
-              ),
-            };
-          },
-        },
-      },
-      storage: createLocalAssetStorage({
-        directory: path.join(cwd, "public"),
-        publicBaseUrl: pathToFileURL(path.join(cwd, "public/")).href,
-      }),
+  let processed = 0;
+  let uploaded = 0;
+  const image = {
+    version: "1",
+    extensions: [".svg"],
+    options: { baseUrl: "https://cdn.example.test" },
+    async process({ bytes, name, options }) {
+      processed += 1;
+      await writeFile(path.join(cwd, "uploaded.svg"), bytes);
+      uploaded += 1;
+      return {
+        src: `${options.baseUrl}/${name}`,
+        width: 40,
+        colors: ["red"],
+        caption: undefined,
+        provider: { $cmxAsset: "project-owned" },
+      };
     },
-  });
-
-  const value = (await pipeline.load("photo.svg")) as {
-    src: string;
-    width: number;
-    colors: string[];
-    thumbnail: string;
-  };
-
-  expect(value).toEqual({
-    src: expect.stringMatching(/^file:.*[a-f0-9]{64}\.svg$/),
+  } satisfies CmxAssetProcessor<{ baseUrl: string }>;
+  const assets = { processors: { image } };
+  const pipeline = createCmxAssetPipeline({ cwd, assets });
+  const expected = {
+    src: "https://cdn.example.test/photo.svg",
     width: 40,
     colors: ["red"],
-    thumbnail: expect.stringMatching(/^file:.*[a-f0-9]{64}\.svg$/),
-  });
-  expect(await readFile(new URL(value.src), "utf8")).toBe(
+    provider: { $cmxAsset: "project-owned" },
+  };
+
+  const imported = await Promise.all([
+    pipeline.load("photo.svg"),
+    pipeline.load("photo.svg"),
+  ]);
+  expect(imported).toEqual([expected, expected]);
+  (imported[0] as { colors: string[] }).colors.push("blue");
+  expect(imported[1]).toEqual(expected);
+  expect(await pipeline.load("photo.svg")).toEqual(expected);
+  expect(
+    await createCmxAssetPipeline({ cwd, assets }).load("photo.svg"),
+  ).toEqual(expected);
+  expect({ processed, uploaded }).toEqual({ processed: 1, uploaded: 1 });
+  expect(await readFile(path.join(cwd, "uploaded.svg"), "utf8")).toBe(
     '<svg width="40" height="20"/>',
-  );
-  expect(await readFile(new URL(value.thumbnail), "utf8")).toBe(
-    '<svg width="10" height="5"/>',
   );
 });
 
-test("unchanged Assets reuse processing across concurrent imports and separate destinations", async () => {
-  const cwd = await project();
-  await writeFile(path.join(cwd, "photo.jpg"), "image bytes");
-  await writeFile(path.join(cwd, "copy.jpeg"), "image bytes");
-  let processing = 0;
-  const assets: CmxAssetsConfig = {
+test("processors distinguish named files and receive normalized names outside the project", async () => {
+  const root = await project();
+  const cwd = path.join(root, "content");
+  await mkdir(path.join(cwd, "images"), { recursive: true });
+  await Promise.all([
+    writeFile(path.join(cwd, "images/photo.svg"), "same image"),
+    writeFile(path.join(cwd, "images/copy.svg"), "same image"),
+    writeFile(path.join(root, "photo.svg"), "same image"),
+  ]);
+  const processed: string[] = [];
+  const assets = {
     processors: {
       image: {
-        extensions: [".jpg", ".jpeg"],
         version: "1",
-        process(input) {
-          processing += 1;
-          return { src: input.file(".jpg"), width: 40 };
+        extensions: [".svg"],
+        process({ name }) {
+          processed.push(name);
+          return {
+            name,
+            src: `https://cdn.example.test/${encodeURIComponent(name)}`,
+          };
+        },
+      } satisfies CmxAssetProcessor,
+    },
+  };
+  const filenames = [
+    "images/../images/photo.svg",
+    "images/copy.svg",
+    "../photo.svg",
+  ];
+  const build = () => {
+    const pipeline = createCmxAssetPipeline({ cwd, assets });
+    return Promise.all(filenames.map((filename) => pipeline.load(filename)));
+  };
+  const expected = [
+    {
+      name: "images/photo.svg",
+      src: "https://cdn.example.test/images%2Fphoto.svg",
+    },
+    {
+      name: "images/copy.svg",
+      src: "https://cdn.example.test/images%2Fcopy.svg",
+    },
+    { name: "../photo.svg", src: "https://cdn.example.test/..%2Fphoto.svg" },
+  ];
+  expect(await build()).toEqual(expected);
+  expect(await build()).toEqual(expected);
+  expect(processed.sort()).toEqual([
+    "../photo.svg",
+    "images/copy.svg",
+    "images/photo.svg",
+  ]);
+});
+
+test("failed project uploads and invalid metadata can be corrected without caching failed work", async () => {
+  const cwd = await project();
+  await writeFile(path.join(cwd, "photo.svg"), "image");
+  let attempts = 0;
+  const assets = {
+    processors: {
+      image: {
+        version: "1",
+        extensions: [".svg"],
+        async process() {
+          attempts += 1;
+          if (attempts === 1) throw new Error("Project upload unavailable");
+          if (attempts === 2) return { uploadedAt: new Date() };
+          return {
+            src: "https://cdn.example.test/photo.svg",
+            caption: undefined,
+          };
         },
       },
     },
-    storage: createLocalAssetStorage({
-      directory: path.join(cwd, "development"),
-      publicBaseUrl: "/development",
-    }),
   };
-  const development = createCmxAssetPipeline({ cwd, assets });
+  const pipeline = createCmxAssetPipeline({ cwd, assets });
+  await expect(pipeline.load("photo.svg")).rejects.toThrow(
+    "Project upload unavailable",
+  );
+  await expect(pipeline.load("photo.svg")).rejects.toThrow("plain objects");
+  expect(await pipeline.load("photo.svg")).toEqual({
+    src: "https://cdn.example.test/photo.svg",
+  });
   expect(
-    await Promise.all([
-      development.load("photo.jpg"),
-      development.load("copy.jpeg"),
-    ]),
-  ).toEqual([
-    { src: expect.stringMatching(/^\/development\/.*\.jpg$/), width: 40 },
-    { src: expect.stringMatching(/^\/development\/.*\.jpg$/), width: 40 },
-  ]);
-  const production = createCmxAssetPipeline({
-    cwd,
-    assets: {
-      ...assets,
-      storage: createLocalAssetStorage({
-        directory: path.join(cwd, "production"),
-        publicBaseUrl: "https://assets.example.com",
-      }),
-    },
-  });
-  expect(await production.load("photo.jpg")).toEqual({
-    src: expect.stringMatching(/^https:\/\/assets.example.com\/.*\.jpg$/),
-    width: 40,
-  });
-  expect(processing).toBe(1);
+    await createCmxAssetPipeline({ cwd, assets }).load("photo.svg"),
+  ).toEqual({ src: "https://cdn.example.test/photo.svg" });
+  expect(attempts).toBe(3);
 });
 
-test("CI preparation types imported fields from the declared processor result without uploading", async () => {
+test("Content Projects type imported metadata from the declared processor result", async () => {
   const cwd = await project();
   await writeFile(
     path.join(cwd, "package.json"),
@@ -130,18 +165,18 @@ test("CI preparation types imported fields from the declared processor result wi
   await writeFile(
     path.join(cwd, "cmx.config.ts"),
     `
-    import { defineCmxAssetProcessor, createLocalAssetStorage } from '@cmx-tools/assets';
     import type { CmxConfig } from '@cmx-tools/contracts';
+    import type { CmxAssetProcessor } from '@cmx-tools/assets';
     type Color = 'warm' | 'cool';
-    export default {
-      assets: {
-        processors: { image: defineCmxAssetProcessor({
-          version: '1', extensions: ['.svg'],
-          process(input) { return { src: input.file('.svg'), width: 40, colors: ['warm'] as Color[] }; }
-        }) },
-        storage: createLocalAssetStorage({ directory: './public', publicBaseUrl: '/assets' })
+    type Image = { src: string; width: number; colors: Color[]; caption?: string };
+    const image = {
+      version: '1', extensions: ['.svg'],
+      options: { width: 40 },
+      process({ name, options }): Image {
+        return { src: 'https://cdn.example.test/' + name, width: options.width, colors: ['warm'], caption: undefined };
       }
-    } satisfies CmxConfig;
+    } satisfies CmxAssetProcessor<{ width: number }>;
+    export default { assets: { processors: { image } } } satisfies CmxConfig;
   `,
   );
   await writeFile(
@@ -151,6 +186,7 @@ test("CI preparation types imported fields from the declared processor result wi
     const width: number = photo.width;
     const url: string = photo.src;
     const color: 'warm' | 'cool' = photo.colors[0];
+    const caption: string | undefined = photo.caption;
     // @ts-expect-error Width is declared number, never the extracted literal.
     const literal: 40 = photo.width;
     // @ts-expect-error Unknown metadata is unavailable.
@@ -182,15 +218,10 @@ test("CI preparation types imported fields from the declared processor result wi
           version: "1",
           extensions: [".svg"],
           process: (input) => ({
-            src: input.file(".svg"),
+            src: `https://cdn.example.test/${input.name}`,
             width: 40,
             colors: ["warm"],
           }),
-        },
-      },
-      storage: {
-        async store() {
-          throw new Error("Preparation must not upload");
         },
       },
     },
@@ -218,15 +249,13 @@ test("fresh Content Projects prepare aliased Assets through transitive source im
   await writeFile(
     path.join(cwd, "cmx.config.ts"),
     `
-    import { defineCmxAssetProcessor } from '@cmx-tools/assets';
+    import type { CmxAssetProcessor } from '@cmx-tools/assets';
     import type { CmxConfig } from '@cmx-tools/contracts';
-    export default { assets: {
-      processors: { image: defineCmxAssetProcessor({
-        version: '1', extensions: ['.svg'],
-        process(input) { return { src: input.file('.svg'), width: 40 }; }
-      }) },
-      storage: { async store() { return '/assets'; } }
-    } } satisfies CmxConfig;
+    const image = {
+      version: '1', extensions: ['.svg'],
+      process({ name }) { return { src: 'https://cdn.example.test/' + name, width: 40 }; }
+    } satisfies CmxAssetProcessor;
+    export default { assets: { processors: { image } } } satisfies CmxConfig;
   `,
   );
   await writeFile(
@@ -271,12 +300,10 @@ test("fresh Content Projects prepare aliased Assets through transitive source im
         image: {
           version: "1",
           extensions: [".svg"],
-          process: (input) => ({ src: input.file(".svg"), width: 40 }),
-        },
-      },
-      storage: {
-        async store() {
-          throw new Error("Preparation must not upload");
+          process: (input) => ({
+            src: `https://cdn.example.test/${input.name}`,
+            width: 40,
+          }),
         },
       },
     },
@@ -308,19 +335,16 @@ test.each(["js", "mjs"])(
     await writeFile(
       path.join(cwd, configPath),
       `
-    import { defineCmxAssetProcessor } from '@cmx-tools/assets';
-    export default { assets: {
-      processors: { image: defineCmxAssetProcessor({
-        version: '1', extensions: ['.svg'], options: { width: 40 },
-        process(input) {
-          return {
-            src: input.file('.svg'), width: input.options.width,
-            colors: /** @type {('warm' | 'cool')[]} */ (['warm'])
-          };
-        }
-      }) },
-      storage: { async store() { return '/assets'; } }
-    } };
+    const image = /** @satisfies {import('@cmx-tools/assets').CmxAssetProcessor<{ width: number }>} */ ({
+      version: '1', extensions: ['.svg'], options: { width: 40 },
+      process(input) {
+        return {
+          src: 'https://cdn.example.test/' + input.name, width: input.options.width,
+          colors: /** @type {('warm' | 'cool')[]} */ (['warm'])
+        };
+      }
+    });
+    export default { assets: { processors: { image } } };
   `,
     );
     await writeFile(
@@ -330,6 +354,8 @@ test.each(["js", "mjs"])(
     const width: number = photo.width;
     const src: string = photo.src;
     const color: 'warm' | 'cool' = photo.colors[0];
+    // @ts-expect-error JavaScript config numeric fields remain typed.
+    const wrongWidth: string = photo.width;
     // @ts-expect-error JavaScript config metadata retains its declared fields.
     photo.missing;
     // @ts-expect-error JSDoc metadata unions survive preparation.
@@ -357,15 +383,10 @@ test.each(["js", "mjs"])(
             version: "1",
             extensions: [".svg"],
             process: (input) => ({
-              src: input.file(".svg"),
+              src: `https://cdn.example.test/${input.name}`,
               width: 40,
               colors: ["warm"],
             }),
-          },
-        },
-        storage: {
-          async store() {
-            throw new Error("Preparation must not upload");
           },
         },
       },
@@ -395,33 +416,36 @@ test("source, processor version and configured options invalidate only affected 
   await writeFile(path.join(cwd, "second.svg"), "second");
   await writeFile(path.join(cwd, "note.txt"), "note");
   const processed: string[] = [];
-  const build = async (version = "1", width = 40) => {
+  const build = async (
+    version = "1",
+    width = 40,
+    baseUrl = "https://development.example.test",
+  ) => {
     const pipeline = createCmxAssetPipeline({
       cwd,
       assets: {
         processors: {
-          image: defineCmxAssetProcessor({
+          image: {
             version,
             extensions: [".svg"],
-            options: { width },
+            options: { width, baseUrl },
             process(input) {
               processed.push(Buffer.from(input.bytes).toString());
-              return { src: input.file(".svg"), width: input.options.width };
+              return {
+                src: `${input.options.baseUrl}/${input.name}`,
+                width: input.options.width,
+              };
             },
-          }),
+          } satisfies CmxAssetProcessor<{ width: number; baseUrl: string }>,
           note: {
             version: "1",
             extensions: [".txt"],
             process(input) {
               processed.push("note");
-              return { src: input.file(".txt") };
+              return { src: `https://cdn.example.test/${input.name}` };
             },
           },
         },
-        storage: createLocalAssetStorage({
-          directory: path.join(cwd, "public"),
-          publicBaseUrl: "/assets",
-        }),
       },
     });
     return Promise.all([
@@ -442,6 +466,14 @@ test("source, processor version and configured options invalidate only affected 
     { width: 80 },
     {},
   ]);
+  expect(processed.splice(0).sort()).toEqual(["changed first", "second"]);
+  expect(await build("2", 80, "https://production.example.test")).toMatchObject(
+    [
+      { src: "https://production.example.test/first.svg" },
+      { src: "https://production.example.test/second.svg" },
+      { src: "https://cdn.example.test/note.txt" },
+    ],
+  );
   expect(processed.sort()).toEqual(["changed first", "second"]);
 });
 
@@ -458,7 +490,7 @@ test("preparation reports a config annotation that erases imported metadata type
   );
   await writeFile(
     path.join(cwd, "cmx.config.ts"),
-    `import type { CmxConfig } from '@cmx-tools/contracts'; const config: CmxConfig = { assets: { processors: { image: { version: '1', extensions: ['.svg'], process() { return { width: 40 }; } } }, storage: { async store() { return '/assets'; } } } }; export default config;`,
+    `import type { CmxConfig } from '@cmx-tools/contracts'; const config: CmxConfig = { assets: { processors: { image: { version: '1', extensions: ['.svg'], process() { return { width: 40 }; } } } } }; export default config;`,
   );
   const pipeline = createCmxAssetPipeline({
     cwd,
@@ -470,11 +502,6 @@ test("preparation reports a config annotation that erases imported metadata type
           process: () => ({ width: 40 }),
         },
       },
-      storage: {
-        async store() {
-          return "/assets";
-        },
-      },
     },
   });
   await expect(
@@ -482,39 +509,26 @@ test("preparation reports a config annotation that erases imported metadata type
   ).rejects.toThrow(/satisfies CmxConfig/);
 });
 
-test("concurrent builds publish complete shared files and preserve emitted byte snapshots", async () => {
+test("concurrent builds share complete cached metadata without partial cache publication", async () => {
   const cwd = await project();
   await writeFile(path.join(cwd, "photo.svg"), "source");
-  const build = () =>
-    createCmxAssetPipeline({
-      cwd,
-      assets: {
-        processors: {
-          image: {
-            version: "1",
-            extensions: [".svg"],
-            async process(input) {
-              const working = Buffer.alloc(1024 * 1024, 7);
-              const thumbnail = input.emit(working, ".svg");
-              working.fill(9);
-              await new Promise<void>((resolve) => setImmediate(resolve));
-              return { thumbnail };
-            },
-          },
+  const assets = {
+    processors: {
+      image: {
+        version: "1",
+        extensions: [".svg"],
+        async process() {
+          await new Promise<void>((resolve) => setImmediate(resolve));
+          return { src: "https://cdn.example.test/photo.svg", width: 40 };
         },
-        storage: createLocalAssetStorage({
-          directory: path.join(cwd, "public"),
-          publicBaseUrl: pathToFileURL(path.join(cwd, "public/")).href,
-        }),
       },
-    }).load("photo.svg");
-  const documents = (await Promise.all([build(), build()])) as {
-    thumbnail: string;
-  }[];
-  expect(documents[0]).toEqual(documents[1]);
-  expect(await readFile(new URL(documents[0].thumbnail))).toEqual(
-    Buffer.alloc(1024 * 1024, 7),
-  );
+    },
+  };
+  const build = () => createCmxAssetPipeline({ cwd, assets }).load("photo.svg");
+  expect(await Promise.all([build(), build()])).toEqual([
+    { src: "https://cdn.example.test/photo.svg", width: 40 },
+    { src: "https://cdn.example.test/photo.svg", width: 40 },
+  ]);
 });
 
 async function project() {

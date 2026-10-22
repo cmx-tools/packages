@@ -1,21 +1,14 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type {
-  CmxAssetFile,
-  CmxAssetProcessor,
-  CmxStoredAssetFile,
-} from "@cmx-tools/contracts";
-import { mapCmxAssetData } from "./mapCmxAssetData.js";
-import { validateCmxAssetFile } from "./validateCmxAssetFile.js";
+import type { CmxAssetJson, CmxAssetProcessor } from "@cmx-tools/contracts";
+import { normalizeCmxAssetData } from "./normalizeCmxAssetData.js";
 
-export type ProcessedCmxAsset = {
-  data: unknown;
-  files: Map<string, CmxStoredAssetFile>;
-};
+const CMX_ASSET_CACHE_VERSION = 2;
 
 export function cmxAssetCacheKey(
   bytes: Uint8Array,
+  name: string,
   identity: string,
   processor: CmxAssetProcessor,
 ): string {
@@ -27,52 +20,38 @@ export function cmxAssetCacheKey(
       : ["configured", canonicalOptions(processor.options)];
   return hash(
     Buffer.from(
-      JSON.stringify([1, hash(bytes), identity, processor.version, options]),
+      JSON.stringify([
+        CMX_ASSET_CACHE_VERSION,
+        hash(bytes),
+        name,
+        identity,
+        processor.version,
+        options,
+      ]),
     ),
   );
 }
 
 export async function processCmxAsset(
   bytes: Uint8Array,
+  name: string,
   processor: CmxAssetProcessor,
   cacheDirectory: string,
-): Promise<ProcessedCmxAsset> {
+): Promise<CmxAssetJson> {
   const cached = await readCached(cacheDirectory);
-  if (cached) return cached;
-  const files = new Map<string, CmxStoredAssetFile>();
-  const emit = (output: Uint8Array, extension: string): CmxAssetFile => {
-    const normalized = extension.startsWith(".")
-      ? extension.toLowerCase()
-      : `.${extension.toLowerCase()}`;
-    if (!/^\.[a-z0-9]+$/.test(normalized))
-      throw new Error(`Invalid asset extension: ${extension}`);
-    const copy = Uint8Array.from(output);
-    const key = hash(copy) + normalized;
-    files.set(key, { key, bytes: copy });
-    return { $cmxAsset: key };
-  };
+  if (cached !== undefined) return cached;
   const result = await processor.process({
     bytes: Uint8Array.from(bytes),
+    name,
     options: structuredClone(processor.options),
-    file: (extension) => emit(bytes, extension),
-    emit,
   });
-  const data = await mapCmxAssetData(result, (reference) => {
-    if (!files.has(reference.$cmxAsset))
-      throw new Error("Processor returned an unknown asset file");
-    return reference;
-  });
+  const data = normalizeCmxAssetData(result);
   const temporary = `${cacheDirectory}-${randomUUID()}`;
   await mkdir(temporary, { recursive: true });
   try {
-    await Promise.all(
-      [...files.values()].map((file) =>
-        writeFile(path.join(temporary, file.key), file.bytes),
-      ),
-    );
     await writeFile(
       path.join(temporary, "metadata.json"),
-      JSON.stringify({ data, files: [...files.keys()] }),
+      JSON.stringify({ data }),
     );
     try {
       await rename(temporary, cacheDirectory);
@@ -84,18 +63,19 @@ export async function processCmxAsset(
       )
         throw error;
       const winner = await readCached(cacheDirectory);
-      if (!winner) throw new Error("Asset processing cache is incomplete");
+      if (winner === undefined)
+        throw new Error("Asset processing cache is incomplete");
       return winner;
     }
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }
-  return { data, files };
+  return data;
 }
 
 async function readCached(
   directory: string,
-): Promise<ProcessedCmxAsset | undefined> {
+): Promise<CmxAssetJson | undefined> {
   const serialized = await readFile(
     path.join(directory, "metadata.json"),
     "utf8",
@@ -104,21 +84,9 @@ async function readCached(
     return undefined;
   });
   if (serialized === undefined) return;
-  const cached = JSON.parse(serialized) as { data: unknown; files: string[] };
-  const files = new Map<string, CmxStoredAssetFile>();
-  for (const key of cached.files) {
-    if (!/^[a-f0-9]{64}\.[a-z0-9]+$/.test(key))
-      throw new Error("Invalid cached asset key");
-    const file = { key, bytes: await readFile(path.join(directory, key)) };
-    validateCmxAssetFile(file);
-    files.set(key, file);
-  }
-  await mapCmxAssetData(cached.data, (reference) => {
-    if (!files.has(reference.$cmxAsset))
-      throw new Error("Cached asset file is missing");
-    return reference;
-  });
-  return { data: cached.data, files };
+  return normalizeCmxAssetData(
+    (JSON.parse(serialized) as { data: unknown }).data,
+  );
 }
 
 function hash(bytes: Uint8Array): string {

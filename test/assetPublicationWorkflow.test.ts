@@ -27,7 +27,8 @@ it("renders project-processed Asset metadata and final URLs into Document Conten
       export default <img src={photo.preview} width={photo.width} />;
       export const meta: CmxAssetJson = photo;
     `,
-    "cmx.config.ts": `import {appendFile, mkdir} from "node:fs/promises";
+    "cmx.config.ts": `import {appendFile, mkdir, writeFile} from "node:fs/promises";
+      import {createHash} from "node:crypto";
       export default {
       exports: {
         default: {required: true, type: {from: "@cmx-tools/contracts", import: "CmxNode"}},
@@ -35,15 +36,20 @@ it("renders project-processed Asset metadata and final URLs into Document Conten
       },
       assets: {
         cacheDir: ".cmx/assets",
-        storage: {async store({key}) {return "https://assets.example/" + key;}},
         processors: {
           photo: {
-            version: "1", extensions: [".svg"], options: {},
-            async process({bytes, file, emit}) {
+            version: "1", extensions: [".svg"], options: {publicBaseUrl: "https://assets.example"},
+            async process({bytes, name, options}) {
               await mkdir(new URL(".cmx", import.meta.url), {recursive: true});
               await appendFile(new URL(".cmx/processed", import.meta.url), "1");
+              async function store(svg) {
+                const key = createHash("sha256").update(svg).digest("hex") + ".svg";
+                await writeFile(new URL(".cmx/" + key, import.meta.url), svg);
+                await appendFile(new URL(".cmx/stored", import.meta.url), "1");
+                return options.publicBaseUrl + "/" + key;
+              }
               const preview = new TextDecoder().decode(bytes).replace('width="20"', 'width="10"');
-              return {src: file(".svg"), width: 20, preview: emit(new TextEncoder().encode(preview), ".svg"), colors: ["red"]};
+              return {src: await store(bytes), name, width: 20, preview: await store(new TextEncoder().encode(preview)), colors: ["red"]};
             }
           }
         }
@@ -71,6 +77,7 @@ it("renders project-processed Asset metadata and final URLs into Document Conten
       width: 20,
       preview: expect.stringMatching(/^https:\/\/assets\.example\/.+\.svg$/),
       colors: ["red"],
+      name: "photo.svg",
     });
     const meta = result.entries.page.document.content.meta as {
       preview: string;
@@ -97,6 +104,39 @@ it("renders project-processed Asset metadata and final URLs into Document Conten
     expect(
       await readFile(path.join(workspace.rootDir, ".cmx/processed"), "utf8"),
     ).toBe("1");
+    expect(
+      await readFile(path.join(workspace.rootDir, ".cmx/stored"), "utf8"),
+    ).toBe("11");
+    await workspace.writeSourceFiles({
+      "cmx.config.ts": (
+        await readFile(path.join(workspace.rootDir, "cmx.config.ts"), "utf8")
+      ).replace("https://assets.example", "https://cdn.example"),
+    });
+    expect(
+      await runCmxBundleCli([
+        "compile",
+        "page.tsx",
+        "production",
+        "--cwd",
+        workspace.rootDir,
+      ]),
+    ).toBe(0);
+    const production = await renderCmxDocuments({
+      bundleDir: path.join(workspace.rootDir, "production"),
+    });
+    expect(production.result).toBe("complete");
+    if (production.result !== "complete")
+      throw new Error("Production Asset Document Rendering failed");
+    expect(production.entries.page.document.content.meta).toMatchObject({
+      src: expect.stringMatching(/^https:\/\/cdn\.example\//u),
+      preview: expect.stringMatching(/^https:\/\/cdn\.example\//u),
+    });
+    expect(
+      await readFile(path.join(workspace.rootDir, ".cmx/processed"), "utf8"),
+    ).toBe("11");
+    expect(
+      await readFile(path.join(workspace.rootDir, ".cmx/stored"), "utf8"),
+    ).toBe("1111");
   } finally {
     await rm(workspace.rootDir, { recursive: true, force: true });
   }
@@ -108,17 +148,16 @@ it("prepares Asset import types from declared processor output before CI typeche
     "package.json": '{"name":"typed-assets","type":"module"}',
     "photo.svg": '<svg width="20" height="10"></svg>',
     "page.ts": `import photo from "./photo.svg"; export default photo;`,
-    "cmx.config.ts": `import {defineCmxAssetProcessor, type CmxAssetFile} from "@cmx-tools/assets";
+    "cmx.config.ts": `import type {CmxAssetProcessor} from "@cmx-tools/assets";
       import type {CmxConfig} from "@cmx-tools/contracts";
-      const photo = defineCmxAssetProcessor({
-        version: "1", extensions: [".svg"], options: {width: 20},
-        process({file, options}): {src: CmxAssetFile; width: number; colors: Array<"red" | "blue">; caption?: string} {
-          return {src: file(".svg"), width: options.width, colors: ["red"], caption: undefined};
+      const photo = {
+        version: "1", extensions: [".svg"], options: {width: 20, publicBaseUrl: "https://assets.example"},
+        process({name, options}): {src: string; width: number; colors: Array<"red" | "blue">; caption?: string} {
+          return {src: options.publicBaseUrl + "/" + name, width: options.width, colors: ["red"], caption: undefined};
         }
-      });
+      } satisfies CmxAssetProcessor<{width: number; publicBaseUrl: string}>;
       export default {exports: {default: {required: true, type: {from: "@cmx-tools/contracts", import: "CmxAssetJson"}}}, assets: {
-        processors: {photo},
-        storage: {async store({key}) {return "https://assets.example/" + key;}}
+        processors: {photo}
       }} satisfies CmxConfig;
     `,
     "authoring.ts": `import photo from "./photo.svg";
@@ -130,8 +169,8 @@ it("prepares Asset import types from declared processor output before CI typeche
       photo.missing;
       // @ts-expect-error Width is numeric
       const wrong: string = photo.width;
-      // @ts-expect-error Output references resolve to URL strings
-      photo.src.$cmxAsset;
+      // @ts-expect-error Colors use the declared project union
+      photo.colors.push("green");
     `,
     "tsconfig.json": JSON.stringify({
       compilerOptions: {
@@ -198,14 +237,14 @@ it.each(["processing", "storage"])(
         "package.json": '{"name":"asset-publication","type":"module"}',
         "photo.svg": '<svg width="20" height="10"></svg>',
         "page.ts": 'import photo from "./photo.svg"; export default photo;',
-        "cmx.config.ts": `export default {
+        "cmx.config.ts": `import {writeFile} from "node:fs/promises";
+        export default {
         exports: {default: {required: true}},
         assets: {
           processors: {photo: {
             version: "1", extensions: [".svg"],
-            process({file}) {${failure === "processing" ? 'throw new Error("Processor failed");' : 'return {src: file(".svg")};'}}
-          }},
-          storage: {async store() {throw new Error("Storage failed");}}
+            async process({bytes}) {${failure === "processing" ? 'throw new Error("Processor failed");' : 'await writeFile(new URL("missing-directory/photo.svg", import.meta.url), bytes).catch((cause) => {throw new Error("Storage failed", {cause});}); return {src: "/assets/photo.svg"};'}}
+          }}
         }
       };`,
       });

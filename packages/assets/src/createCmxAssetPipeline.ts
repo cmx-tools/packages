@@ -1,12 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import type { CmxAssetsConfig } from "@cmx-tools/contracts";
-import {
-  cmxAssetCacheKey,
-  processCmxAsset,
-  type ProcessedCmxAsset,
-} from "./processCmxAsset.js";
-import { mapCmxAssetData } from "./mapCmxAssetData.js";
+import type { CmxAssetJson, CmxAssetsConfig } from "@cmx-tools/contracts";
+import { cmxAssetCacheKey, processCmxAsset } from "./processCmxAsset.js";
 import {
   prepareCmxAssetImports,
   type PrepareCmxAssetImportsOptions,
@@ -20,8 +15,7 @@ export type CreateCmxAssetPipelineOptions = {
 export function createCmxAssetPipeline(options: CreateCmxAssetPipelineOptions) {
   const cwd = path.resolve(options.cwd ?? process.cwd());
   const processors = Object.entries(options.assets.processors);
-  const processing = new Map<string, Promise<ProcessedCmxAsset>>();
-  const uploads = new Map<string, Promise<string>>();
+  const processing = new Map<string, Promise<CmxAssetJson>>();
   function processorFor(filename: string) {
     return processors.find(([, processor]) =>
       processor.extensions.some(
@@ -34,12 +28,15 @@ export function createCmxAssetPipeline(options: CreateCmxAssetPipelineOptions) {
     const selected = processorFor(filename);
     if (!selected) throw new Error(`No asset processor matches ${filename}`);
     const [identity, processor] = selected;
-    const bytes = await readFile(path.resolve(cwd, filename));
-    const key = cmxAssetCacheKey(bytes, identity, processor);
+    const absolute = path.resolve(cwd, filename);
+    const name = path.relative(cwd, absolute).split(path.sep).join("/");
+    const bytes = await readFile(absolute);
+    const key = cmxAssetCacheKey(bytes, name, identity, processor);
     let pending = processing.get(key);
     if (!pending) {
       pending = processCmxAsset(
         bytes,
+        name,
         processor,
         path.join(
           path.resolve(cwd, options.assets.cacheDir ?? ".cmx/assets"),
@@ -63,20 +60,8 @@ export function createCmxAssetPipeline(options: CreateCmxAssetPipelineOptions) {
     matches(filename: string) {
       return processorFor(filename) !== undefined;
     },
-    async load(filename: string): Promise<unknown> {
-      const result = await prepareAsset(filename);
-      return mapCmxAssetData(result.data, (reference) => {
-        let upload = uploads.get(reference.$cmxAsset);
-        if (!upload) {
-          const file = result.files.get(reference.$cmxAsset);
-          if (!file)
-            throw new Error("Processor returned an unknown asset file");
-          upload = options.assets.storage.store(file);
-          uploads.set(file.key, upload);
-          upload.catch(() => uploads.delete(file.key));
-        }
-        return upload;
-      });
+    async load(filename: string): Promise<CmxAssetJson> {
+      return structuredClone(await prepareAsset(filename));
     },
   };
 }

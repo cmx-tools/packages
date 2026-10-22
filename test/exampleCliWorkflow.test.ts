@@ -123,6 +123,15 @@ describe("example CLI workflow", () => {
       const asset = await fetch(new URL(assetPath!, server.url));
       expect(asset.status).toBe(200);
       expect(await asset.text()).toContain('width="12"');
+      const srcset = aboutHtml.match(/srcset="([^"]+)"/iu)?.[1];
+      expect(srcset).toContain(`${assetPath} 12w`);
+      expect(srcset).toContain(" 24w");
+      for (const candidate of srcset!.split(", ")) {
+        const response = await fetch(
+          new URL(candidate.split(" ")[0], server.url),
+        );
+        expect(response.status).toBe(200);
+      }
     } finally {
       await server.close();
     }

@@ -3,11 +3,14 @@ import {
   createCmxDocumentHost,
   createMemoryCmxDocumentStore,
 } from "@cmx-tools/document-host";
-import { createCmxUgcVerifier } from "@cmx-tools/verify";
+import { contentElements, createCmxUgcVerifier } from "@cmx-tools/verify";
 import { reactUgcPolicy } from "@cmx-tools/react";
 import { environment } from "./_gen_cmx_environment.js";
 
-const verifyUgc = createCmxUgcVerifier({ policy: reactUgcPolicy });
+const verifyUgc = createCmxUgcVerifier({
+  policy: reactUgcPolicy,
+  allowedElements: [...contentElements, "img"],
+});
 
 export const documentHost = createCmxDocumentHost({
   store: createMemoryCmxDocumentStore(),

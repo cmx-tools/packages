@@ -25,12 +25,9 @@ var portrait_default = {
 	"src": "/_assets/c5ff722bda9782ae33c23d4bc16ab6832e0056e10cf93ad0df593d1805850c79.svg",
 	"width": 24,
 	"height": 16,
-	"preview": "/_assets/bdc5d95bfb0dcda57c928bcc64a82f4afea6dd0177fb322dbce23fc7c87fdb31.svg"
+	"preview": "/_assets/bdc5d95bfb0dcda57c928bcc64a82f4afea6dd0177fb322dbce23fc7c87fdb31.svg",
+	"srcset": "/_assets/bdc5d95bfb0dcda57c928bcc64a82f4afea6dd0177fb322dbce23fc7c87fdb31.svg 12w, /_assets/c5ff722bda9782ae33c23d4bc16ab6832e0056e10cf93ad0df593d1805850c79.svg 24w"
 };
-const AssetImage = __registerExternal({
-	from: "@example/ui-library",
-	import: "AssetImage"
-});
 //#endregion
 //#region pages/about.tsx
 const meta = {
@@ -41,8 +38,9 @@ async function About() {
 	return /* @__PURE__ */ jsxs("div", { children: [
 		/* @__PURE__ */ jsx(Header, { children: "About" }),
 		/* @__PURE__ */ jsx("p", { children: "About" }),
-		/* @__PURE__ */ jsx(AssetImage, {
+		/* @__PURE__ */ jsx("img", {
 			src: portrait_default.preview,
+			srcSet: portrait_default.srcset,
 			width: portrait_default.width,
 			height: portrait_default.height,
 			alt: "Portrait"

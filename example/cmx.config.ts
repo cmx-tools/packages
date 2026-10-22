@@ -1,6 +1,4 @@
 import type { CmxConfig } from "@cmx-tools/contracts";
-import { createLocalAssetStorage } from "@cmx-tools/assets";
-import { fileURLToPath } from "node:url";
 import { svgAssetProcessor } from "./svgAssetProcessor.js";
 
 const config = {
@@ -23,12 +21,6 @@ const config = {
   externals: ["@example/backend-contract", "@example/ui-library"],
   assets: {
     processors: { svg: svgAssetProcessor },
-    storage: createLocalAssetStorage({
-      directory: fileURLToPath(
-        new URL("./content/.cmx/assets/files", import.meta.url),
-      ),
-      publicBaseUrl: "/_assets",
-    }),
   },
 } satisfies CmxConfig;
 
