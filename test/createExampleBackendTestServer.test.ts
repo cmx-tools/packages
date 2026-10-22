@@ -60,19 +60,30 @@ describe("createExampleBackendTestServer", () => {
 
       expect(aboutHtml).toMatchInlineSnapshot(`
         "<!DOCTYPE html>
-        <html lang=\"en\">
+        <html lang="en">
           <head>
-            <meta charset=\"utf-8\" />
+            <meta charset="utf-8" />
+            <link
+              rel="preload"
+              as="image"
+              href="/_assets/bdc5d95bfb0dcda57c928bcc64a82f4afea6dd0177fb322dbce23fc7c87fdb31.svg"
+            />
             <title>About</title>
           </head>
           <body>
             <div>🧑‍🎤</div>
             <div>
-              <header class=\"beautiful-header\">
+              <header class="beautiful-header">
                 About<!-- -->
-                <span class=\"header-accessory\"><div>🧑‍🎤</div></span>
+                <span class="header-accessory"><div>🧑‍🎤</div></span>
               </header>
               <p>About</p>
+              <img
+                alt="Portrait"
+                height="16"
+                src="/_assets/bdc5d95bfb0dcda57c928bcc64a82f4afea6dd0177fb322dbce23fc7c87fdb31.svg"
+                width="24"
+              />
             </div>
           </body>
         </html>

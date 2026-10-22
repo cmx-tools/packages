@@ -43,6 +43,8 @@ describe("resolveCmxCliConfig", () => {
 
       const config = await resolveCmxCliConfig({ cwd: tempDir });
 
+      expect(config.configPath).toBe(path.join(tempDir, "cmx.config.ts"));
+
       expect(config.exports).toEqual({
         default: {
           required: true,
@@ -131,6 +133,7 @@ describe("resolveCmxCliConfig", () => {
       await writeFixture(tempDir, ".cmxrc", "externals[]=@pkg/rc\n");
       const config = await resolveCmxCliConfig({ cwd: tempDir });
       expect(config.externals).toEqual(["@pkg/rc"]);
+      expect(config.configPath).toBeUndefined();
     });
   });
 
@@ -143,6 +146,7 @@ describe("resolveCmxCliConfig", () => {
       );
       const config = await resolveCmxCliConfig({ cwd: tempDir });
       expect(config.externals).toEqual(["@pkg/package-json"]);
+      expect(config.configPath).toBeUndefined();
     });
   });
 

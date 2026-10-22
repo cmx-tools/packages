@@ -27,7 +27,8 @@
   },
   "dependencies": {
     "@cmx-tools/contracts": "workspace:^",
-    "rolldown": "^1.0.0-rc.18"
+    "rolldown": "^1.0.0-rc.18",
+    "@cmx-tools/assets": "workspace:^"
   },
   "peerDependencies": {
     "@cmx-tools/cli": "^0.1.0 || ^0.2.0 || ^1.0.0"

@@ -4,6 +4,12 @@ CMX turns content authored as JSX or TSX into static JSON Documents. An applicat
 
 The source of truth stays in Git. The application owns its rendering and deployment.
 
+## Import Assets with typed metadata
+
+Configure a project-defined processor with `@cmx-tools/assets`, then import colocated files such as `import photo from "./photo.svg"`. Content Source receives the processor's typed metadata and final URLs. Processing is cached across builds, and local filesystem or R2 storage runs before Document Rendering. Applications render the resulting values through their normal Document Contract.
+
+Run `cmx assets prepare "pages/**/*.tsx"` before typechecking, or add `--watch` during development. See the [Asset preprocessing guide](packages/assets/README.md) for configuration, generated types, caching, and storage.
+
 ## Publish content to your application
 
 If your application already renders CMX Documents, add a Document Host to accept content updates without rebuilding or redeploying the application. Your content project builds and publishes Documents locally or in CI; the running application reads the latest accepted content.

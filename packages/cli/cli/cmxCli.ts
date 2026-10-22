@@ -1,6 +1,11 @@
 import { readPackageVersionFromImportMetaUrl } from "../src/readPackageVersionFromImportMetaUrl.js";
 
 const CAPABILITY_RUNNERS = {
+  assets: {
+    entrypoint: "@cmx-tools/assets/cli",
+    exportName: "runCmxAssetsCli",
+    packageName: "@cmx-tools/assets",
+  },
   bundle: {
     entrypoint: "@cmx-tools/bundle/cli",
     exportName: "runCmxBundleCli",
@@ -110,7 +115,7 @@ function isMissingModuleError(error: unknown): boolean {
 
 function writeUsage(): void {
   process.stderr.write(
-    "Usage: cmx <bundle|document|environment|verify|publish> [...args]\n",
+    "Usage: cmx <assets|bundle|document|environment|verify|publish> [...args]\n",
   );
 }
 
@@ -120,9 +125,10 @@ function writeHelp(): void {
       "cmx",
       "",
       "Usage:",
-      "  cmx <bundle|document|environment|verify|publish> [...args]",
+      "  cmx <assets|bundle|document|environment|verify|publish> [...args]",
       "",
       "Examples:",
+      '  cmx assets prepare "pages/**/*.tsx"',
       '  cmx bundle compile "pages/**/*.tsx" dist',
       "  cmx document render dist --out-dir documents",
       "  cmx environment generate dist/cmx-environment.ts",

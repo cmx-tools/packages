@@ -17,6 +17,7 @@ type ParsedCliOptions = {
 
 export type CmxConfigWithCwd = Omit<CmxConfig, "cwd"> & {
   cwd: string;
+  configPath?: string;
 };
 
 export async function resolveCmxCliConfig(
@@ -53,7 +54,7 @@ type LoadCmxConfigOptions = {
 
 async function loadCmxConfig(
   options: LoadCmxConfigOptions,
-): Promise<CmxConfig> {
+): Promise<CmxConfig & { configPath?: string }> {
   try {
     const loaded = await withScopedProcessEnv(
       async () =>
@@ -71,7 +72,12 @@ async function loadCmxConfig(
         }),
       options.env,
     );
-    return loaded.config;
+    return {
+      ...loaded.config,
+      ...(loaded.configFile && /\.[cm]?[jt]s$/u.test(loaded.configFile)
+        ? { configPath: loaded.configFile }
+        : {}),
+    };
   } catch (cause) {
     throw new Error("Failed to resolve CMX config", { cause });
   }

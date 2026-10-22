@@ -1,5 +1,6 @@
 import type { CmxDocument } from "./cmxDocument.js";
 import type { CmxDiagnostic } from "./cmxDiagnostic.js";
+import type { CmxAssetsConfig } from "./cmxAssets.js";
 import type {
   CmxExportConfig,
   UnsupportedValuesPolicy,
@@ -38,6 +39,7 @@ export type CmxVerifyDocument = (
 
 export type CmxConfig = {
   cwd?: string;
+  assets?: CmxAssetsConfig;
   exports?: Record<string, CmxExportConfig>;
   externals?: CmxExternalEntry[];
   unsupportedValues?: UnsupportedValuesPolicy;

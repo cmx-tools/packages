@@ -4,6 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
+    "allowArbitraryExtensions": true,
     "noEmit": true,
     "jsx": "react-jsx"
   },

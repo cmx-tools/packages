@@ -7,6 +7,7 @@ import type {
   CmxTypeRef,
 } from "@cmx-tools/contracts";
 import { CMX_BUNDLE_FILE_NAME } from "@cmx-tools/contracts";
+import { createCmxAssetPipeline } from "@cmx-tools/assets";
 import {
   createCmxBundleArtifact,
   createEntryOrder,
@@ -34,6 +35,9 @@ const EXPORTS_REQUIRED = "cmx-exports-required";
 const EXTERNAL_CONTRACT_INVALID = "cmx-external-contract-invalid";
 
 export function cmx(options: CmxConfig): Plugin {
+  const assets = options.assets
+    ? createCmxAssetPipeline({ cwd: options.cwd, assets: options.assets })
+    : undefined;
   const externalPolicy = createCmxExternalPolicy(options.externals ?? []);
   const externalStubs = new Map<string, ExternalStub>();
   const bundleDependencies = new Map<string, CmxDependency>();
@@ -107,7 +111,14 @@ export function cmx(options: CmxConfig): Plugin {
 
       return externalStubIdFromSource(source);
     },
-    load(id) {
+    async load(id) {
+      if (assets?.matches(id)) {
+        this.addWatchFile(id);
+        return {
+          code: `export default ${JSON.stringify(await assets.load(id))};`,
+          moduleType: "js",
+        };
+      }
       if (!id.startsWith(VIRTUAL_EXTERNAL_STUB_PREFIX)) {
         return null;
       }
