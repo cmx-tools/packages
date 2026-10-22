@@ -8,7 +8,7 @@ export type CmxAssetJson =
 
 export type CmxAssetInput<Options = unknown> = {
   bytes: Uint8Array;
-  name: string;
+  relativePath: string;
   options: Options;
 };
 

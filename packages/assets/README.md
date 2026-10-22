@@ -2,10 +2,6 @@
 
 Project processors read imported files and return typed JSON. They own transformations and storage. CMX caches the result and generates import declarations during the normal build.
 
-```sh
-pnpm add -D @cmx-tools/assets @cmx-tools/bundle @cmx-tools/cli @cmx-tools/contracts @cmx-tools/intrinsics typescript @types/node
-```
-
 ## cmx.config.ts
 
 ```ts
@@ -18,11 +14,12 @@ const svg = {
   version: "1",
   extensions: [".svg"],
   options: { directory: "public/assets", publicBaseUrl: "/assets" },
-  async process({ bytes, name, options }) {
+  async process({ bytes, relativePath, options }) {
     const source = new TextDecoder().decode(bytes);
     const width = Number(source.match(/\bwidth="(\d+)"/u)?.[1]);
     const height = Number(source.match(/\bheight="(\d+)"/u)?.[1]);
-    if (!width || !height) throw new Error(`Missing SVG dimensions: ${name}`);
+    if (!width || !height)
+      throw new Error(`Missing SVG dimensions: ${relativePath}`);
     const key = `${createHash("sha256").update(bytes).digest("hex")}.svg`;
     await mkdir(options.directory, { recursive: true });
     await writeFile(path.join(options.directory, key), bytes);
@@ -41,7 +38,7 @@ export default {
 } satisfies CmxConfig;
 ```
 
-Use `satisfies` to preserve the processor's inferred return type. `name` is the Asset's path relative to the Content Project, with `/` separators and its extension. `bytes` contains the source file; `options` contains the configured JSON values. The [example processor](../../example/svgAssetProcessor.ts) also creates and stores a smaller preview and returns a `srcset` string.
+`relativePath` is relative to the Content Project, includes the extension, and uses `/` separators. The [example processor](../../example/svgAssetProcessor.ts) also stores a smaller preview and returns a `srcset` string.
 
 ## pages/about.tsx
 
@@ -60,26 +57,7 @@ export default (
 );
 ```
 
-`src` is a string; `width` and `height` are numbers. Unknown fields and incompatible uses fail typechecking. Documents contain these ordinary values, ready for the application's normal hydration flow. An application using UGC verification must explicitly allow `img` in its element policy.
-
-## tsconfig.json
-
-```json
-{
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "strict": true,
-    "noEmit": true,
-    "allowArbitraryExtensions": true,
-    "types": ["node"],
-    "jsx": "react-jsx",
-    "jsxImportSource": "@cmx-tools/intrinsics"
-  },
-  "include": ["cmx.config.ts", "pages/**/*.tsx"]
-}
-```
+Documents contain the returned values. Hosts using UGC verification must explicitly allow `img`. Enable `compilerOptions.allowArbitraryExtensions` for generated Asset declarations.
 
 ## package.json
 
@@ -106,7 +84,7 @@ public/assets/
 
 Serve `public/assets` at `/assets`.
 
-The cache key includes source bytes, `name`, processor key, `version`, and JSON `options`. A hit skips the entire hook, including storage. Include the destination and every other value affecting the result in `options`; changing those values reruns the hook. Change `version` when processing behavior or external tools change. Persist or restore `assets.cacheDir`, defaulting to `.cmx/assets`, between builds.
+The cache key includes source bytes, `relativePath`, processor key, `version`, and JSON `options`. A hit skips the entire hook, including storage. Include the destination and every other value affecting the result in `options`; changing those values reruns the hook. Change `version` when processing behavior or external tools change. Persist or restore `assets.cacheDir`, defaulting to `.cmx/assets`, between builds.
 
 Restore project-owned local files alongside the cache. CMX does not recreate stored files on a hit.
 

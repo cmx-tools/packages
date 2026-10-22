@@ -29,14 +29,14 @@ export function createCmxAssetPipeline(options: CreateCmxAssetPipelineOptions) {
     if (!selected) throw new Error(`No asset processor matches ${filename}`);
     const [identity, processor] = selected;
     const absolute = path.resolve(cwd, filename);
-    const name = path.relative(cwd, absolute).split(path.sep).join("/");
+    const relativePath = path.relative(cwd, absolute).split(path.sep).join("/");
     const bytes = await readFile(absolute);
-    const key = cmxAssetCacheKey(bytes, name, identity, processor);
+    const key = cmxAssetCacheKey(bytes, relativePath, identity, processor);
     let pending = processing.get(key);
     if (!pending) {
       pending = processCmxAsset(
         bytes,
-        name,
+        relativePath,
         processor,
         path.join(
           path.resolve(cwd, options.assets.cacheDir ?? ".cmx/assets"),

@@ -20,14 +20,14 @@ it("rebuilds typed Asset imports and recovers edits through the normal CMX build
       processors: {photo: {
         version: "${version}", extensions: [".svg"],
         options: {directory: "served", publicBaseUrl: "https://assets.example"},
-        async process({bytes, name, options}) {
+        async process({bytes, relativePath, options}) {
           await mkdir(new URL(".cmx", import.meta.url), {recursive: true});
           await appendFile(new URL(".cmx/processed", import.meta.url), "${version}");
           const key = createHash("sha256").update(bytes).digest("hex") + ".svg";
           await mkdir(new URL(options.directory, import.meta.url), {recursive: true});
           try {await writeFile(new URL(options.directory + "/" + key, import.meta.url), bytes, {flag: "wx"});}
           catch (error) {if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;}
-          return {revision: "${version}", name, src: options.publicBaseUrl + "/" + key, width: Number(new TextDecoder().decode(bytes).match(/width="(\\d+)"/)?.[1])};
+          return {revision: "${version}", name: relativePath, src: options.publicBaseUrl + "/" + key, width: Number(new TextDecoder().decode(bytes).match(/width="(\\d+)"/)?.[1])};
         }
       } satisfies CmxAssetProcessor<{directory: string; publicBaseUrl: string}>}
     }} satisfies CmxConfig;`;
