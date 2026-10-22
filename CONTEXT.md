@@ -23,6 +23,7 @@ CMX language spans three layers:
 
 ### Build
 
+- **Asset Loader** — Build-side operation that turns an Asset into the value imported by Content Source.
 - **Bundler** — Toolchain role that turns Content Source into a Bundle.
 - **Compile** — Transform authored source semantics into executable CMX program material.
 - **Bundle** — Portable render artifact produced by the Bundler. Still program material.

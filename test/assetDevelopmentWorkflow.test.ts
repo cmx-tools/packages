@@ -13,23 +13,23 @@ it("rebuilds typed Asset imports and recovers edits through the normal CMX build
     version: string,
   ) => `import {appendFile, mkdir, writeFile} from "node:fs/promises";
     import {createHash} from "node:crypto";
-    import type {CmxAssetProcessor} from "@cmx-tools/assets";
+    import type {CmxAssetLoader} from "@cmx-tools/assets";
     import type {CmxConfig} from "@cmx-tools/contracts";
     export default {exports: {default: {required: true, type: {from: "@cmx-tools/contracts", import: "CmxAssetJson"}}}, assets: {
       cacheDir: "asset-cache",
-      processors: {photo: {
+      loaders: {photo: {
         version: "${version}", extensions: [".svg"],
         options: {directory: "served", publicBaseUrl: "https://assets.example"},
-        async process({bytes, relativePath, options}) {
+        async load({bytes, relativePath, options}) {
           await mkdir(new URL(".cmx", import.meta.url), {recursive: true});
-          await appendFile(new URL(".cmx/processed", import.meta.url), "${version}");
+          await appendFile(new URL(".cmx/loaded", import.meta.url), "${version}");
           const key = createHash("sha256").update(bytes).digest("hex") + ".svg";
           await mkdir(new URL(options.directory, import.meta.url), {recursive: true});
           try {await writeFile(new URL(options.directory + "/" + key, import.meta.url), bytes, {flag: "wx"});}
           catch (error) {if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;}
           return {revision: "${version}", name: relativePath, src: options.publicBaseUrl + "/" + key, width: Number(new TextDecoder().decode(bytes).match(/width="(\\d+)"/)?.[1])};
         }
-      } satisfies CmxAssetProcessor<{directory: string; publicBaseUrl: string}>}
+      } satisfies CmxAssetLoader<{directory: string; publicBaseUrl: string}>}
     }} satisfies CmxConfig;`;
   await workspace.writeSourceFiles({
     "package.json": '{"name":"asset-development","type":"module"}',
@@ -109,7 +109,7 @@ it("rebuilds typed Asset imports and recovers edits through the normal CMX build
       )
       .toBe(true);
     expect(
-      await readFile(path.join(workspace.rootDir, ".cmx/processed"), "utf8"),
+      await readFile(path.join(workspace.rootDir, ".cmx/loaded"), "utf8"),
     ).toBe("11");
     await expect
       .poll(() => renderBuild(workspace.rootDir).page.content.default, {
@@ -165,7 +165,7 @@ it("rebuilds typed Asset imports and recovers edits through the normal CMX build
     await expect
       .poll(
         async () =>
-          readFile(path.join(workspace.rootDir, ".cmx/processed"), "utf8"),
+          readFile(path.join(workspace.rootDir, ".cmx/loaded"), "utf8"),
         { timeout: 10_000 },
       )
       .toBe("11122");

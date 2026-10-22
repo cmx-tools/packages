@@ -30,19 +30,19 @@ export function assertCmxAssetTypeSource(
     );
   }
   return (identity) => {
-    const processor = property(
-      property(property(config, "assets"), "processors"),
+    const loader = property(
+      property(property(config, "assets"), "loaders"),
       identity,
     );
-    const process = property(processor, "process");
+    const load = property(loader, "load");
     const signature =
-      process && checker.getSignaturesOfType(process, ts.SignatureKind.Call)[0];
+      load && checker.getSignaturesOfType(load, ts.SignatureKind.Call)[0];
     const result =
       signature &&
       checker.getAwaitedType(checker.getReturnTypeOfSignature(signature));
     if (!result || result.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) {
       throw new Error(
-        `Cannot derive asset import types for ${identity}. Export a default ESM config object and preserve the processor's declared return type. Use satisfies CmxConfig for TypeScript configs.`,
+        `Cannot derive asset import types for ${identity}. Export a default ESM config object and preserve the loader's declared return type. Use satisfies CmxConfig for TypeScript configs.`,
       );
     }
   };

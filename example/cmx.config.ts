@@ -1,5 +1,5 @@
 import type { CmxConfig } from "@cmx-tools/contracts";
-import { svgAssetProcessor } from "./svgAssetProcessor.js";
+import { svgAssetLoader } from "./svgAssetLoader.js";
 
 const config = {
   exports: {
@@ -20,7 +20,7 @@ const config = {
   },
   externals: ["@example/backend-contract", "@example/ui-library"],
   assets: {
-    processors: { svg: svgAssetProcessor },
+    loaders: { svg: svgAssetLoader },
   },
 } satisfies CmxConfig;
 

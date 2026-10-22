@@ -12,14 +12,14 @@ export type CmxAssetInput<Options = unknown> = {
   options: Options;
 };
 
-export type CmxAssetProcessor<Options = CmxAssetJson | undefined> = {
+export type CmxAssetLoader<Options = CmxAssetJson | undefined> = {
   version: string;
   extensions: readonly string[];
   options?: Options;
-  process(input: CmxAssetInput<Options>): unknown;
+  load(input: CmxAssetInput<Options>): unknown;
 };
 
 export type CmxAssetsConfig = {
-  processors: Record<string, CmxAssetProcessor>;
+  loaders: Record<string, CmxAssetLoader>;
   cacheDir?: string;
 };
