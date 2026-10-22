@@ -1,4 +1,5 @@
 export const REAL_PACKAGE_DIRS = [
+  "assets",
   "bundle",
   "cli",
   "contracts",

@@ -1,4 +1,5 @@
 export * from "./cmxDependency.js";
+export * from "./cmxAssets.js";
 export * from "./cmxEnvironment.js";
 export * from "./cmxBundle.js";
 export * from "./cmxConfig.js";

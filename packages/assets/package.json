@@ -1,0 +1,56 @@
+{
+  "name": "@cmx-tools/assets",
+  "version": "0.0.0-development",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli/runCmxAssetsCli.d.ts",
+      "import": "./dist/cli/runCmxAssetsCli.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsgo -p tsconfig.json",
+    "pretest": "corepack pnpm run build",
+    "test": "vitest run",
+    "typecheck": "tsgo -p tsconfig.json --noEmit",
+    "prepare": "corepack pnpm run build"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.914.0",
+    "@cmx-tools/contracts": "workspace:^",
+    "typescript": "^6.0.3"
+  },
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cmx-tools/packages.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cmx-tools/packages/issues"
+  },
+  "homepage": "https://github.com/cmx-tools/packages#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "cmx-assets": "./dist/cli/cli.js"
+  },
+  "peerDependencies": {
+    "@cmx-tools/cli": "^0.1.0 || ^0.2.0 || ^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@cmx-tools/cli": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@cmx-tools/cli": "workspace:^"
+  }
+}

@@ -116,7 +116,13 @@ describe("example CLI workflow", () => {
 
       expect(fallback.status).toBe(200);
       expect(about.status).toBe(200);
-      expect(await about.text()).toContain("<title>About</title>");
+      const aboutHtml = await about.text();
+      expect(aboutHtml).toContain("<title>About</title>");
+      const assetPath = aboutHtml.match(/src="(\/_assets\/[^"]+)"/u)?.[1];
+      expect(assetPath).toBeDefined();
+      const asset = await fetch(new URL(assetPath!, server.url));
+      expect(asset.status).toBe(200);
+      expect(await asset.text()).toContain('width="12"');
     } finally {
       await server.close();
     }

@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { documentHost } from "./documentHost.js";
 import { handlePublicationRequest } from "./handlePublicationRequest.js";
+import { handleAssetRequest } from "./handleAssetRequest.js";
 import { StrictMode } from "react";
 import { renderToString } from "react-dom/server";
 import { environment } from "./_gen_cmx_environment.js";
@@ -17,6 +18,10 @@ const port = Number(process.env.PORT) || 3000;
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? "/", `http://127.0.0.1:${port}`);
+    if (url.pathname.startsWith("/_assets/")) {
+      await handleAssetRequest(url.pathname, res);
+      return;
+    }
     if (url.pathname === "/_cmx/publication") {
       await handlePublicationRequest(req, res, url);
       return;

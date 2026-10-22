@@ -4,6 +4,7 @@ node_modules/
 .astro/
 dist/
 .cmx/
+example/content/portrait.d.svg.ts
 .worktrees/
 .ralph/
 packages/cmx-contracts/schema/*.generated.ts

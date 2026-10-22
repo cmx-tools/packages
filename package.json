@@ -13,7 +13,8 @@
     "test:integration": "vitest run --dir test && vitest run --dir .github/release && corepack pnpm -r test:integration",
     "test": "corepack pnpm run test:unit && corepack pnpm run test:integration && corepack pnpm run verify:example",
     "pretypecheck": "if-env PRE_BUILD=false || corepack pnpm run build",
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "corepack pnpm run example:prepare-assets && tsgo --noEmit",
+    "example:prepare-assets": "corepack pnpm --dir example/content run assets:prepare",
     "example:create-bundle": "corepack pnpm -r --filter '@example/content' build",
     "example:create-environment": "corepack pnpm -r --filter '@example/backend' build",
     "test:gen-example": "corepack pnpm run example:create-bundle && corepack pnpm run example:create-environment && prettier --write example/",
@@ -54,6 +55,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "@cmx-tools/assets": "workspace:^"
   }
 }

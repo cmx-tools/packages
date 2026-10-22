@@ -9,6 +9,7 @@ import { REAL_PACKAGE_DIRS } from "./releasePackageSet.js";
 const execFileAsync = promisify(execFile);
 const ROOT_DIR = process.cwd();
 const DIST_BINARIES = [
+  { file: "packages/assets/dist/cli/cli.js", command: "cmx-assets" },
   { file: "packages/cli/dist/cli/cli.js", command: "cmx" },
   { file: "packages/bundle/dist/cli/cli.js", command: "cmx-bundle" },
   { file: "packages/document/dist/cli/cli.js", command: "cmx-document" },
@@ -18,6 +19,7 @@ const DIST_BINARIES = [
 ] as const;
 
 const EXPORT_CHECKS = [
+  { packageDir: "assets", entryFile: "dist/src/index.js" },
   { packageDir: "cli", entryFile: "dist/src/index.js" },
   { packageDir: "bundle", entryFile: "dist/src/index.js" },
   { packageDir: "document", entryFile: "dist/src/index.js" },
