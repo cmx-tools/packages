@@ -10,6 +10,6 @@
     "noUnusedLocals": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "cli/**/*.ts"],
-  "exclude": ["src/**/*.test.ts", "cli/**/*.test.ts", "dist"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "dist"]
 }

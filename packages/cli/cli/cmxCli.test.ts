@@ -34,7 +34,7 @@ describe("cmx umbrella cli", () => {
     const help = await runCli(["--help"]);
     expect(help.exitCode).toBe(0);
     expect(help.stdout).toContain(
-      "cmx <assets|bundle|document|environment|verify|publish>",
+      "cmx <bundle|document|environment|verify|publish>",
     );
 
     const version = await runCli(["--version"]);
@@ -46,7 +46,7 @@ describe("cmx umbrella cli", () => {
     const result = await runCli(["invalid"]);
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain(
-      "Usage: cmx <assets|bundle|document|environment|verify|publish>",
+      "Usage: cmx <bundle|document|environment|verify|publish>",
     );
   });
 
@@ -88,24 +88,6 @@ describe("cmx umbrella cli", () => {
     });
     expect(result.exitCode).toBe(0);
     expect(result.stdout.trim()).toBe("verify:--help");
-  });
-
-  it("delegates Asset preparation to the installed assets capability", async () => {
-    const result = await runCli(["assets", "prepare", "pages/**/*.tsx"], {
-      importModule: async (specifier) => {
-        expect(specifier).toBe("@cmx-tools/assets/cli");
-        return {
-          runCmxAssetsCli: async (args: readonly string[]) => {
-            process.stdout.write(args.join(" "));
-            return 0;
-          },
-        };
-      },
-    });
-    expect(result).toMatchObject({
-      exitCode: 0,
-      stdout: "prepare pages/**/*.tsx",
-    });
   });
 });
 

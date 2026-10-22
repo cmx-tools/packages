@@ -4,27 +4,32 @@ import path from "node:path";
 import { expect, it } from "vitest";
 import { createCmxTestbedWorkspace } from "./createCmxTestbedWorkspace.js";
 
-it("prepares new Asset imports and reloads processor changes while developing", async () => {
+it("rebuilds typed Asset imports and recovers edits through the normal CMX build watcher", async () => {
   const workspace = await createCmxTestbedWorkspace();
+  const hashedAsset = `${"a".repeat(64)}.svg`;
+  const source = (imports: string, value: string) =>
+    `import type {CmxAssetJson} from "@cmx-tools/contracts"; ${imports} const page: CmxAssetJson = ${value}; export default page;`;
   const config = (
     version: string,
   ) => `import {appendFile, mkdir} from "node:fs/promises";
-    import {defineCmxAssetProcessor} from "@cmx-tools/assets";
-    export default {assets: {
+    import {defineCmxAssetProcessor, createLocalAssetStorage} from "@cmx-tools/assets";
+    import type {CmxConfig} from "@cmx-tools/contracts";
+    export default {exports: {default: {required: true, type: {from: "@cmx-tools/contracts", import: "CmxAssetJson"}}}, assets: {
+      cacheDir: "asset-cache",
       processors: {photo: defineCmxAssetProcessor({
         version: "${version}", extensions: [".svg"],
-        async process({file}) {
+        async process({bytes, file}) {
           await mkdir(new URL(".cmx", import.meta.url), {recursive: true});
           await appendFile(new URL(".cmx/processed", import.meta.url), "${version}");
-          return {src: file(".svg"), width: 20};
+          return {revision: "${version}", src: file(".svg"), width: Number(new TextDecoder().decode(bytes).match(/width="(\\d+)"/)?.[1])};
         }
       })},
-      storage: {async store() {throw new Error("Development preparation must not upload Assets");}}
-    }};`;
+      storage: createLocalAssetStorage({directory: new URL("served", import.meta.url).pathname, publicBaseUrl: "https://assets.example"})
+    }} satisfies CmxConfig;`;
   await workspace.writeSourceFiles({
     "package.json": '{"name":"asset-development","type":"module"}',
     "photo.svg": '<svg width="20" height="10"></svg>',
-    "page.ts": 'import photo from "./photo.svg"; export default photo.width;',
+    "page.ts": source('import photo from "./photo.svg";', "photo.width"),
     "cmx.config.ts": config("1"),
     "tsconfig.json": JSON.stringify({
       compilerOptions: {
@@ -42,9 +47,10 @@ it("prepares new Asset imports and reloads processor changes while developing", 
   const child = spawn(
     process.execPath,
     [
-      path.resolve("packages/assets/dist/cli/cli.js"),
-      "prepare",
-      "page.ts",
+      path.resolve("packages/bundle/dist/cli/cli.js"),
+      "compile",
+      "page*.ts",
+      "output",
       "--watch",
       "--cwd",
       workspace.rootDir,
@@ -65,7 +71,7 @@ it("prepares new Asset imports and reloads processor changes while developing", 
         10_000,
       );
       child.stdout.on("data", (chunk) => {
-        if (String(chunk).includes("Watching Asset imports")) {
+        if (String(chunk).includes("Watching CMX sources")) {
           clearTimeout(timeout);
           resolve();
         }
@@ -76,14 +82,21 @@ it("prepares new Asset imports and reloads processor changes while developing", 
       });
     });
     await workspace.writeSourceFiles({
-      "second.svg": '<svg width="40" height="20"></svg>',
-      "page.ts":
-        'import photo from "./photo.svg"; import second from "./second.svg"; export default [photo.width, second.width];',
+      [hashedAsset]: '<svg width="40" height="20"></svg>',
+      "page.ts": source(
+        `import photo from "./photo.svg"; import second from "./${hashedAsset}";`,
+        "[photo, second]",
+      ),
     });
     await expect
       .poll(
         async () =>
-          access(path.join(workspace.rootDir, "second.d.svg.ts")).then(
+          access(
+            path.join(
+              workspace.rootDir,
+              hashedAsset.replace(".svg", ".d.svg.ts"),
+            ),
+          ).then(
             () => true,
             () => false,
           ),
@@ -93,12 +106,56 @@ it("prepares new Asset imports and reloads processor changes while developing", 
     expect(
       await readFile(path.join(workspace.rootDir, ".cmx/processed"), "utf8"),
     ).toBe("11");
+    await expect
+      .poll(() => renderBuild(workspace.rootDir).page.content.default, {
+        timeout: 10_000,
+      })
+      .toMatchObject([
+        { width: 20, revision: "1" },
+        { width: 40, revision: "1" },
+      ]);
     const typecheck = spawnSync(
       path.resolve("node_modules/.bin/tsgo"),
       ["-p", path.join(workspace.rootDir, "tsconfig.json")],
       { encoding: "utf8", timeout: 30_000 },
     );
     expect(typecheck.status, typecheck.stdout + typecheck.stderr).toBe(0);
+    await workspace.writeSourceFiles({
+      [hashedAsset]: '<svg width="80" height="40"></svg>',
+    });
+    await expect
+      .poll(() => renderBuild(workspace.rootDir).page.content.default, {
+        timeout: 10_000,
+      })
+      .toMatchObject([
+        { width: 20, revision: "1" },
+        { width: 80, revision: "1" },
+      ]);
+    expect(stderr).toBe("");
+    await workspace.writeSourceFiles({
+      "page.ts": source(
+        'import missing from "./missing.svg";',
+        "missing.width",
+      ),
+    });
+    await expect
+      .poll(() => stderr, { timeout: 10_000 })
+      .toContain("missing.svg");
+    await workspace.writeSourceFiles({
+      "page.ts": source(
+        `import photo from "./photo.svg"; import second from "./${hashedAsset}";`,
+        "[photo, second]",
+      ),
+      "page-two.ts": source(
+        `import second from "./${hashedAsset}";`,
+        "second.width",
+      ),
+    });
+    await expect
+      .poll(() => renderBuild(workspace.rootDir)["page-two"]?.content.default, {
+        timeout: 10_000,
+      })
+      .toBe(80);
     await workspace.writeSourceFiles({ "cmx.config.ts": config("2") });
     await expect
       .poll(
@@ -106,10 +163,13 @@ it("prepares new Asset imports and reloads processor changes while developing", 
           readFile(path.join(workspace.rootDir, ".cmx/processed"), "utf8"),
         { timeout: 10_000 },
       )
-      .toBe("1122");
-    expect(stderr).toBe("");
+      .toBe("11122");
     child.kill("SIGTERM");
     expect(await exited).toBe(0);
+    expect(renderBuild(workspace.rootDir).page.content.default).toMatchObject([
+      { width: 20, revision: "2" },
+      { width: 80, revision: "2" },
+    ]);
   } catch (cause) {
     throw new Error(
       `Asset development workflow failed. Watcher state: ${child.exitCode ?? child.signalCode ?? "running"}. Stderr: ${stderr || "<empty>"}`,
@@ -120,4 +180,24 @@ it("prepares new Asset imports and reloads processor changes while developing", 
     await exited;
     await rm(workspace.rootDir, { recursive: true, force: true });
   }
-}, 20_000);
+}, 40_000);
+
+function renderBuild(
+  rootDir: string,
+): Record<string, { content: { default: unknown } }> {
+  const rendered = spawnSync(
+    process.execPath,
+    [
+      path.resolve("packages/document/dist/cli/cli.js"),
+      "render",
+      path.join(rootDir, "output"),
+      "--complete-only",
+    ],
+    { encoding: "utf8", timeout: 10_000 },
+  );
+  if (rendered.status !== 0)
+    throw new Error(
+      rendered.stderr || rendered.error?.message || "Document Rendering failed",
+    );
+  return JSON.parse(rendered.stdout);
+}

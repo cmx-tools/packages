@@ -116,7 +116,7 @@ it("prepares Asset import types from declared processor output before CI typeche
           return {src: file(".svg"), width: options.width, colors: ["red"], caption: undefined};
         }
       });
-      export default {assets: {
+      export default {exports: {default: {required: true, type: {from: "@cmx-tools/contracts", import: "CmxAssetJson"}}}, assets: {
         processors: {photo},
         storage: {async store({key}) {return "https://assets.example/" + key;}}
       }} satisfies CmxConfig;
@@ -149,9 +149,14 @@ it("prepares Asset import types from declared processor output before CI typeche
   try {
     const before = typecheck(workspace.rootDir);
     expect(before.status).not.toBe(0);
-    const { runCmxAssetsCli } = await import("@cmx-tools/assets/cli");
     expect(
-      await runCmxAssetsCli(["prepare", "page.ts", "--cwd", workspace.rootDir]),
+      await runCmxBundleCli([
+        "compile",
+        "page.ts",
+        "dist",
+        "--cwd",
+        workspace.rootDir,
+      ]),
     ).toBe(0);
     const after = typecheck(workspace.rootDir);
     expect(after.status, after.stdout + after.stderr).toBe(0);

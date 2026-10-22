@@ -178,6 +178,9 @@ importers:
       '@cmx-tools/document':
         specifier: workspace:^
         version: link:../../packages/document
+      '@types/node':
+        specifier: ^24.12.2
+        version: 24.12.2
       '@types/react':
         specifier: ^19
         version: 19.2.14
@@ -215,10 +218,6 @@ importers:
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
-    devDependencies:
-      '@cmx-tools/cli':
-        specifier: workspace:^
-        version: link:../cli
 
   packages/bundle:
     dependencies:

@@ -6,8 +6,8 @@
     "strict": true,
     "allowArbitraryExtensions": true,
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "types": ["node", "react"]
   },
-  "types": ["react"],
   "include": ["**/*.tsx"]
 }

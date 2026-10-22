@@ -6,10 +6,6 @@
     ".": {
       "types": "./dist/src/index.d.ts",
       "import": "./dist/src/index.js"
-    },
-    "./cli": {
-      "types": "./dist/cli/runCmxAssetsCli.d.ts",
-      "import": "./dist/cli/runCmxAssetsCli.js"
     }
   },
   "files": [
@@ -38,19 +34,5 @@
   "homepage": "https://github.com/cmx-tools/packages#readme",
   "publishConfig": {
     "access": "public"
-  },
-  "bin": {
-    "cmx-assets": "./dist/cli/cli.js"
-  },
-  "peerDependencies": {
-    "@cmx-tools/cli": "^0.1.0 || ^0.2.0 || ^1.0.0"
-  },
-  "peerDependenciesMeta": {
-    "@cmx-tools/cli": {
-      "optional": true
-    }
-  },
-  "devDependencies": {
-    "@cmx-tools/cli": "workspace:^"
   }
 }

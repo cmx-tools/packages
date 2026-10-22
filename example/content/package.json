@@ -3,9 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "assets:prepare": "cmx-assets prepare \"pages/**/*.tsx\" --config ../cmx.config.ts",
-    "dev": "cmx-assets prepare \"pages/**/*.tsx\" --config ../cmx.config.ts --watch",
-    "typecheck": "corepack pnpm run assets:prepare && tsgo -p tsconfig.json",
+    "dev": "corepack pnpm run compile --watch",
+    "typecheck": "corepack pnpm run build && tsgo -p tsconfig.json",
     "compile": "cmx-bundle compile \"pages/**/*.tsx\" dist --config ../cmx.config.ts",
     "render": "cmx-document render dist --complete-only",
     "build": "corepack pnpm run compile",
@@ -17,6 +16,7 @@
   },
   "devDependencies": {
     "@cmx-tools/assets": "workspace:^",
+    "@types/node": "^24.12.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@cmx-tools/bundle": "workspace:^",
