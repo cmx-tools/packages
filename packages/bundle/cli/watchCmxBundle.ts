@@ -37,9 +37,8 @@ export async function watchCmxBundle(
       const absolute = path.resolve(directory, filename);
       if (
         ignoredDirectories.some((ignored) => containsPath(ignored, absolute)) ||
-        /(?:^|[/\\])(?:node_modules|\.git|\.cmx)(?:[/\\]|$)|\.d\.[^/\\]+$/u.test(
-          filename,
-        )
+        /(?:^|[/\\])(?:node_modules|\.git|\.cmx)(?:[/\\]|$)/u.test(filename) ||
+        /\.d(?:\.[^./\\]+)?\.[cm]?ts$/u.test(filename)
       )
         return;
       if (timer) clearTimeout(timer);

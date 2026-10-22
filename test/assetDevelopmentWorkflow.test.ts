@@ -8,14 +8,14 @@ it("rebuilds typed Asset imports and recovers edits through the normal CMX build
   const workspace = await createCmxTestbedWorkspace();
   const hashedAsset = `${"a".repeat(64)}.svg`;
   const source = (imports: string, value: string) =>
-    `import type {CmxAssetJson} from "@cmx-tools/contracts"; ${imports} const page: CmxAssetJson = ${value}; export default page;`;
+    `import type {CmxAssetJson} from "@cmx-tools/contracts"; import headline from "./title.d.example.js"; ${imports} const page: CmxAssetJson = ${value}; export default page; export const title: CmxAssetJson = headline;`;
   const config = (
     version: string,
   ) => `import {appendFile, mkdir, writeFile} from "node:fs/promises";
     import {createHash} from "node:crypto";
     import type {CmxAssetLoader} from "@cmx-tools/assets";
     import type {CmxConfig} from "@cmx-tools/contracts";
-    export default {exports: {default: {required: true, type: {from: "@cmx-tools/contracts", import: "CmxAssetJson"}}}, assets: {
+    export default {exports: {default: {required: true, type: {from: "@cmx-tools/contracts", import: "CmxAssetJson"}}, title: {required: false, type: {from: "@cmx-tools/contracts", import: "CmxAssetJson"}}}, assets: {
       cacheDir: "asset-cache",
       loaders: {photo: {
         version: "${version}", extensions: [".svg"],
@@ -34,6 +34,7 @@ it("rebuilds typed Asset imports and recovers edits through the normal CMX build
   await workspace.writeSourceFiles({
     "package.json": '{"name":"asset-development","type":"module"}',
     "photo.svg": '<svg width="20" height="10"></svg>',
+    "title.d.example.tsx": 'export default "Initial headline";',
     "page.ts": source('import photo from "./photo.svg";', "photo.width"),
     "cmx.config.ts": config("1"),
     "tsconfig.json": JSON.stringify({
@@ -43,6 +44,7 @@ it("rebuilds typed Asset imports and recovers edits through the normal CMX build
         moduleResolution: "NodeNext",
         strict: true,
         noEmit: true,
+        jsx: "react-jsx",
         allowArbitraryExtensions: true,
         types: ["node"],
       },
@@ -169,6 +171,25 @@ it("rebuilds typed Asset imports and recovers edits through the normal CMX build
         { timeout: 10_000 },
       )
       .toBe("11122");
+    await expect
+      .poll(() => renderBuild(workspace.rootDir).page.content.default, {
+        timeout: 10_000,
+      })
+      .toMatchObject([
+        { width: 20, revision: "2" },
+        { width: 80, revision: "2" },
+      ]);
+    await workspace.writeSourceFiles({
+      "title.d.example.tsx": 'export default "Updated headline";',
+    });
+    await expect
+      .poll(() => renderBuild(workspace.rootDir).page.content.title, {
+        timeout: 10_000,
+      })
+      .toBe("Updated headline");
+    expect(
+      await readFile(path.join(workspace.rootDir, ".cmx/loaded"), "utf8"),
+    ).toBe("11122");
     child.kill("SIGTERM");
     expect(await exited).toBe(0);
     expect(renderBuild(workspace.rootDir).page.content.default).toMatchObject([
@@ -189,7 +210,7 @@ it("rebuilds typed Asset imports and recovers edits through the normal CMX build
 
 function renderBuild(
   rootDir: string,
-): Record<string, { content: { default: unknown } }> {
+): Record<string, { content: { default: unknown; title?: unknown } }> {
   const rendered = spawnSync(
     process.execPath,
     [
