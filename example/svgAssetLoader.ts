@@ -11,7 +11,7 @@ type SvgOptions = {
 };
 
 export const svgAssetLoader = {
-  version: "2",
+  version: "3",
   extensions: [".svg"],
   options: {
     previewWidth: 12,
@@ -34,13 +34,22 @@ export const svgAssetLoader = {
       return `${options.publicBaseUrl.replace(/\/$/u, "")}/${key}`;
     }
     const svg = new TextDecoder().decode(bytes);
-    const width = Number(svg.match(/\bwidth="(\d+)"/u)?.[1]);
-    const height = Number(svg.match(/\bheight="(\d+)"/u)?.[1]);
-    if (!width || !height) throw new Error("SVG must declare width and height");
+    const root = svg.match(/<svg(?=\s|>)[^>]*>/u)?.[0];
+    const width = Number(root?.match(/\swidth="(\d+)"/u)?.[1]);
+    const height = Number(root?.match(/\sheight="(\d+)"/u)?.[1]);
+    if (!root || !width || !height)
+      throw new Error("SVG must declare width and height");
     const previewHeight = (height * options.previewWidth) / width;
-    const preview = svg
-      .replace(`width="${width}"`, `width="${options.previewWidth}"`)
-      .replace(`height="${height}"`, `height="${previewHeight}"`);
+    const previewRoot = root
+      .replace(
+        /(\swidth=")\d+"/u,
+        (_attribute, prefix) => `${prefix}${options.previewWidth}"`,
+      )
+      .replace(
+        /(\sheight=")\d+"/u,
+        (_attribute, prefix) => `${prefix}${previewHeight}"`,
+      );
+    const preview = svg.replace(root, () => previewRoot);
     const src = await storeSvg(bytes);
     const previewUrl = await storeSvg(new TextEncoder().encode(preview));
     return {

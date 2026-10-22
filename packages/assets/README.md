@@ -16,8 +16,9 @@ const svg = {
   options: { directory: "public/assets", publicBaseUrl: "/assets" },
   async load({ bytes, relativePath, options }) {
     const source = new TextDecoder().decode(bytes);
-    const width = Number(source.match(/\bwidth="(\d+)"/u)?.[1]);
-    const height = Number(source.match(/\bheight="(\d+)"/u)?.[1]);
+    const root = source.match(/<svg(?=\s|>)[^>]*>/u)?.[0];
+    const width = Number(root?.match(/\swidth="(\d+)"/u)?.[1]);
+    const height = Number(root?.match(/\sheight="(\d+)"/u)?.[1]);
     if (!width || !height)
       throw new Error(`Missing SVG dimensions: ${relativePath}`);
     const key = `${createHash("sha256").update(bytes).digest("hex")}.svg`;
