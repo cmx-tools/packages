@@ -3,6 +3,7 @@ import {
   type CmxUgcVerificationContext,
   reportCmxUgcDiagnostic,
 } from "./CmxUgcVerificationContext.js";
+import { getCmxSrcsetUrls } from "./getCmxSrcsetUrls.js";
 
 const DISALLOWED_PROPS = new Set([
   "as",
@@ -13,13 +14,11 @@ const DISALLOWED_PROPS = new Set([
   "css",
   "html",
   "id",
-  "imagesrcset",
   "innerhtml",
   "is",
   "nonce",
   "ping",
   "srcdoc",
-  "srcset",
   "style",
   "sx",
 ]);
@@ -57,7 +56,18 @@ export function verifyCmxUgcProps(
         propPath,
         `Prop ${JSON.stringify(name)} is not allowed in UGC.`,
       );
-    } else if (URL_PROPS.has(normalizedName)) {
+    } else if (
+      (normalizedName === "srcset" || normalizedName === "imagesrcset") &&
+      typeof value === "string"
+    ) {
+      for (const url of getCmxSrcsetUrls(value)) {
+        verifyUrlProp(normalizedName, url, propPath, context);
+      }
+    } else if (
+      URL_PROPS.has(normalizedName) ||
+      normalizedName === "srcset" ||
+      normalizedName === "imagesrcset"
+    ) {
       verifyUrlProp(normalizedName, value, propPath, context);
     }
   }
