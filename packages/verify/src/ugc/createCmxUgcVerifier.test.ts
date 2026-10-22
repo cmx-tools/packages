@@ -493,6 +493,178 @@ describe("createCmxUgcVerifier", () => {
     });
   });
 
+  it("allows responsive image widths when the publisher permits images", async () => {
+    const document = createDocument({
+      node: {
+        type: "element",
+        tag: "img",
+        props: {
+          src: "/photos/tree.jpg",
+          srcset:
+            "/photos/tree-small.jpg 320w, https://images.example.org/tree.jpg 1280w",
+          alt: "A tree",
+        },
+      },
+    });
+    const before = structuredClone(document);
+
+    expect(
+      await createCmxUgcVerifier({ allowedElements: ["img"] })(document),
+    ).toEqual({ valid: true });
+    expect(document).toEqual(before);
+  });
+
+  it("allows picture sources and React density aliases with commas inside resource URLs", async () => {
+    const document = createDocument({
+      node: {
+        type: "element",
+        tag: "picture",
+        children: [
+          {
+            type: "element",
+            tag: "source",
+            props: {
+              srcset:
+                "http://images.example.org/tree,crop.webp 1x, //images.example.org/tree,crop@2x.webp 2x",
+              type: "image/webp",
+            },
+          },
+          {
+            type: "element",
+            tag: "img",
+            props: {
+              src: "./tree.jpg",
+              srcSet: "./tree,crop.jpg, ../tree,crop@2x.jpg 2x",
+            },
+          },
+        ],
+      },
+    });
+
+    expect(
+      await createCmxUgcVerifier({
+        allowedElements: ["picture", "source", "img"],
+      })(document),
+    ).toEqual({ valid: true });
+  });
+
+  it("allows responsive image preloads through either image source set alias", async () => {
+    const document = createDocument({
+      node: {
+        type: "fragment",
+        children: ["imagesrcset", "imageSrcSet"].map((prop) => ({
+          type: "element",
+          tag: "link",
+          props: {
+            rel: "preload",
+            [prop]: "/tree-small.jpg 320w, /tree.jpg 1280w",
+            imagesizes: "100vw",
+          },
+        })),
+      },
+    });
+
+    expect(
+      await createCmxUgcVerifier({ allowedElements: ["link"] })(document),
+    ).toEqual({ valid: true });
+  });
+
+  it.each([
+    ["img", "srcset", "/tree.jpg 1x, javascript:run() 2x"],
+    ["img", "srcSet", "/tree.jpg 1x, \u0000JaVaScRiPt:run() 2x"],
+    ["source", "SRCSET", "/tree.jpg 1x,\t\n javascript:run() 2x"],
+    ["img", "srcset", "/tree.jpg 1x, data:image/svg+xml,<svg></svg> 2x"],
+    ["img", "srcset", "data:image/png;base64,AAAA, /tree.jpg 2x"],
+    ["img", "srcset", "/tree.jpg 1x, mailto:editor@example.org 2x"],
+    ["img", "srcset", "/tree.jpg 1x, tel:+123456789 2x"],
+    ["img", "srcset", "/tree.jpg 1x, blob:https://example.org/123 2x"],
+    ["img", "srcset", "/tree.jpg 1x, https://[broken 2x"],
+    ["img", "srcset", "/tree.jpg, ,javascript:run(), /large.jpg 2x"],
+    ["source", "srcset", "/tree.jpg future(a,b), javascript:run() 2x"],
+    ["source", "srcset", "/tree.jpg 1x, javascript:run() invalid(a,b)"],
+    ["link", "imagesrcset", "/tree.jpg 320w, file:///etc/passwd 640w"],
+    ["link", "imageSrcSet", "/tree.jpg 320w, data:image/png;base64,AAAA 640w"],
+  ])(
+    "rejects unsafe resource candidates on %s through %s: %j",
+    async (tag, prop, value) => {
+      const document = createDocument({
+        node: { type: "element", tag, props: { [prop]: value } },
+      });
+
+      expect(
+        await createCmxUgcVerifier({ allowedElements: [tag] })(document),
+      ).toMatchObject({
+        valid: false,
+        diagnostics: [
+          {
+            code: "ugc-unsafe-url",
+            message: expect.stringContaining(`/props/${prop}`),
+          },
+        ],
+      });
+    },
+  );
+
+  it("rejects source set application data without coercing it into URLs", async () => {
+    let coerced = false;
+    const document = createDocument({
+      node: {
+        type: "element",
+        tag: "img",
+        props: {
+          srcset: {
+            toString() {
+              coerced = true;
+              return "/tree.jpg 1x, /tree@2x.jpg 2x";
+            },
+          },
+          srcSet: ["/tree.jpg", "/tree@2x.jpg"],
+        },
+      },
+    });
+
+    expect(
+      await createCmxUgcVerifier({ allowedElements: ["img"] })(document),
+    ).toMatchObject({
+      valid: false,
+      diagnostics: [{ code: "ugc-unsafe-url" }, { code: "ugc-unsafe-url" }],
+    });
+    expect(coerced).toBe(false);
+  });
+
+  it("lets a host prohibit responsive image props through its additional policy", async () => {
+    const document = createDocument({
+      node: {
+        type: "fragment",
+        children: [
+          {
+            type: "element",
+            tag: "img",
+            props: { srcSet: "/tree.jpg 1x, /tree@2x.jpg 2x" },
+          },
+          {
+            type: "element",
+            tag: "link",
+            props: { imagesrcset: "/tree.jpg 1x, javascript:run() 2x" },
+          },
+        ],
+      },
+    });
+
+    expect(
+      await createCmxUgcVerifier({
+        allowedElements: ["img", "link"],
+        policy: { disallowedProps: ["SRCSET", "imageSrcSet"] },
+      })(document),
+    ).toMatchObject({
+      valid: false,
+      diagnostics: [
+        { code: "ugc-disallowed-prop" },
+        { code: "ugc-disallowed-prop" },
+      ],
+    });
+  });
+
   it("accepts local navigation, web links, and contact links without rewriting them", async () => {
     const urls = [
       "/about",
