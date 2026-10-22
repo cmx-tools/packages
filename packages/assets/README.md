@@ -35,7 +35,7 @@ export default {
 } satisfies CmxConfig;
 ```
 
-Keep the default export's inferred type with `satisfies CmxConfig`. Annotating it as `CmxConfig` erases the processor's imported metadata fields. Config functions and configuration merged from other sources are unsupported for Asset type generation.
+Keep the default export's inferred type with `satisfies CmxConfig`. Annotating it as `CmxConfig` erases the processor's imported metadata fields. JavaScript ESM configs in `.js` or `.mjs` files can export the same object and use JSDoc to declare metadata types. CommonJS `module.exports`, config functions, and configuration merged from other sources are unsupported for Asset type generation.
 
 `file(extension)` references the original bytes. `emit(bytes, extension)` references a processed output. The result can contain these references inside JSON objects and arrays. The build stores referenced files and replaces their references with URL strings. The [example SVG processor](../../example/svgAssetProcessor.ts) extracts dimensions and creates a smaller preview.
 
@@ -43,7 +43,7 @@ Processor keys identify processing behavior. Each processor declares a `version`
 
 ## Typechecking and development
 
-Enable `allowArbitraryExtensions` in the Content Project's TypeScript compiler options. Prepare imports before typechecking in CI and watch them during development:
+Enable `allowArbitraryExtensions` in the Content Project's TypeScript compiler options. For JavaScript ESM configs, also enable `allowJs` for content typechecking so generated declarations can import the config's inferred types. Prepare imports before typechecking in CI and watch them during development:
 
 ```json
 {
