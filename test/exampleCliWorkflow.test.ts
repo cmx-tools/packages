@@ -131,6 +131,10 @@ describe("example CLI workflow", () => {
           new URL(candidate.split(" ")[0], server.url),
         );
         expect(response.status).toBe(200);
+        expect(response.headers.get("content-security-policy")).toBe(
+          "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+        );
+        expect(response.headers.get("x-content-type-options")).toBe("nosniff");
       }
     } finally {
       await server.close();
