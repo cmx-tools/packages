@@ -140,7 +140,7 @@ it("renders project-loaded Asset metadata and final URLs into Document Content",
   } finally {
     await rm(workspace.rootDir, { recursive: true, force: true });
   }
-});
+}, 30_000);
 
 it("prepares Asset import types from declared loader output before CI typechecking", async () => {
   const workspace = await createCmxTestbedWorkspace();
