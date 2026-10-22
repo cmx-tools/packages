@@ -13,9 +13,93 @@ import {
   createMemoryCmxDocumentStore,
 } from "@cmx-tools/document-host";
 import { publishCmxDocuments } from "@cmx-tools/publish";
-import { CMX_DOCUMENT_SCHEMA, type CmxDocument } from "@cmx-tools/contracts";
+import {
+  CMX_BUNDLE_FILE_NAME,
+  CMX_DOCUMENT_SCHEMA,
+  parseCmxBundleJson,
+  type CmxDocument,
+} from "@cmx-tools/contracts";
 import { createDocumentHostTestServer } from "./createDocumentHostTestServer.js";
 import { createCmxTestbedWorkspace } from "./createCmxTestbedWorkspace.js";
+
+it("repeated broad TypeScript builds keep generated Asset types out of executable entries", async () => {
+  const workspace = await createCmxTestbedWorkspace();
+  await workspace.writeSourceFiles({
+    "package.json": '{"name":"asset-typescript-content","type":"module"}',
+    "pages/photo.svg": '<svg width="40" height="20"></svg>',
+    "pages/about.ts": `import photo from "./photo.svg";
+      import type {CmxAssetJson} from "@cmx-tools/contracts";
+      export default photo.src;
+      export const meta: CmxAssetJson = photo;
+    `,
+    "pages/legal/terms.ts": 'export default "Terms";',
+    "pages/legal/terms.d.example.tsx": 'export default "Example terms";',
+    "cmx.config.ts": `import {appendFile, mkdir} from "node:fs/promises";
+      import type {CmxAssetLoader} from "@cmx-tools/assets";
+      import type {CmxConfig} from "@cmx-tools/contracts";
+      const image = {
+        version: "1", extensions: [".svg"],
+        async load({relativePath}) {
+          await mkdir(new URL(".cmx", import.meta.url), {recursive: true});
+          await appendFile(new URL(".cmx/loaded", import.meta.url), "1");
+          return {src: "https://assets.example/" + relativePath, width: 40};
+        }
+      } satisfies CmxAssetLoader;
+      export default {
+        exports: {
+          default: {required: true, type: {from: "@cmx-tools/contracts", import: "CmxNode"}},
+          meta: {required: false, type: {from: "@cmx-tools/contracts", import: "CmxAssetJson"}}
+        },
+        assets: {loaders: {image}}
+      } satisfies CmxConfig;
+    `,
+  });
+  try {
+    for (let build = 0; build < 2; build += 1) {
+      expect(
+        await runCmxBundleCli([
+          "compile",
+          "pages/**/*.{ts,tsx}",
+          "dist",
+          "--cwd",
+          workspace.rootDir,
+        ]),
+      ).toBe(0);
+      const bundle = parseCmxBundleJson(
+        await readFile(
+          path.join(workspace.rootDir, "dist", CMX_BUNDLE_FILE_NAME),
+          "utf8",
+        ),
+      );
+      expect(bundle.entries.map((entry) => entry.name).sort()).toEqual([
+        "about",
+        "legal/terms",
+        "legal/terms.d.example",
+      ]);
+      const rendered = await renderCmxDocuments({
+        bundleDir: path.join(workspace.rootDir, "dist"),
+      });
+      expect(rendered.result, JSON.stringify(rendered)).toBe("complete");
+      if (rendered.result !== "complete")
+        throw new Error("Asset Document Rendering failed");
+      expect(rendered.entries.about.document.content).toEqual({
+        default: "https://assets.example/pages/photo.svg",
+        meta: { src: "https://assets.example/pages/photo.svg", width: 40 },
+      });
+      expect(rendered.entries["legal/terms"].document.content.default).toBe(
+        "Terms",
+      );
+      expect(
+        rendered.entries["legal/terms.d.example"].document.content.default,
+      ).toBe("Example terms");
+    }
+    expect(
+      await readFile(path.join(workspace.rootDir, ".cmx/loaded"), "utf8"),
+    ).toBe("1");
+  } finally {
+    await rm(workspace.rootDir, { recursive: true, force: true });
+  }
+}, 30_000);
 
 it("renders project-loaded Asset metadata and final URLs into Document Content", async () => {
   const workspace = await createCmxTestbedWorkspace();

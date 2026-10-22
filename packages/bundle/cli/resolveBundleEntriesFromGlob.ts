@@ -8,9 +8,9 @@ export async function resolveBundleEntriesFromGlob(options: {
   const entryFiles = await options.glob(options.globPattern, {
     cwd: options.cwd,
   });
-  const normalizedEntryFiles = entryFiles.map((file) =>
-    path.resolve(options.cwd, file),
-  );
+  const normalizedEntryFiles = entryFiles
+    .filter((file) => !/\.d(?:\.[^./\\]+)?\.[cm]?ts$/u.test(file))
+    .map((file) => path.resolve(options.cwd, file));
 
   if (normalizedEntryFiles.length === 0) {
     throw new Error(`No files matched glob: ${options.globPattern}`);
