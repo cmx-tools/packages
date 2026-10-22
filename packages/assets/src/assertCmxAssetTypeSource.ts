@@ -6,6 +6,8 @@ export function assertCmxAssetTypeSource(
 ): (identity: string) => void {
   const program = ts.createProgram([configPath], {
     ...compilerOptions,
+    allowJs: true,
+    checkJs: true,
     noEmit: true,
   });
   const checker = program.getTypeChecker();
@@ -40,7 +42,7 @@ export function assertCmxAssetTypeSource(
       checker.getAwaitedType(checker.getReturnTypeOfSignature(signature));
     if (!result || result.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) {
       throw new Error(
-        `Cannot derive asset import types for ${identity}. Export a default config object using satisfies CmxConfig and preserve the processor's declared return type.`,
+        `Cannot derive asset import types for ${identity}. Export a default ESM config object and preserve the processor's declared return type. Use satisfies CmxConfig for TypeScript configs.`,
       );
     }
   };

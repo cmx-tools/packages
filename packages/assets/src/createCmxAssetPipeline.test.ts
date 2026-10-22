@@ -295,6 +295,100 @@ test("fresh Content Projects prepare aliased Assets through transitive source im
   ).resolves.toMatchObject({ stderr: "" });
 });
 
+test.each(["js", "mjs"])(
+  "ESM %s configs prepare imported metadata before the project enables JavaScript typechecking",
+  async (extension) => {
+    const cwd = await project();
+    await writeFile(
+      path.join(cwd, "package.json"),
+      JSON.stringify({ type: "module" }),
+    );
+    await writeFile(path.join(cwd, "photo.svg"), "image");
+    const configPath = `cmx.config.${extension}`;
+    await writeFile(
+      path.join(cwd, configPath),
+      `
+    import { defineCmxAssetProcessor } from '@cmx-tools/assets';
+    export default { assets: {
+      processors: { image: defineCmxAssetProcessor({
+        version: '1', extensions: ['.svg'], options: { width: 40 },
+        process(input) {
+          return {
+            src: input.file('.svg'), width: input.options.width,
+            colors: /** @type {('warm' | 'cool')[]} */ (['warm'])
+          };
+        }
+      }) },
+      storage: { async store() { return '/assets'; } }
+    } };
+  `,
+    );
+    await writeFile(
+      path.join(cwd, "content.ts"),
+      `
+    import photo from './photo.svg';
+    const width: number = photo.width;
+    const src: string = photo.src;
+    const color: 'warm' | 'cool' = photo.colors[0];
+    // @ts-expect-error JavaScript config metadata retains its declared fields.
+    photo.missing;
+    // @ts-expect-error JSDoc metadata unions survive preparation.
+    const wrong: 'green' = photo.colors[0];
+    export default { width, src, color };
+  `,
+    );
+    const compilerOptions = {
+      strict: true,
+      module: "NodeNext",
+      moduleResolution: "NodeNext",
+      allowArbitraryExtensions: true,
+      noEmit: true,
+      skipLibCheck: true,
+    };
+    await writeFile(
+      path.join(cwd, "tsconfig.json"),
+      JSON.stringify({ compilerOptions, include: ["*.ts"] }),
+    );
+    const pipeline = createCmxAssetPipeline({
+      cwd,
+      assets: {
+        processors: {
+          image: {
+            version: "1",
+            extensions: [".svg"],
+            process: (input) => ({
+              src: input.file(".svg"),
+              width: 40,
+              colors: ["warm"],
+            }),
+          },
+        },
+        storage: {
+          async store() {
+            throw new Error("Preparation must not upload");
+          },
+        },
+      },
+    });
+
+    await pipeline.prepare({ entries: ["content.ts"], configPath });
+    await writeFile(
+      path.join(cwd, "tsconfig.json"),
+      JSON.stringify({
+        compilerOptions: { ...compilerOptions, allowJs: true },
+        include: ["*.ts"],
+      }),
+    );
+
+    await expect(
+      promisify(execFile)(
+        path.resolve(import.meta.dirname, "../../../node_modules/.bin/tsgo"),
+        ["-p", path.join(cwd, "tsconfig.json")],
+      ),
+    ).resolves.toMatchObject({ stderr: "" });
+  },
+);
+
 test("source, processor version and configured options invalidate only affected processing", async () => {
   const cwd = await project();
   await writeFile(path.join(cwd, "first.svg"), "first");
