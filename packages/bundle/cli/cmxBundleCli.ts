@@ -2,6 +2,7 @@ import path from "node:path";
 import type * as CliModule from "@cmx-tools/cli";
 import { compileCmxBundle } from "../src/compileCmxBundle.js";
 import { resolveBundleEntriesFromGlob } from "./resolveBundleEntriesFromGlob.js";
+import { watchCmxBundle, type CmxBundleWatchPaths } from "./watchCmxBundle.js";
 
 type CliModuleLoader = (specifier: string) => Promise<unknown>;
 type RunCmxBundleCliOptions = { importModule?: CliModuleLoader };
@@ -37,17 +38,33 @@ export async function runCmxBundleCli(
     const { resolveCmxCliConfig, glob } = await loadCmxCli(
       options.importModule ?? ((specifier) => import(specifier)),
     );
-    const config = await resolveCmxCliConfig({ argv, cwd, env: process.env });
-    const entries = await resolveBundleEntriesFromGlob({
-      cwd: config.cwd ?? cwd,
-      globPattern: command.globPattern,
-      glob,
-    });
-    await compileCmxBundle({
-      entries,
-      outDir: command.outDir,
-      ...config,
-    });
+    const build = async (
+      updatePaths?: (paths: CmxBundleWatchPaths) => void,
+    ) => {
+      const config = await resolveCmxCliConfig({ argv, cwd, env: process.env });
+      updatePaths?.({
+        cwd: config.cwd,
+        configPath: config.configPath,
+        cacheDir: config.assets?.cacheDir,
+        outDir: command.outDir,
+      });
+      const entries = await resolveBundleEntriesFromGlob({
+        cwd: config.cwd ?? cwd,
+        globPattern: command.globPattern,
+        glob,
+      });
+      await compileCmxBundle({ entries, outDir: command.outDir, ...config });
+    };
+    if (command.watch) {
+      await watchCmxBundle({
+        cwd,
+        configPath: command.configPath ?? process.env.CMX_CONFIG,
+        outDir: command.outDir,
+        build,
+      });
+    } else {
+      await build();
+    }
     return 0;
   } catch (error) {
     process.stderr.write(formatCliError(error));
@@ -88,11 +105,14 @@ type ParsedCommand = {
   cwd?: string;
   globPattern: string;
   outDir: string;
+  watch: boolean;
+  configPath?: string;
 };
 
 function parseCommand(argv: readonly string[]): ParsedCommand | null {
   const positionals: string[] = [];
   let cwd: string | undefined;
+  let configPath: string | undefined;
   const valueFlags = new Set([
     "--cwd",
     "--config",
@@ -103,6 +123,7 @@ function parseCommand(argv: readonly string[]): ParsedCommand | null {
 
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
+    if (argument === "--config") configPath = argv[index + 1];
     if (argument === "--cwd") {
       const cwdValue = argv[index + 1];
       if (cwdValue === undefined || cwdValue.startsWith("--")) {
@@ -137,6 +158,8 @@ function parseCommand(argv: readonly string[]): ParsedCommand | null {
       cwd: resolveCliCwd(cwd),
       globPattern: positionals[1],
       outDir: positionals[2],
+      watch: argv.includes("--watch"),
+      configPath,
     };
   }
 
@@ -145,6 +168,8 @@ function parseCommand(argv: readonly string[]): ParsedCommand | null {
       cwd: resolveCliCwd(cwd),
       globPattern: positionals[0],
       outDir: positionals[1],
+      watch: argv.includes("--watch"),
+      configPath,
     };
   }
 
@@ -165,6 +190,7 @@ function writeHelp(): void {
       "  cmx-bundle <glob> <outDir>",
       "",
       "Options:",
+      "  --watch",
       "  --cwd <path>",
       "  --config <path>",
       "  --external <entry>",

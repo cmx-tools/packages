@@ -33,7 +33,6 @@ describe("CLI package topology", () => {
 
   it("uses @cmx-tools/cli as optional peer in capability packages", async () => {
     for (const pkg of [
-      "assets",
       "bundle",
       "document",
       "environment",

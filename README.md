@@ -6,9 +6,34 @@ The source of truth stays in Git. The application owns its rendering and deploym
 
 ## Import Assets with typed metadata
 
-Configure a project-defined processor with `@cmx-tools/assets`, then import colocated files such as `import photo from "./photo.svg"`. Content Source receives the processor's typed metadata and final URLs. Processing is cached across builds, and local filesystem or R2 storage runs before Document Rendering. Applications render the resulting values through their normal Document Contract.
+Configure [Asset processors and storage](packages/assets/README.md), then import colocated files:
 
-Run `cmx assets prepare "pages/**/*.tsx"` before typechecking, or add `--watch` during development. See the [Asset preprocessing guide](packages/assets/README.md) for configuration, generated types, caching, and storage.
+```tsx
+import photo from "./photo.svg";
+
+export default (
+  <img
+    src={photo.src}
+    width={photo.width}
+    height={photo.height}
+    alt="Portrait"
+  />
+);
+```
+
+Compilation generates the import types and stores referenced files. Build before typechecking:
+
+```json
+{
+  "scripts": {
+    "build": "cmx-bundle compile \"pages/**/*.tsx\" dist",
+    "typecheck": "pnpm run build && tsc --noEmit",
+    "dev": "cmx-bundle compile \"pages/**/*.tsx\" dist --watch"
+  }
+}
+```
+
+Rendered Documents contain final URLs and metadata. Applications use those values directly.
 
 ## Publish content to your application
 
