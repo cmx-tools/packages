@@ -14,9 +14,13 @@ const verifyUgc = createCmxUgcVerifier({
 
 export const documentHost = createCmxDocumentHost({
   store: createMemoryCmxDocumentStore(),
-  async verifyIncomingDocument(document) {
-    const compatible = verifyCmxDocumentEnvironment(document, environment);
-    if (!compatible.valid) return compatible;
-    return verifyUgc(document);
+  async verifyPublicationUpdate(update) {
+    for (const document of Object.values(update.upsert)) {
+      const compatible = verifyCmxDocumentEnvironment(document, environment);
+      if (!compatible.valid) return compatible;
+      const safe = await verifyUgc(document);
+      if (!safe.valid) return safe;
+    }
+    return { valid: true };
   },
 });

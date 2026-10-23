@@ -88,13 +88,19 @@ export async function runCmxPublishCli(
       error instanceof CmxPublicationError &&
       error.diagnostics !== undefined
     ) {
-      for (const [entryName, diagnostics] of Object.entries(
-        error.diagnostics,
-      )) {
-        for (const diagnostic of diagnostics) {
-          process.stderr.write(
-            `${entryName}: ${diagnostic.code}: ${diagnostic.message}\n`,
-          );
+      if (Array.isArray(error.diagnostics)) {
+        for (const diagnostic of error.diagnostics) {
+          process.stderr.write(`${diagnostic.code}: ${diagnostic.message}\n`);
+        }
+      } else {
+        for (const [entryName, diagnostics] of Object.entries(
+          error.diagnostics,
+        )) {
+          for (const diagnostic of diagnostics) {
+            process.stderr.write(
+              `${entryName}: ${diagnostic.code}: ${diagnostic.message}\n`,
+            );
+          }
         }
       }
     }

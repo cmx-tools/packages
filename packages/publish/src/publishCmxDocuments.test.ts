@@ -283,6 +283,46 @@ describe("publishing CMX Documents", () => {
     );
   });
 
+  it("preserves publication-wide application rejection diagnostics", async () => {
+    const current = await createCmxPublicationState({});
+    const diagnostics = [
+      {
+        severity: "error",
+        code: "app/missing-fallback",
+        message: "The required 404 Document is missing.",
+      },
+    ];
+    await withEndpoint(
+      (request, response) => {
+        response.setHeader("Content-Type", "application/json");
+        if (request.method === "GET") {
+          response.setHeader("ETag", `"${current.contentHash}"`);
+          response.end(JSON.stringify(current));
+        } else {
+          response.writeHead(422).end(
+            JSON.stringify({
+              message: "Publication Update rejected.",
+              diagnostics,
+            }),
+          );
+        }
+      },
+      async (endpoint) => {
+        await expect(
+          publishCmxDocuments({
+            endpoint,
+            documents: { home: unicodeDocument },
+          }),
+        ).rejects.toMatchObject({
+          name: "CmxPublicationError",
+          status: 422,
+          message: "Publication Update rejected.",
+          diagnostics,
+        });
+      },
+    );
+  });
+
   it.each([
     { phase: "GET", status: 401 },
     { phase: "PUT", status: 403 },

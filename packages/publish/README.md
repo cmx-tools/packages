@@ -83,4 +83,4 @@ The transport owns credential acquisition, refresh, and authentication challenge
 
 ## Errors
 
-`CmxPublicationError` extends `CmxError` and carries the HTTP `status`, entry-specific `diagnostics`, and underlying `cause` when available. Network failures and rejected Documents also throw this error.
+`CmxPublicationError` extends `CmxError` and carries the HTTP `status`, `diagnostics`, and underlying `cause` when available. Structural Document diagnostics are grouped by entry name. Application rejection diagnostics form a flat list. Rejection uses `422`, publication conflicts use `409`, and storage failures use `500`. Network failures also throw this error.

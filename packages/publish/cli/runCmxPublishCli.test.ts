@@ -452,6 +452,69 @@ describe("cmx-publish", () => {
     },
   );
 
+  it("prints publication-wide rejection diagnostics without an entry prefix", async () => {
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "cmx-publish-update-rejection-"),
+    );
+    const server = createServer((request, response) => {
+      if (request.method === "GET") {
+        response
+          .writeHead(200, {
+            "Content-Type": "application/json",
+            ETag: `"${emptyContentHash}"`,
+          })
+          .end(JSON.stringify({ contentHash: emptyContentHash, manifest: {} }));
+        return;
+      }
+      response.writeHead(422, { "Content-Type": "application/json" }).end(
+        JSON.stringify({
+          message: "Publication Update rejected.",
+          diagnostics: [
+            {
+              severity: "error",
+              code: "app/missing-fallback",
+              message: "The required 404 Document is missing.",
+            },
+          ],
+        }),
+      );
+    });
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    try {
+      await writeFile(
+        path.join(directory, "documents.json"),
+        JSON.stringify({
+          home: {
+            $schema:
+              "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
+            cmxVersion: 1,
+            interface: { imports: {}, exports: { default: {} } },
+            content: { default: "Home" },
+          },
+        }),
+      );
+      const { port } = server.address() as AddressInfo;
+      await expect(
+        exec(
+          process.execPath,
+          [binary, "documents.json", `http://127.0.0.1:${port}/cmx`],
+          { cwd: directory },
+        ),
+      ).rejects.toMatchObject({
+        code: 1,
+        stdout: "",
+        stderr:
+          "Publication Update rejected.\napp/missing-fallback: The required 404 Document is missing.\n",
+      });
+    } finally {
+      server.closeAllConnections();
+      server.close();
+      await once(server, "close");
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it("reports rejected Documents with their entry names and diagnostic codes", async () => {
     const directory = await mkdtemp(
       path.join(os.tmpdir(), "cmx-publish-rejection-"),

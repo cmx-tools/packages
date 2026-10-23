@@ -16,7 +16,9 @@ export type CmxPublicationDelta = {
 
 export type CmxPublicationResult = { contentHash: string };
 
-export type CmxPublicationDiagnostics = Record<string, CmxDiagnostic[]>;
+export type CmxPublicationDiagnostics =
+  | CmxDiagnostic[]
+  | Record<string, CmxDiagnostic[]>;
 
 export type CmxPublicationRejection = {
   message: string;

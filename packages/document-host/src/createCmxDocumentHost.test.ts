@@ -80,7 +80,7 @@ it("starts empty and lets publishers compare their target with the current ETag"
   expect(await host.getDocument("missing")).toBeUndefined();
 });
 
-it.each(["verification", "manifest", "commit"])(
+it.each(["verification", "manifest", "commit", "document"])(
   "contains unexpected %s failures and keeps the previous publication",
   async (phase) => {
     const memory = createMemoryCmxDocumentStore();
@@ -92,6 +92,11 @@ it.each(["verification", "manifest", "commit"])(
           throw new Error("private database detail");
         return memory.getState();
       },
+      getDocument: async (name) => {
+        if (failing && phase === "document" && name === "reference")
+          throw new Error("private database detail");
+        return memory.getDocument(name);
+      },
       commit: async (publication) => {
         if (failing && phase === "commit")
           throw new Error("private database detail");
@@ -100,15 +105,22 @@ it.each(["verification", "manifest", "commit"])(
     };
     const host = createCmxDocumentHost({
       store,
-      verifyIncomingDocument: () => {
+      verifyPublicationUpdate: async (_update, loadDocument) => {
         if (failing && phase === "verification")
           throw new Error("private policy detail");
+        await loadDocument("reference");
         return { valid: true };
       },
     });
-    expect((await publish(host, { home: document("old") })).status).toBe(200);
+    const reference = document("related content");
+    expect(
+      (await publish(host, { home: document("old"), reference })).status,
+    ).toBe(200);
     const current = await memory.getState();
-    const target = await createCmxPublicationState({ home: document("new") });
+    const target = await createCmxPublicationState({
+      home: document("new"),
+      reference,
+    });
     failing = true;
     const result = await host.handlePublication(
       put({
@@ -187,22 +199,13 @@ it("activates additions, replacements and removals including nested and prototyp
   expect(await host.getDocument("blog/post")).toBeUndefined();
 });
 
-it("rejects the whole publication with structural and application diagnostics grouped by entry", async () => {
-  const inspected: unknown[] = [];
-  const diagnostics = [
-    {
-      severity: "error" as const,
-      code: "content-policy",
-      message: "Content is blocked.",
-    },
-  ];
+it("structurally rejects incoming Documents before application verification and preserves the accepted Publication", async () => {
+  let verified = 0;
   const host = createCmxDocumentHost({
     store: createMemoryCmxDocumentStore(),
-    verifyIncomingDocument: async (incoming) => {
-      inspected.push(incoming.content.default);
-      return incoming.content.default === "blocked"
-        ? { valid: false, diagnostics }
-        : { valid: true };
+    verifyPublicationUpdate: () => {
+      verified += 1;
+      return { valid: true };
     },
   });
   expect((await publish(host, { home: document("accepted") })).status).toBe(
@@ -214,30 +217,29 @@ it("rejects the whole publication with structural and application diagnostics gr
   } as unknown as CmxDocument;
   const rejected = await publish(host, {
     broken: invalid,
-    policy: document("blocked"),
     accepted: document("fine"),
   });
   expect(rejected.status).toBe(422);
   expect(await rejected.json()).toMatchObject({
     diagnostics: {
       broken: [expect.objectContaining({ severity: "error" })],
-      policy: diagnostics,
     },
   });
-  expect(inspected).toEqual(["accepted", "blocked", "fine"]);
+  expect(verified).toBe(1);
   expect(await host.getDocument("home")).toEqual(document("accepted"));
   expect(await host.getDocument("accepted")).toBeUndefined();
   expect((await publish(host, { other: document("next") })).status).toBe(200);
-  expect(inspected).toEqual(["accepted", "blocked", "fine", "next"]);
+  expect(verified).toBe(2);
   expect((await publish(host, {}, ["home"])).status).toBe(200);
-  expect(inspected).toEqual(["accepted", "blocked", "fine", "next"]);
+  expect(verified).toBe(3);
 });
 
 it("lets the application compose UGC and Environment checks before accepting content", async () => {
   const verifyUgc = createCmxUgcVerifier();
   const host = createCmxDocumentHost({
     store: createMemoryCmxDocumentStore(),
-    verifyIncomingDocument: async (incoming) => {
+    verifyPublicationUpdate: async (update) => {
+      const incoming = update.upsert.article;
       const environment = verifyCmxDocumentEnvironment(incoming, {
         dependencies: [],
         imports: {},
@@ -266,12 +268,10 @@ it("lets the application compose UGC and Environment checks before accepting con
   const response = await publish(host, { article: unsafe });
   expect(response.status).toBe(422);
   expect(await response.json()).toMatchObject({
-    diagnostics: {
-      article: [
-        expect.objectContaining({ code: "missing-environment-dependency" }),
-        expect.objectContaining({ code: "ugc-disallowed-element" }),
-      ],
-    },
+    diagnostics: [
+      expect.objectContaining({ code: "missing-environment-dependency" }),
+      expect.objectContaining({ code: "ugc-disallowed-element" }),
+    ],
   });
   expect(await host.getDocument("article")).toBeUndefined();
   const unrestricted = createCmxDocumentHost({
@@ -284,9 +284,15 @@ it("isolates verification and read values from the hash-addressed stored Documen
   const retained: CmxDocument[] = [];
   const host = createCmxDocumentHost({
     store: createMemoryCmxDocumentStore(),
-    verifyIncomingDocument: (incoming) => {
-      retained.push(incoming);
-      incoming.content.default = "changed by verifier";
+    verifyPublicationUpdate: async (update, loadDocument) => {
+      const incoming = (await loadDocument("home"))!;
+      retained.push(incoming, update.upsert.home);
+      incoming.content.default = "changed through loader";
+      update.upsert.home.content.default = "changed through update";
+      update.remove.push("home");
+      delete update.upsert.home;
+      update.upsert.extra = document("extra Document");
+      expect(await loadDocument("home")).toEqual(document("published"));
       return { valid: true };
     },
   });
@@ -294,7 +300,8 @@ it("isolates verification and read values from the hash-addressed stored Documen
   const target = await createCmxPublicationState({ home: original });
   expect((await publish(host, { home: original })).status).toBe(200);
   original.content.default = "changed by caller";
-  retained[0].content.default = "changed after verification";
+  for (const value of retained)
+    value.content.default = "changed after verification";
   const read = await host.getDocument("home");
   read!.content.default = "changed by reader";
   expect(await host.getDocument("home")).toEqual(document("published"));
@@ -377,3 +384,370 @@ it.each([
     ).toEqual({ contentHash: emptyHash, manifest: {} });
   },
 );
+
+it("verifies a Publication Update through received changes and selective proposed Document reads", async () => {
+  const memory = createMemoryCmxDocumentStore();
+  const acceptedHost = createCmxDocumentHost({ store: memory });
+  const accepted = {
+    home: document("old home"),
+    unchanged: document("unchanged page"),
+    removed: document("removed page"),
+    unneeded: document("do not load"),
+  };
+  expect((await publish(acceptedHost, accepted)).status).toBe(200);
+  const state = await memory.getState();
+  const upsert = Object.fromEntries([
+    [
+      "_site",
+      document([
+        "home",
+        "added",
+        "unchanged",
+        "removed",
+        "unknown",
+        "__proto__",
+        "constructor",
+      ]),
+    ],
+    ["home", document("new home")],
+    ["added", document("new page")],
+    ["__proto__", document("prototype page")],
+    ["constructor", document("constructor page")],
+  ]);
+  const target = await createCmxPublicationState({
+    ...upsert,
+    unchanged: accepted.unchanged,
+    unneeded: accepted.unneeded,
+  });
+  const requested: string[] = [];
+  let observed: unknown;
+  const host = createCmxDocumentHost({
+    store: {
+      ...memory,
+      async getDocument(name) {
+        requested.push(name);
+        if (name !== "unchanged") throw new Error("Unrequested storage read");
+        return memory.getDocument(name);
+      },
+    },
+    async verifyPublicationUpdate(update, loadDocument) {
+      const site = await loadDocument("_site");
+      const names = site!.content.default as string[];
+      observed = {
+        update,
+        documents: await Promise.all(names.map(loadDocument)),
+        unchangedAgain: await loadDocument("unchanged"),
+      };
+      return { valid: true };
+    },
+  });
+  const response = await host.handlePublication(
+    put({
+      baseContentHash: state.contentHash,
+      targetContentHash: target.contentHash,
+      upsert,
+      remove: ["removed"],
+    }),
+  );
+  expect(response.status).toBe(200);
+  expect(observed).toEqual({
+    update: { upsert, remove: ["removed"] },
+    documents: [
+      upsert.home,
+      upsert.added,
+      accepted.unchanged,
+      undefined,
+      undefined,
+      upsert.__proto__,
+      upsert.constructor,
+    ],
+    unchangedAgain: accepted.unchanged,
+  });
+  expect(requested).toEqual(["unchanged"]);
+});
+
+it.each(["replaced", "removed"])(
+  "reports a conflict when an unchanged Document is concurrently %s even if verification catches the read failure",
+  async (change) => {
+    const memory = createMemoryCmxDocumentStore();
+    const acceptedHost = createCmxDocumentHost({ store: memory });
+    const initial = { home: document("old"), related: document("old related") };
+    expect((await publish(acceptedHost, initial)).status).toBe(200);
+    const state = await memory.getState();
+    const upsert = { home: document("proposed") };
+    const target = await createCmxPublicationState({ ...initial, ...upsert });
+    const host = createCmxDocumentHost({
+      store: {
+        ...memory,
+        async getDocument(name) {
+          const response =
+            change === "replaced"
+              ? await publish(acceptedHost, { related: document("concurrent") })
+              : await publish(acceptedHost, {}, ["related"]);
+          expect(response.status).toBe(200);
+          return memory.getDocument(name);
+        },
+      },
+      async verifyPublicationUpdate(_update, loadDocument) {
+        await loadDocument("related").catch(() => undefined);
+        return {
+          valid: false,
+          diagnostics: [
+            {
+              severity: "error",
+              code: "app/related",
+              message: "Related content is unavailable.",
+            },
+          ],
+        };
+      },
+    });
+    const response = await host.handlePublication(
+      put({
+        baseContentHash: state.contentHash,
+        targetContentHash: target.contentHash,
+        upsert,
+        remove: [],
+      }),
+    );
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      message: "Publication base has changed.",
+    });
+    expect(await acceptedHost.getDocument("home")).toEqual(initial.home);
+    expect(await acceptedHost.getDocument("related")).toEqual(
+      change === "replaced" ? document("concurrent") : undefined,
+    );
+  },
+);
+
+it.each(["synchronous", "asynchronous"])(
+  "preserves the accepted Publication when %s verification rejects a required fallback removal",
+  async (mode) => {
+    const memory = createMemoryCmxDocumentStore();
+    const acceptedHost = createCmxDocumentHost({ store: memory });
+    const initial = { home: document("accepted"), "404": document("fallback") };
+    expect((await publish(acceptedHost, initial)).status).toBe(200);
+    const state = await memory.getState();
+    const diagnostics = [
+      {
+        severity: "error" as const,
+        code: "app/required-fallback",
+        message: "The fallback must remain available.",
+      },
+    ];
+    const host = createCmxDocumentHost({
+      store: memory,
+      verifyPublicationUpdate(update) {
+        const result = update.remove.includes("404")
+          ? { valid: false as const, diagnostics }
+          : { valid: true as const };
+        return mode === "synchronous" ? result : Promise.resolve(result);
+      },
+    });
+    const response = await publish(host, { home: document("proposed") }, [
+      "404",
+    ]);
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({
+      message: "Publication Update rejected.",
+      diagnostics,
+    });
+    expect(await host.getDocument("home")).toEqual(initial.home);
+    expect(await host.getDocument("404")).toEqual(initial["404"]);
+    expect(
+      await (await host.handlePublication(new Request(endpoint))).json(),
+    ).toEqual(state);
+  },
+);
+
+it.each(["replacement", "empty update"])(
+  "conflicts a stale %s after verification while retaining coherent repeated reads",
+  async (kind) => {
+    const memory = createMemoryCmxDocumentStore();
+    const acceptedHost = createCmxDocumentHost({ store: memory });
+    const initial = {
+      home: document("accepted"),
+      related: document("accepted related"),
+    };
+    expect((await publish(acceptedHost, initial)).status).toBe(200);
+    const state = await memory.getState();
+    const upsert = kind === "replacement" ? { home: document("proposed") } : {};
+    const target = await createCmxPublicationState({ ...initial, ...upsert });
+    let entered!: () => void;
+    let release!: () => void;
+    const verifying = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const loaded: Array<CmxDocument | undefined> = [];
+    let storageReads = 0;
+    const host = createCmxDocumentHost({
+      store: {
+        ...memory,
+        async getDocument(name) {
+          storageReads += 1;
+          return memory.getDocument(name);
+        },
+      },
+      async verifyPublicationUpdate(_update, loadDocument) {
+        const concurrent = await Promise.all([
+          loadDocument("related"),
+          loadDocument("related"),
+        ]);
+        loaded.push(...concurrent);
+        concurrent[0]!.content.default = "verifier mutation";
+        entered();
+        await released;
+        loaded.push(await loadDocument("related"));
+        return { valid: true };
+      },
+    });
+    const publishing = host.handlePublication(
+      put({
+        baseContentHash: state.contentHash,
+        targetContentHash: target.contentHash,
+        upsert,
+        remove: [],
+      }),
+    );
+    await verifying;
+    try {
+      expect(
+        (await publish(acceptedHost, { related: document("concurrent") }))
+          .status,
+      ).toBe(200);
+    } finally {
+      release();
+    }
+    const response = await publishing;
+    expect(response.status).toBe(409);
+    expect(loaded.slice(1)).toEqual([initial.related, initial.related]);
+    expect(storageReads).toBe(1);
+    expect(await acceptedHost.getDocument("home")).toEqual(initial.home);
+    expect(await acceptedHost.getDocument("related")).toEqual(
+      document("concurrent"),
+    );
+  },
+);
+
+it("keeps lazy storage failures distinct from rejection even if the application catches the read error", async () => {
+  const memory = createMemoryCmxDocumentStore();
+  const acceptedHost = createCmxDocumentHost({ store: memory });
+  expect(
+    (await publish(acceptedHost, { home: document("accepted") })).status,
+  ).toBe(200);
+  const state = await memory.getState();
+  const upsert = { added: document("proposed") };
+  const target = await createCmxPublicationState({
+    home: document("accepted"),
+    ...upsert,
+  });
+  const host = createCmxDocumentHost({
+    store: {
+      ...memory,
+      async getDocument() {
+        throw new Error("private database detail");
+      },
+    },
+    async verifyPublicationUpdate(_update, loadDocument) {
+      await loadDocument("home").catch(() => undefined);
+      return { valid: true };
+    },
+  });
+  const response = await host.handlePublication(
+    put({
+      baseContentHash: state.contentHash,
+      targetContentHash: target.contentHash,
+      upsert,
+      remove: [],
+    }),
+  );
+  expect(response.status).toBe(500);
+  expect(await response.json()).toEqual({
+    message: "Document publication failed.",
+  });
+  expect(await acceptedHost.getDocument("home")).toEqual(document("accepted"));
+  expect(await acceptedHost.getDocument("added")).toBeUndefined();
+  expect(await memory.getState()).toEqual(state);
+});
+
+it("contains a prefetched Document read failure when synchronous verification returns before awaiting it", async () => {
+  const memory = createMemoryCmxDocumentStore();
+  const acceptedHost = createCmxDocumentHost({ store: memory });
+  expect(
+    (await publish(acceptedHost, { home: document("accepted") })).status,
+  ).toBe(200);
+  const state = await memory.getState();
+  const host = createCmxDocumentHost({
+    store: {
+      ...memory,
+      async getDocument() {
+        throw new Error("private database detail");
+      },
+    },
+    verifyPublicationUpdate(_update, loadDocument) {
+      void loadDocument("home");
+      return { valid: true };
+    },
+  });
+  const response = await host.handlePublication(
+    put({
+      baseContentHash: state.contentHash,
+      targetContentHash: state.contentHash,
+      upsert: {},
+      remove: [],
+    }),
+  );
+  expect(response.status).toBe(500);
+  expect(await response.json()).toEqual({
+    message: "Document publication failed.",
+  });
+  expect(await memory.getState()).toEqual(state);
+});
+
+it("rejects an incoherent lazy read when concurrent Publications restore the original base before acceptance", async () => {
+  const memory = createMemoryCmxDocumentStore();
+  const acceptedHost = createCmxDocumentHost({ store: memory });
+  const initial = {
+    home: document("accepted"),
+    related: document("accepted related"),
+  };
+  expect((await publish(acceptedHost, initial)).status).toBe(200);
+  const state = await memory.getState();
+  const upsert = { home: document("proposed") };
+  const target = await createCmxPublicationState({ ...initial, ...upsert });
+  const host = createCmxDocumentHost({
+    store: {
+      ...memory,
+      async getDocument(name) {
+        expect(
+          (await publish(acceptedHost, { related: document("intermediate") }))
+            .status,
+        ).toBe(200);
+        const intermediate = await memory.getDocument(name);
+        expect(
+          (await publish(acceptedHost, { related: initial.related })).status,
+        ).toBe(200);
+        return intermediate;
+      },
+    },
+    async verifyPublicationUpdate(_update, loadDocument) {
+      await loadDocument("related").catch(() => undefined);
+      return { valid: true };
+    },
+  });
+  const response = await host.handlePublication(
+    put({
+      baseContentHash: state.contentHash,
+      targetContentHash: target.contentHash,
+      upsert,
+      remove: [],
+    }),
+  );
+  expect(response.status).toBe(409);
+  expect(await acceptedHost.getDocument("home")).toEqual(initial.home);
+  expect(await memory.getState()).toEqual(state);
+});
