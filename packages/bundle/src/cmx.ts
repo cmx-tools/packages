@@ -13,6 +13,7 @@ import {
   createEntryOrder,
 } from "./createCmxBundleArtifact.js";
 import { detectConfiguredExportTypeRefs } from "./detectConfiguredExportTypeRefs.js";
+import { emitEntryFacadeSourcemaps } from "./emitEntryFacadeSourcemaps.js";
 import { normalizeModulePath } from "./normalizeModulePath.js";
 import { readConsumerPackageJson } from "./consumerPackage.js";
 import { createCmxExternalPolicy } from "./CmxExternalPolicy.js";
@@ -201,6 +202,7 @@ export function cmx(options: CmxConfig): Plugin {
       );
     },
     generateBundle(_outputOptions, outputBundle) {
+      emitEntryFacadeSourcemaps(this, outputBundle);
       const cmxBundle = createCmxBundleArtifact({
         outputBundle,
         entryOrder,

@@ -60,6 +60,37 @@ async function runCli(cwd: string, args: readonly string[]) {
 }
 
 describe("cmx-bundle cli", () => {
+  it("compiles entry pages that share ordinary metadata", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeSharedEntryFixture(tempDir);
+
+      const result = await runCli(tempDir, ["compile", "pages/*.tsx", "dist"]);
+
+      expect(result.stderr).toBe("");
+      expect(result.exitCode).toBe(0);
+      const bundle = parseCmxBundleJson(
+        await readFile(
+          path.join(tempDir, "dist", CMX_BUNDLE_FILE_NAME),
+          "utf8",
+        ),
+      );
+      expect(bundle.entries.map((entry) => entry.name).sort()).toEqual([
+        "release",
+        "song",
+      ]);
+      expect(
+        bundle.entries.find((entry) => entry.name === "song")?.sourceExports,
+      ).toEqual({ default: {}, song: {} });
+      for (const chunk of bundle.chunks) {
+        await expect(
+          readFile(path.join(tempDir, "dist", chunk.sourcemap), "utf8").then(
+            JSON.parse,
+          ),
+        ).resolves.toMatchObject({ version: 3 });
+      }
+    });
+  }, 15000);
+
   it("compiles files with explicit compile verb", async () => {
     await withTempDir(async (tempDir) => {
       await writePackageJson(tempDir);
@@ -277,4 +308,50 @@ function readPackageVersion(): string {
     throw new Error("Missing package version");
   }
   return packageJson.version;
+}
+
+async function writeSharedEntryFixture(rootDir: string): Promise<void> {
+  await writeFixture(
+    rootDir,
+    "package.json",
+    JSON.stringify({
+      name: "shared-entry-metadata",
+      private: true,
+      type: "module",
+      dependencies: { "@theme/ui": "1.0.0" },
+    }),
+  );
+  await writeFixture(
+    rootDir,
+    "node_modules/@theme/ui/package.json",
+    JSON.stringify({ name: "@theme/ui", version: "1.0.0", main: "index.js" }),
+  );
+  await writeFixture(
+    rootDir,
+    "node_modules/@theme/ui/index.js",
+    "export const Song = () => null;\nexport const Release = () => null;\n",
+  );
+  await writeFixture(
+    rootDir,
+    "pages/song.tsx",
+    [
+      'import { Song } from "@theme/ui";',
+      'export const song = { title: "Absinth" };',
+      "export default <Song {...song} />;",
+    ].join("\n"),
+  );
+  await writeFixture(
+    rootDir,
+    "pages/release.tsx",
+    [
+      'import { Release } from "@theme/ui";',
+      'import { song } from "./song";',
+      "export default <Release songs={[song]} />;",
+    ].join("\n"),
+  );
+  await writeFixture(
+    rootDir,
+    "cmx.config.ts",
+    "export default { exports: { default: { required: true, type: { from: '@cmx-tools/contracts', import: 'CmxNode' } }, song: { required: false } }, externals: ['@theme/ui'] };\n",
+  );
 }
