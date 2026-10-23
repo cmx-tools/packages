@@ -1,3 +1,5 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { access } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -48,6 +50,111 @@ const THEME_UI_IMPORTS = {
 };
 
 describe("renderCmxTestbed", () => {
+  it("renders each shared entry with only its authored selected exports", async () => {
+    const result = expectCompleteResult(
+      await renderCmxTestbed({
+        entries: ["song.tsx", "release.tsx"],
+        externals: ["@theme/ui"],
+        exports: {
+          default: {
+            required: true,
+            type: { from: "@cmx-tools/contracts", import: "CmxNode" },
+          },
+          song: { required: false },
+        },
+        files: {
+          "song.tsx": [
+            'import { Song } from "@theme/ui";',
+            'export const song = { title: "Absinth" };',
+            "export default <Song {...song} />;",
+          ].join("\n"),
+          "release.tsx": [
+            'import { Release } from "@theme/ui";',
+            'import { song } from "./song";',
+            "export default <Release songs={[song]} />;",
+          ].join("\n"),
+        },
+      }),
+    );
+    expect(result.entries.song?.document.content).toEqual({
+      default: {
+        type: "component",
+        from: "@theme/ui",
+        import: "Song",
+        props: { title: "Absinth" },
+      },
+      song: { title: "Absinth" },
+    });
+    expect(result.entries.release?.document.content).toEqual({
+      default: {
+        type: "component",
+        from: "@theme/ui",
+        import: "Release",
+        props: { songs: [{ title: "Absinth" }] },
+      },
+    });
+  });
+
+  it.each([
+    [
+      "render",
+      [
+        'import { Song } from "@theme/ui";',
+        'export const song = { title: "Absinth" };',
+        "export default function Page() {",
+        '  throw new Error("song render failed");',
+        "  return <Song {...song} />;",
+        "}",
+      ].join("\n"),
+      "song render failed",
+    ],
+    [
+      "import",
+      [
+        'import { Song } from "@theme/ui";',
+        'export const song = { title: "Absinth" };',
+        "export default <Song {...song} />;",
+        'throw new Error("song import failed");',
+      ].join("\n"),
+      "song import failed",
+    ],
+  ])(
+    "maps shared entry %s errors to authored locations",
+    async (_mode, source, message) => {
+      const result = await renderCmxTestbed({
+        entries: ["song.tsx", "release.tsx"],
+        externals: ["@theme/ui"],
+        files: {
+          "song.tsx": source,
+          "release.tsx": [
+            'import { Release } from "@theme/ui";',
+            'import { song } from "./song";',
+            "export default <Release songs={[song]} />;",
+          ].join("\n"),
+        },
+      });
+      expect(result).toHaveProperty("bundle");
+      if (!("outDir" in result)) throw new Error("Expected emitted bundle");
+      const { stdout } = await promisify(execFile)(process.execPath, [
+        "--input-type=module",
+        "--eval",
+        `import { renderCmxDocuments } from ${JSON.stringify(import.meta.resolve("@cmx-tools/document"))};
+console.log(JSON.stringify(await renderCmxDocuments({ bundleDir: process.argv[1] })));`,
+        result.outDir,
+      ]);
+      expect(JSON.parse(stdout).diagnostics).toContainEqual({
+        severity: "error",
+        code: "render-error",
+        message,
+        source: {
+          file: path.join(result.rootDir, "song.tsx"),
+          line: 4,
+          column: expect.any(Number),
+        },
+      });
+    },
+  );
+
   it("omits source for runtime errors without generated bundle frames", async () => {
     await expect(
       renderCmxTestbed({
