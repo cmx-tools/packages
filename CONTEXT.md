@@ -61,6 +61,11 @@ Conceptual Document shape:
 
 This is concept language, not a final machine format.
 
+### Publication
+
+- **Publication** — Complete accepted set of CMX Documents at one revision.
+- **Publication Update** — Proposed additions, replacements, and removals that change one Publication into the next.
+
 ### Hydration and rendering
 
 - **Environment** — Hydration-side application context that proves compatibility with a Document and provides implementations for Document Imports.
