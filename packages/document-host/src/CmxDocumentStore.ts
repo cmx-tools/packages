@@ -11,5 +11,5 @@ export type CmxDocumentStoreCommit = {
 export type CmxDocumentStore = {
   getState(): Promise<CmxPublicationState>;
   getDocument(entryName: string): Promise<CmxDocument | undefined>;
-  commit(publication: CmxDocumentStoreCommit): Promise<boolean>;
+  commit(update: CmxDocumentStoreCommit): Promise<boolean>;
 };

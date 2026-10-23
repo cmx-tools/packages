@@ -19,14 +19,14 @@ export function createMemoryCmxDocumentStore(): CmxDocumentStore {
     async getDocument(entryName) {
       return structuredClone(documents.get(entryName));
     },
-    async commit(publication) {
-      if (state.contentHash !== publication.baseContentHash) return false;
+    async commit(update) {
+      if (state.contentHash !== update.baseContentHash) return false;
       const nextDocuments = new Map(documents);
-      for (const name of publication.remove) nextDocuments.delete(name);
-      for (const [name, document] of Object.entries(publication.upsert)) {
+      for (const name of update.remove) nextDocuments.delete(name);
+      for (const [name, document] of Object.entries(update.upsert)) {
         nextDocuments.set(name, structuredClone(document));
       }
-      const nextState = structuredClone(publication.target);
+      const nextState = structuredClone(update.target);
       documents = nextDocuments;
       state = nextState;
       return true;

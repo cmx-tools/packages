@@ -90,6 +90,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isDiagnostics(value: unknown): value is CmxPublicationDiagnostics {
+  if (Array.isArray(value)) return value.every(isDiagnostic);
   return (
     isRecord(value) &&
     Object.values(value).every(

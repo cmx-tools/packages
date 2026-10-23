@@ -4,7 +4,7 @@ import {
   createCmxDocumentHost,
   createMemoryCmxDocumentStore,
 } from "@cmx-tools/document-host";
-import { publishCmxDocuments } from "@cmx-tools/publish";
+import { CmxPublicationError, publishCmxDocuments } from "@cmx-tools/publish";
 import { createDocumentHostTestServer } from "./createDocumentHostTestServer.js";
 
 it("recalculates a publication when another publisher commits during verification", async () => {
@@ -13,8 +13,8 @@ it("recalculates a publication when another publisher commits during verificatio
   let paused = false;
   const host = createCmxDocumentHost({
     store: createMemoryCmxDocumentStore(),
-    async verifyIncomingDocument(document) {
-      if (document.content.default === "Desired home" && !paused) {
+    async verifyPublicationUpdate(update) {
+      if (update.upsert.home?.content.default === "Desired home" && !paused) {
         paused = true;
         entered.resolve();
         await release.promise;
@@ -67,6 +67,52 @@ it("recalculates a publication when another publisher commits during verificatio
     expect(await host.getDocument("old")).toBeUndefined();
   } finally {
     release.resolve();
+    await server.close();
+  }
+});
+
+it("reports rejected fallback removal without replacing the accepted publication", async () => {
+  const diagnostics = [
+    {
+      severity: "error" as const,
+      code: "app/missing-fallback",
+      message: "The required 404 Document is missing.",
+    },
+  ];
+  const host = createCmxDocumentHost({
+    store: createMemoryCmxDocumentStore(),
+    async verifyPublicationUpdate(_update, loadDocument) {
+      return (await loadDocument("404")) === undefined
+        ? { valid: false, diagnostics }
+        : { valid: true };
+    },
+  });
+  const server = await createDocumentHostTestServer(host.handlePublication);
+  const accepted = {
+    home: document("Accepted home"),
+    "404": document("Accepted fallback"),
+  };
+  try {
+    await publishCmxDocuments({
+      endpoint: server.endpoint,
+      documents: accepted,
+    });
+    const before = await (await fetch(server.endpoint)).json();
+    const error = await publishCmxDocuments({
+      endpoint: server.endpoint,
+      documents: { home: document("Rejected replacement") },
+    }).catch((error: unknown) => error);
+
+    expect(error).toBeInstanceOf(CmxPublicationError);
+    expect(error).toMatchObject({
+      status: 422,
+      message: "Publication Update rejected.",
+      diagnostics,
+    });
+    expect(await (await fetch(server.endpoint)).json()).toEqual(before);
+    expect(await host.getDocument("home")).toEqual(accepted.home);
+    expect(await host.getDocument("404")).toEqual(accepted["404"]);
+  } finally {
     await server.close();
   }
 });
