@@ -21,6 +21,47 @@ const theme = {
 };
 
 describe("cmx", () => {
+  it("renders canonical CMX raw HTML through the native Remix renderer", async () => {
+    const document = createDocument({
+      default: {
+        type: "element",
+        tag: "article",
+        props: {
+          class: "story",
+          innerHTML: "<strong>Fresh &amp; local</strong>",
+        },
+      },
+    });
+    const before = structuredClone(document);
+
+    const page = cmx(document);
+
+    expect(await renderToString(page.default as RemixNode)).toBe(
+      '<article class="story"><strong>Fresh &amp; local</strong></article>',
+    );
+    expect(document).toEqual(before);
+  });
+
+  it("does not interpret React raw HTML props as Remix markup", async () => {
+    const page = cmx(
+      createDocument({
+        default: {
+          type: "element",
+          tag: "div",
+          props: {
+            dangerouslySetInnerHTML: { __html: "<strong>React only</strong>" },
+          },
+          children: ["Remix content"],
+        },
+      }),
+    );
+
+    const html = await renderToString(page.default as RemixNode);
+
+    expect(html).toContain(">Remix content</div>");
+    expect(html).not.toContain("<strong>React only</strong>");
+  });
+
   it("renders a page with a native imported component and metadata slot", async () => {
     function Heading(handle: Handle<{ title: string }>) {
       return () => createElement("h1", {}, handle.props.title);
@@ -41,7 +82,11 @@ describe("cmx", () => {
         },
         meta: {
           title: "About",
-          badge: { type: "element", tag: "strong", children: ["New"] },
+          badge: {
+            type: "element",
+            tag: "strong",
+            props: { innerHTML: "<em>New</em>" },
+          },
         },
       },
       { default: { slots: [[]] }, meta: { slots: [["badge"]] } },
@@ -61,7 +106,9 @@ describe("cmx", () => {
       "<main><h1>About CMX</h1></main>",
     );
     expect(page.meta.title).toBe("About");
-    expect(await renderToString(page.meta.badge)).toBe("<strong>New</strong>");
+    expect(await renderToString(page.meta.badge)).toBe(
+      "<strong><em>New</em></strong>",
+    );
   });
 
   it("renders nested fragments and primitive children with native escaping", async () => {
@@ -99,6 +146,7 @@ describe("cmx", () => {
   it("hydrates nested prop slots for a default import while preserving ordinary data", async () => {
     function Panel(
       handle: Handle<{
+        innerHTML: string;
         children: RemixNode;
         config: { icons: RemixNode[]; data: { type: string; tag: string } };
       }>,
@@ -106,7 +154,10 @@ describe("cmx", () => {
       return () =>
         createElement(
           "section",
-          { "data-tag": handle.props.config.data.tag },
+          {
+            "data-tag": handle.props.config.data.tag,
+            "data-template": handle.props.innerHTML,
+          },
           handle.props.children,
           ...handle.props.config.icons,
         );
@@ -114,6 +165,7 @@ describe("cmx", () => {
     const data = {
       type: "element",
       tag: "template",
+      innerHTML: "application metadata",
       children: ["Keep as data"],
     };
     const document = createDocument(
@@ -122,11 +174,20 @@ describe("cmx", () => {
           type: "component",
           from: theme.name,
           props: {
-            children: { type: "element", tag: "h2", children: ["Features"] },
+            innerHTML: "component <template>",
+            children: {
+              type: "element",
+              tag: "h2",
+              props: { innerHTML: "<em>Features</em>" },
+            },
             config: {
               icons: [
                 "Icon: ",
-                { type: "element", tag: "b", children: ["New"] },
+                {
+                  type: "element",
+                  tag: "b",
+                  props: { innerHTML: "<i>New</i>" },
+                },
               ],
               data,
             },
@@ -145,12 +206,13 @@ describe("cmx", () => {
     });
 
     expect(await renderToString(page.default as RemixNode)).toBe(
-      '<section data-tag="template"><h2>Features</h2>Icon: <b>New</b></section>',
+      '<section data-tag="template" data-template="component &lt;template&gt;"><h2><em>Features</em></h2>Icon: <b><i>New</i></b></section>',
     );
     expect(page.catalog).toBe(data);
     expect(document.content.catalog).toEqual({
       type: "element",
       tag: "template",
+      innerHTML: "application metadata",
       children: ["Keep as data"],
     });
   });

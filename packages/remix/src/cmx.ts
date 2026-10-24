@@ -1,6 +1,7 @@
 import {
   createElement,
   Fragment,
+  unsafeHTML,
   type RemixNode,
   type ElementType,
 } from "remix/component";
@@ -95,6 +96,9 @@ function hydrateNode(
   }
 
   const { key, ...elementProps } = props ?? {};
+  if (node.type === "element" && typeof elementProps.innerHTML === "string") {
+    elementProps.innerHTML = unsafeHTML(elementProps.innerHTML);
+  }
   return jsx(
     type as ElementType,
     {
