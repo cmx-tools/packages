@@ -178,6 +178,7 @@ describe("cmx", () => {
             (source) => JSON.parse(source) as unknown,
           ),
         ).resolves.toEqual({
+          dangerouslyAllowInnerHtml: false,
           version: 1,
           runtime: {
             importSource: "@cmx-tools/runtime",

@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -11,6 +11,73 @@ const CMX_RUNTIME_JSX_RUNTIME_IMPORT_SOURCE = import.meta
   .resolve("@cmx-tools/runtime/jsx-runtime");
 
 describe("renderCmxDocuments", () => {
+  it("renders ordinary content from a v1 Bundle without HTML permission and rejects its raw HTML entry", async () => {
+    const bundleDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
+    try {
+      await Promise.all([
+        writeFile(
+          path.join(bundleDir, "ordinary.js"),
+          `import {jsx} from ${JSON.stringify(CMX_RUNTIME_JSX_RUNTIME_IMPORT_SOURCE)};
+          export default jsx("article", {children: "Editorial"});`,
+        ),
+        writeFile(
+          path.join(bundleDir, "html.js"),
+          `import {jsx} from ${JSON.stringify(CMX_RUNTIME_JSX_RUNTIME_IMPORT_SOURCE)};
+          export default jsx("article", {innerHTML: "<strong>Editorial</strong>"});`,
+        ),
+        writeFile(
+          path.join(bundleDir, CMX_BUNDLE_FILE_NAME),
+          JSON.stringify({
+            version: 1,
+            runtime: { importSource: "@cmx-tools/runtime" },
+            exports: {
+              default: {
+                required: true,
+                type: { from: "@cmx-tools/contracts", import: "CmxNode" },
+              },
+            },
+            unsupportedValues: "error",
+            unverifiedOptionalExports: "error",
+            dependencies: [],
+            entries: ["ordinary", "html"].map((name) => ({
+              name,
+              file: `${name}.js`,
+              sourcemap: `${name}.js.map`,
+              sourceExports: {},
+            })),
+            chunks: [],
+          }),
+        ),
+      ]);
+      await expect(renderCmxDocuments({ bundleDir })).resolves.toMatchObject({
+        result: "partial",
+        entries: {
+          ordinary: {
+            result: "document",
+            document: {
+              content: {
+                default: {
+                  type: "element",
+                  tag: "article",
+                  children: ["Editorial"],
+                },
+              },
+            },
+          },
+          html: {
+            result: "error",
+            diagnostics: [
+              { code: "inner-html-not-allowed", severity: "error" },
+            ],
+          },
+        },
+        diagnostics: [{ code: "inner-html-not-allowed", severity: "error" }],
+      });
+    } finally {
+      await rm(bundleDir, { recursive: true, force: true });
+    }
+  });
+
   it("returns an error result for a bundle with no entries", async () => {
     const bundleDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
 
@@ -624,7 +691,11 @@ async function renderCmxBundle(input: {
   bundleDir: string;
   bundle: Omit<
     CmxBundle,
-    "exports" | "unsupportedValues" | "unverifiedOptionalExports" | "entries"
+    | "exports"
+    | "unsupportedValues"
+    | "unverifiedOptionalExports"
+    | "entries"
+    | "dangerouslyAllowInnerHtml"
   > & {
     entries?: Array<
       Omit<CmxBundle["entries"][number], "sourceExports"> &
@@ -633,11 +704,15 @@ async function renderCmxBundle(input: {
   } & Partial<
       Pick<
         CmxBundle,
-        "exports" | "unsupportedValues" | "unverifiedOptionalExports"
+        | "exports"
+        | "unsupportedValues"
+        | "unverifiedOptionalExports"
+        | "dangerouslyAllowInnerHtml"
       >
     >;
 }): ReturnType<typeof renderCmxDocuments> {
   const bundle: CmxBundle = {
+    dangerouslyAllowInnerHtml: false,
     exports: {
       default: {
         required: true,

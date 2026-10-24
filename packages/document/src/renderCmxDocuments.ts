@@ -91,6 +91,7 @@ export async function renderCmxDocuments(
     bundle.entries.map(async (entry) => {
       try {
         const rendered = await renderCmxDocument({
+          dangerouslyAllowInnerHtml: bundle.dangerouslyAllowInnerHtml,
           moduleUrl: pathToFileURL(path.join(input.bundleDir, entry.file)),
           runtime: runtimeProtocol.protocol,
           exports: bundle.exports,

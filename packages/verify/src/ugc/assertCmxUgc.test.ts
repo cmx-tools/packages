@@ -68,6 +68,26 @@ describe("assertCmxUgc", () => {
     ]);
   });
 
+  it("requires a separate raw HTML allowance when asserting application content", async () => {
+    const document: CmxDocument = {
+      $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",
+      cmxVersion: 1,
+      interface: { imports: {}, exports: { default: { slots: [[]] } } },
+      content: {
+        default: {
+          type: "element",
+          tag: "article",
+          props: { innerHTML: "<strong>Hello</strong>" },
+        },
+      },
+    };
+
+    await expect(assertCmxUgc(document)).rejects.toBeInstanceOf(CmxUgcError);
+    await expect(
+      assertCmxUgc(document, { dangerouslyAllowInnerHtml: true }),
+    ).resolves.toBeUndefined();
+  });
+
   it("uses the application's element selection when asserting comment content", async () => {
     const document: CmxDocument = {
       $schema: "https://cmx.xiphe.net/schemas/cmx-document.v1.schema.json",

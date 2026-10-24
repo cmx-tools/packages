@@ -2,11 +2,50 @@ import { describe, expect, it } from "vitest";
 import { parseCmxBundleJson } from "@cmx-tools/contracts";
 
 describe("parseCmxBundleJson", () => {
+  it("defaults raw HTML permission to false when a v1 Bundle omits it", () => {
+    expect(
+      parseCmxBundleJson(
+        JSON.stringify({
+          version: 1,
+          runtime: { importSource: "@cmx-tools/runtime" },
+          exports: {},
+          unsupportedValues: "error",
+          unverifiedOptionalExports: "error",
+          dependencies: [],
+          entries: [],
+          chunks: [],
+        }),
+      ),
+    ).toMatchObject({ dangerouslyAllowInnerHtml: false });
+  });
+
+  it.each(["true", 1, null])(
+    "rejects non-boolean raw HTML permission %s in a Bundle",
+    (dangerouslyAllowInnerHtml) => {
+      expect(() =>
+        parseCmxBundleJson(
+          JSON.stringify({
+            version: 1,
+            runtime: { importSource: "@cmx-tools/runtime" },
+            exports: {},
+            unsupportedValues: "error",
+            unverifiedOptionalExports: "error",
+            dangerouslyAllowInnerHtml,
+            dependencies: [],
+            entries: [],
+            chunks: [],
+          }),
+        ),
+      ).toThrow("Invalid CMX bundle");
+    },
+  );
+
   it("accepts a v1 bundle with additive fields", () => {
     expect(
       parseCmxBundleJson(
         JSON.stringify({
           version: 1,
+          dangerouslyAllowInnerHtml: true,
           runtime: {
             importSource: "@cmx-tools/runtime",
             extra: true,
@@ -62,6 +101,7 @@ describe("parseCmxBundleJson", () => {
       ),
     ).toEqual({
       version: 1,
+      dangerouslyAllowInnerHtml: true,
       runtime: {
         importSource: "@cmx-tools/runtime",
       },
@@ -115,6 +155,7 @@ describe("parseCmxBundleJson", () => {
       parseCmxBundleJson(
         JSON.stringify({
           version: 1,
+          dangerouslyAllowInnerHtml: false,
           runtime: {
             importSource: "@cmx-tools/runtime",
           },

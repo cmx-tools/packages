@@ -1,4 +1,5 @@
 {
+  "dangerouslyAllowInnerHtml": false,
   "version": 1,
   "runtime": {
     "importSource": "@cmx-tools/runtime"

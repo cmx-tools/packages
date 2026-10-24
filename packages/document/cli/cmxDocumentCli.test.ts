@@ -57,6 +57,7 @@ async function writeBundleFixture(input: {
   );
 
   const bundle: CmxBundle = {
+    dangerouslyAllowInnerHtml: false,
     version: 1,
     runtime: {
       importSource: pathToFileURL(runtimeFile).href,

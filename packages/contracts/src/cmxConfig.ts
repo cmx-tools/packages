@@ -38,6 +38,7 @@ export type CmxVerifyDocument = (
 ) => CmxDocumentVerificationResult | Promise<CmxDocumentVerificationResult>;
 
 export type CmxConfig = {
+  dangerouslyAllowInnerHtml?: boolean;
   cwd?: string;
   assets?: CmxAssetsConfig;
   exports?: Record<string, CmxExportConfig>;

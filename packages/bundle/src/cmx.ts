@@ -204,6 +204,7 @@ export function cmx(options: CmxConfig): Plugin {
     generateBundle(_outputOptions, outputBundle) {
       emitEntryFacadeSourcemaps(this, outputBundle);
       const cmxBundle = createCmxBundleArtifact({
+        dangerouslyAllowInnerHtml: options.dangerouslyAllowInnerHtml === true,
         outputBundle,
         entryOrder,
         runtimeImportSource: RUNTIME_IMPORT_SOURCE,

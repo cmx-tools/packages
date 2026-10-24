@@ -39,6 +39,7 @@ export type CmxRenderDiagnostic = CmxDiagnostic & {
   code:
     | "invalid-runtime-output"
     | "invalid-runtime-protocol"
+    | "inner-html-not-allowed"
     | "render-error"
     | "runtime-protocol-unavailable"
     | "undefined-value"
@@ -50,6 +51,7 @@ export type UnsupportedValuesPolicy = "error" | "omit";
 type KeepResult = { keep: true; value: unknown };
 type DropResult = { keep: false };
 type RenderContext = {
+  dangerouslyAllowInnerHtml: boolean;
   unsupportedValues: UnsupportedValuesPolicy;
   unverifiedOptionalExports: UnverifiedOptionalExportsPolicy;
   runtime: RuntimeProtocol;
@@ -58,6 +60,7 @@ type RenderContext = {
 };
 
 export type RenderCmxDocumentInput = {
+  dangerouslyAllowInnerHtml?: boolean;
   moduleUrl: string | URL;
   exports: Record<string, CmxExportConfig>;
   sourceExports?: Record<string, { type?: CmxTypeRef }>;
@@ -378,6 +381,18 @@ async function addNodeFields<Node extends CmxElementNode | CmxComponentNode>(
       `${pathLabel}.props`,
       context,
     );
+    if (
+      output.type === "element" &&
+      !context.dangerouslyAllowInnerHtml &&
+      props &&
+      Object.prototype.hasOwnProperty.call(props, "innerHTML")
+    ) {
+      throw new CmxRenderError({
+        severity: "error",
+        code: "inner-html-not-allowed",
+        message: `CMX intrinsic ${pathLabel}.props.innerHTML requires dangerouslyAllowInnerHtml: true.`,
+      });
+    }
     if (props) {
       output.props = props;
     }
@@ -553,12 +568,14 @@ function unsupportedValue(
 }
 
 function createRenderContext(options: {
+  dangerouslyAllowInnerHtml?: boolean;
   runtime: RuntimeProtocol;
   unsupportedValues?: UnsupportedValuesPolicy;
   unverifiedOptionalExports?: UnverifiedOptionalExportsPolicy;
   dependencies?: CmxDependency[];
 }): RenderContext {
   return {
+    dangerouslyAllowInnerHtml: options.dangerouslyAllowInnerHtml === true,
     runtime: options.runtime,
     unsupportedValues: options.unsupportedValues ?? "error",
     unverifiedOptionalExports: options.unverifiedOptionalExports ?? "error",
