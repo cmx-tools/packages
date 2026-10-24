@@ -46,6 +46,7 @@ export type CmxSourceExportContract = {
 };
 
 export type CmxBundle = {
+  dangerouslyAllowInnerHtml: boolean;
   version: typeof CMX_BUNDLE_VERSION;
   runtime: {
     importSource: string;
@@ -70,8 +71,15 @@ function parseCmxBundle(value: unknown): CmxBundle {
   if (value.version !== CMX_BUNDLE_VERSION) {
     throw invalidBundle();
   }
+  if (
+    value.dangerouslyAllowInnerHtml !== undefined &&
+    typeof value.dangerouslyAllowInnerHtml !== "boolean"
+  ) {
+    throw invalidBundle();
+  }
 
   return {
+    dangerouslyAllowInnerHtml: value.dangerouslyAllowInnerHtml === true,
     version: CMX_BUNDLE_VERSION,
     runtime: parseRuntime(value.runtime),
     exports: parseExports(value.exports),

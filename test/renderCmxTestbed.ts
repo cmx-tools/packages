@@ -20,6 +20,7 @@ import { createCmxTestbedWorkspace } from "./createCmxTestbedWorkspace.js";
 import { toCmxTestbedBuildDiagnostic } from "./toCmxTestbedBuildDiagnostic.js";
 
 export type RenderCmxTestbedInput = {
+  dangerouslyAllowInnerHtml?: CmxConfig["dangerouslyAllowInnerHtml"];
   files: Record<string, string>;
   entry?: string;
   entries?: string[];
@@ -97,6 +98,7 @@ export async function renderCmxTestbed(
     input: entryFiles,
     plugins: [
       cmx({
+        dangerouslyAllowInnerHtml: input.dangerouslyAllowInnerHtml,
         externals: input.externals,
         exports: input.exports ?? defaultExports,
         unsupportedValues: input.unsupportedValues,

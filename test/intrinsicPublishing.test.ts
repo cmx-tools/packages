@@ -14,6 +14,7 @@ import { renderCmxTestbed } from "./renderCmxTestbed.js";
 
 it("publishes bare CMX articles with an explicit choice between reader UGC and trusted editorial content", async () => {
   const rendered = await renderCmxTestbed({
+    dangerouslyAllowInnerHtml: true,
     entries: ["reader.tsx", "editor.tsx"],
     files: {
       "authoring.tsconfig.json": JSON.stringify({

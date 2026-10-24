@@ -127,6 +127,119 @@ describe("createCmxUgcVerifier", () => {
     });
   });
 
+  it("lets a publisher explicitly accept intrinsic HTML without changing the Document", async () => {
+    const document = createDocument({
+      node: {
+        type: "element",
+        tag: "article",
+        props: { innerHTML: "<strong>Hello</strong>" },
+      },
+    });
+    const before = structuredClone(document);
+
+    expect(verifyCmxDocument(document).valid).toBe(true);
+    expect(await createCmxUgcVerifier()(document)).toMatchObject({
+      valid: false,
+      diagnostics: [{ code: "ugc-disallowed-prop" }],
+    });
+    expect(
+      await createCmxUgcVerifier({ dangerouslyAllowInnerHtml: true })(document),
+    ).toEqual({ valid: true });
+    expect(document).toEqual(before);
+  });
+
+  it("keeps element, prop, and URL restrictions when a publisher accepts intrinsic HTML", async () => {
+    const document = createDocument({
+      node: {
+        type: "element",
+        tag: "script",
+        props: {
+          innerHTML: "run()",
+          style: "color: red",
+          onClick: "run()",
+          src: "javascript:run()",
+        },
+      },
+    });
+
+    expect(
+      await createCmxUgcVerifier({ dangerouslyAllowInnerHtml: true })(document),
+    ).toMatchObject({
+      valid: false,
+      diagnostics: [
+        { code: "ugc-disallowed-element" },
+        {
+          code: "ugc-disallowed-prop",
+          message: expect.stringContaining("/props/style"),
+        },
+        {
+          code: "ugc-disallowed-prop",
+          message: expect.stringContaining("/props/onClick"),
+        },
+        { code: "ugc-unsafe-url" },
+      ],
+    });
+  });
+
+  it("keeps a publisher's explicit innerHTML denial even when raw HTML is permitted", async () => {
+    const document = createDocument({
+      node: {
+        type: "element",
+        tag: "article",
+        props: { innerHTML: "<p>Hello</p>" },
+      },
+    });
+
+    expect(
+      await createCmxUgcVerifier({
+        dangerouslyAllowInnerHtml: true,
+        policy: { disallowedProps: ["INNERHTML"] },
+      })(document),
+    ).toMatchObject({
+      valid: false,
+      diagnostics: [{ code: "ugc-disallowed-prop" }],
+    });
+  });
+
+  it("checks intrinsic HTML in component slots while leaving component props and metadata opaque", async () => {
+    const body: CmxNode = {
+      type: "element",
+      tag: "p",
+      props: { innerHTML: "<strong>Author content</strong>" },
+    };
+    const document = createDocument({
+      imports: {
+        "@site/ui": {
+          name: "@site/ui",
+          specifier: "^1.0.0",
+          version: "1.2.0",
+        },
+      },
+      node: {
+        type: "component",
+        from: "@site/ui",
+        import: "Frame",
+        props: { innerHTML: "application markup", body },
+        slots: [["body"]],
+      },
+    });
+    document.interface.exports.meta = {};
+    document.content.meta = {
+      innerHTML: "application metadata",
+      nodeLikeData: { type: "element", tag: "p", props: { innerHTML: "data" } },
+    };
+
+    expect(await createCmxUgcVerifier()(document)).toMatchObject({
+      valid: false,
+      diagnostics: [{ code: "ugc-disallowed-prop" }],
+    });
+    expect(
+      await createCmxUgcVerifier({ dangerouslyAllowInnerHtml: true })(document),
+    ).toEqual({ valid: true });
+    body.props = {};
+    expect(await createCmxUgcVerifier()(document)).toEqual({ valid: true });
+  });
+
   it("lets an application add prop restrictions while retaining the selected policy for later documents", async () => {
     const disallowedProps = ["TITLE"];
     const verifyCmxUgc = createCmxUgcVerifier({ policy: { disallowedProps } });

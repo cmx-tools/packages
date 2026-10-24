@@ -14,7 +14,6 @@ const DISALLOWED_PROPS = new Set([
   "css",
   "html",
   "id",
-  "innerhtml",
   "is",
   "nonce",
   "ping",

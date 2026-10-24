@@ -36,6 +36,7 @@ export function isEntryModule(
 }
 
 export function createCmxBundleArtifact(input: {
+  dangerouslyAllowInnerHtml: boolean;
   outputBundle: OutputBundle;
   entryOrder: Map<string, number>;
   runtimeImportSource: string;
@@ -49,6 +50,7 @@ export function createCmxBundleArtifact(input: {
   const bundleChunks = chunks.map(toBundleChunk);
 
   return {
+    dangerouslyAllowInnerHtml: input.dangerouslyAllowInnerHtml,
     version: CMX_BUNDLE_VERSION,
     runtime: {
       importSource: input.runtimeImportSource,

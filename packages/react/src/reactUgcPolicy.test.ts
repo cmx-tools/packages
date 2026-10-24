@@ -47,6 +47,101 @@ describe("reactUgcPolicy", () => {
       ],
     });
   });
+  it("lets a publisher accept CMX and React HTML forms with the same explicit allowance", async () => {
+    const document: CmxDocument = {
+      $schema: SCHEMA,
+      cmxVersion: 1,
+      interface: { imports: {}, exports: { default: { slots: [[]] } } },
+      content: {
+        default: {
+          type: "fragment",
+          children: [
+            {
+              type: "element",
+              tag: "p",
+              props: { innerHTML: "<strong>CMX</strong>" },
+            },
+            {
+              type: "element",
+              tag: "p",
+              props: { dangerouslySetInnerHTML: { __html: "<em>React</em>" } },
+            },
+          ],
+        },
+      },
+    };
+
+    expect(
+      await createCmxUgcVerifier({
+        policy: reactUgcPolicy,
+        dangerouslyAllowInnerHtml: true,
+      })(document),
+    ).toEqual({ valid: true });
+    await expect(
+      assertCmxUgc(document, {
+        policy: reactUgcPolicy,
+        dangerouslyAllowInnerHtml: true,
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("retains React restrictions and explicit HTML prop denials when HTML is allowed", async () => {
+    const document: CmxDocument = {
+      $schema: SCHEMA,
+      cmxVersion: 1,
+      interface: { imports: {}, exports: { default: { slots: [[]] } } },
+      content: {
+        default: {
+          type: "element",
+          tag: "p",
+          props: {
+            dangerouslySetInnerHTML: { __html: "<strong>Hello</strong>" },
+            suppressHydrationWarning: true,
+          },
+        },
+      },
+    };
+
+    expect(
+      await createCmxUgcVerifier({
+        dangerouslyAllowInnerHtml: true,
+        policy: reactUgcPolicy,
+      })(document),
+    ).toMatchObject({
+      valid: false,
+      diagnostics: [
+        {
+          code: "ugc-disallowed-prop",
+          message: expect.stringContaining("/props/suppressHydrationWarning"),
+        },
+      ],
+    });
+    expect(
+      await createCmxUgcVerifier({
+        dangerouslyAllowInnerHtml: true,
+        policy: {
+          ...reactUgcPolicy,
+          disallowedProps: [
+            ...reactUgcPolicy.disallowedProps,
+            "dangerouslySetInnerHTML",
+          ],
+        },
+      })(document),
+    ).toMatchObject({
+      valid: false,
+      diagnostics: [
+        {
+          code: "ugc-disallowed-prop",
+          message: expect.stringContaining("/props/dangerouslySetInnerHTML"),
+        },
+        {
+          code: "ugc-disallowed-prop",
+          message: expect.stringContaining("/props/suppressHydrationWarning"),
+        },
+      ],
+    });
+  });
+
   it("retains CMX element, prop, and URL restrictions when React checks are added", async () => {
     const document: CmxDocument = {
       $schema: SCHEMA,

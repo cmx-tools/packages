@@ -167,23 +167,30 @@ describe("cmx intrinsic props", () => {
         body: {
           type: "element",
           tag: "label",
-          props: { class: "field", for: "coffee" },
-          children: ["Coffee"],
+          props: {
+            class: "field",
+            for: "coffee",
+            innerHTML: "<em>Coffee</em>",
+          },
         },
       },
       slots: [["body"]],
     });
     document.interface.imports = { "@site/ui": dependency };
+    const metadata = { innerHTML: "application metadata" };
+    document.interface.exports.meta = {};
+    document.content.meta = metadata;
     const environment: CmxEnvironment = {
       dependencies: [dependency],
       imports: { "@site/ui": { Frame } },
     };
 
-    expect(
-      renderToStaticMarkup(cmx(document, environment).default as ReactNode),
-    ).toBe(
-      '<section class="application"><label class="field" for="coffee">Coffee</label></section>',
+    const page = cmx(document, environment);
+
+    expect(renderToStaticMarkup(page.default as ReactNode)).toBe(
+      '<section class="application"><label class="field" for="coffee"><em>Coffee</em></label></section>',
     );
+    expect(page.meta).toBe(metadata);
     expect(received).toMatchObject({
       class: "application",
       innerHTML: "component-owned value",
