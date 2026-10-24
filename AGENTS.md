@@ -37,6 +37,13 @@ ALWAYS and ONLY test through official module/package/folder APIs.
 NEVER cement internal interfaces or implementation details using tests.
 EVERY test must be be a unique real world use-case of a first class call-site.
 
+## Commits
+
+- Plan commit boundaries by independently reviewable and revertible behavior, not by issue or completed worktree. Separate independent contract, build, verification, and adapter changes even within one issue.
+- Keep each commit buildable and include its relevant tests and usage documentation. Group cross-package edits when one coherent behavior or contract requires them together.
+- Use a Conventional Commit scope only when it describes the whole change. Use a broader domain scope or omit it for a coherent cross-package change.
+- Before committing, compare the entire staged diff with the title and body. Account for affected public contracts and release impact, including consumer and CLI changes.
+
 ## Driver sessions
 
 Use [HITL](drivers/HITL.md) for human decisions and [AFK](drivers/AFK.md) for delivery.
