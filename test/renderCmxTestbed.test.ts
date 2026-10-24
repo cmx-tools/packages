@@ -155,6 +155,35 @@ console.log(JSON.stringify(await renderCmxDocuments({ bundleDir: process.argv[1]
     },
   );
 
+  it("maps render errors after rewritten external imports to exact authored columns", async () => {
+    const result = await renderCmxTestbed({
+      externals: ["@theme/ui"],
+      files: {
+        "entry.tsx":
+          'import { H1 } from "@theme/ui"; export default function Page() { throw new Error("external render failed"); return <H1 />; }',
+      },
+    });
+    expect(result).toHaveProperty("bundle");
+    if (!("outDir" in result)) throw new Error("Expected emitted bundle");
+    const { stdout } = await promisify(execFile)(process.execPath, [
+      "--input-type=module",
+      "--eval",
+      `import { renderCmxDocuments } from ${JSON.stringify(import.meta.resolve("@cmx-tools/document"))};
+console.log(JSON.stringify(await renderCmxDocuments({ bundleDir: process.argv[1] })));`,
+      result.outDir,
+    ]);
+    expect(JSON.parse(stdout).diagnostics).toContainEqual({
+      severity: "error",
+      code: "render-error",
+      message: "external render failed",
+      source: {
+        file: path.join(result.rootDir, "entry.tsx"),
+        line: 1,
+        column: 71,
+      },
+    });
+  });
+
   it("omits source for runtime errors without generated bundle frames", async () => {
     await expect(
       renderCmxTestbed({

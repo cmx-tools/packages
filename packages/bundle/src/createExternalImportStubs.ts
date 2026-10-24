@@ -1,4 +1,4 @@
-import type { TransformPluginContext } from "rolldown";
+import { RolldownMagicString, type TransformPluginContext } from "rolldown";
 import { parseSync } from "rolldown/utils";
 import type { CmxResolvedExternalImport } from "./resolveCmxExternalImports.js";
 
@@ -54,7 +54,7 @@ export async function transformExternalImports(
     importSpecifier: string,
     importerId: string,
   ) => Promise<void>,
-): Promise<{ code: string; map: null } | null> {
+): Promise<{ code: string; map: string } | null> {
   if (externalImports.size === 0) {
     return null;
   }
@@ -67,7 +67,7 @@ export async function transformExternalImports(
     return null;
   }
 
-  const replacements: Array<{ start: number; end: number; value: string }> = [];
+  const transformed = new RolldownMagicString(source);
   for (const externalImport of parsed.module.staticImports) {
     const from = externalImport.moduleRequest.value;
     const resolvedExternalImport = externalImports.get(from);
@@ -96,20 +96,22 @@ export async function transformExternalImports(
       stubId,
       mergeExternalStub(externalStubs.get(stubId), stub),
     );
-    replacements.push({
-      start: externalImport.moduleRequest.start,
-      end: externalImport.moduleRequest.end,
-      value: JSON.stringify(stubId),
-    });
+    transformed.overwrite(
+      externalImport.moduleRequest.start,
+      externalImport.moduleRequest.end,
+      JSON.stringify(stubId),
+    );
   }
 
-  if (replacements.length === 0) {
+  if (!transformed.hasChanged()) {
     return null;
   }
 
   return {
-    code: replaceRanges(source, replacements),
-    map: null,
+    code: transformed.toString(),
+    map: transformed
+      .generateMap({ source: id, includeContent: true, hires: true })
+      .toString(),
   };
 }
 
@@ -168,18 +170,4 @@ function createExternalStubId(importer: string, from: string): string {
   return `${EXTERNAL_STUB_PREFIX}${Buffer.from(
     JSON.stringify({ importer, from }),
   ).toString("base64url")}`;
-}
-
-function replaceRanges(
-  source: string,
-  replacements: Array<{ start: number; end: number; value: string }>,
-): string {
-  let output = "";
-  let position = 0;
-  for (const replacement of replacements.sort((a, b) => a.start - b.start)) {
-    output += source.slice(position, replacement.start);
-    output += replacement.value;
-    position = replacement.end;
-  }
-  return output + source.slice(position);
 }
