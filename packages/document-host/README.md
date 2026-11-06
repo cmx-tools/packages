@@ -49,7 +49,7 @@ import { createCmxUgcVerifier } from "@cmx-tools/verify";
 const verifyUgc = createCmxUgcVerifier();
 const host = createCmxDocumentHost({
   store: createMemoryCmxDocumentStore(),
-  async verifyPublicationUpdate(update, loadDocument) {
+  async verifyPublicationUpdate(update, publication) {
     for (const document of Object.values(update.upsert)) {
       const compatible = verifyCmxDocumentEnvironment(document, environment);
       if (!compatible.valid) return compatible;
@@ -57,7 +57,7 @@ const host = createCmxDocumentHost({
       if (!ugc.valid) return ugc;
     }
 
-    if (!(await loadDocument("404"))) {
+    if (!(await publication.loadDocument("404"))) {
       return {
         valid: false,
         diagnostics: [
@@ -74,11 +74,31 @@ const host = createCmxDocumentHost({
 });
 ```
 
-`update.upsert` contains received new and replaced Documents by entry name. `update.remove` contains removed entry names. `loadDocument` reads the consistent Document set that would result from accepting the update. It reuses incoming Documents, loads unchanged Documents on demand, and returns `undefined` for removed or unknown names. The hook receives no complete Document collection or entry inventory.
+`update.upsert` contains received new and replaced Documents by entry name. `update.remove` contains removed entry names. The second argument is a `CmxProposedPublication`:
 
-Update values and loader results are isolated copies. Mutations do not transform published content or subsequent loader results. Verification accepts synchronous or asynchronous `{ valid: true }` or `{ valid: false, diagnostics }` results.
+- `publication.getEntryNames()` synchronously returns the complete proposed entry inventory, including additions and unchanged entries and excluding removals. Each call returns a fresh array with no guaranteed ordering. Listing names performs no Document reads and allocates an array proportional to the entry count only when called.
+- `publication.loadDocument(entryName)` reads that same proposed Publication. It reuses incoming Documents, loads unchanged Documents on demand, and returns `undefined` for removed or unknown names.
+
+Applications can validate every proposed entry without reading the current manifest or applying the delta themselves. Inside the hook, build the application validator's entry map on demand:
+
+```ts
+const documents = new Map<string, CmxDocument>();
+for (const entryName of publication.getEntryNames()) {
+  const document = await publication.loadDocument(entryName);
+  if (document !== undefined) documents.set(entryName, document);
+}
+const proposedDocuments = Object.fromEntries(documents);
+```
+
+Import `CmxDocument` from `@cmx-tools/contracts`. The application owns routing, metadata and validation rules. Listing names alone loads no Documents; this loop explicitly loads the complete proposed collection.
+
+Update values, entry inventories and loader results are isolated copies. Mutations do not transform published content or subsequent results. Verification accepts synchronous or asynchronous `{ valid: true }` or `{ valid: false, diagnostics }` results.
 
 Application rejection returns HTTP `422` with a flat `diagnostics` array. Structural rejection returns `422` with diagnostics grouped by entry name. Both preserve the previous Publication. Malformed requests receive `400`, publication conflicts receive `409`, and unexpected failures receive `500`.
+
+### Migrate from 0.2
+
+The second hook argument is now a proposed Publication object instead of a loader function. Replace `verifyPublicationUpdate(update, loadDocument)` with `verifyPublicationUpdate(update, publication)` and `loadDocument(name)` with `publication.loadDocument(name)`. Callbacks that only use `update` need no change.
 
 ## Provide storage
 

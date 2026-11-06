@@ -105,7 +105,7 @@ it.each(["verification", "manifest", "commit", "document"])(
     };
     const host = createCmxDocumentHost({
       store,
-      verifyPublicationUpdate: async (_update, loadDocument) => {
+      verifyPublicationUpdate: async (_update, { loadDocument }) => {
         if (failing && phase === "verification")
           throw new Error("private policy detail");
         await loadDocument("reference");
@@ -282,23 +282,31 @@ it("lets the application compose UGC and Environment checks before accepting con
 
 it("isolates verification and read values from the hash-addressed stored Documents", async () => {
   const retained: CmxDocument[] = [];
+  let namesAfterMutation: readonly string[] = [];
   const host = createCmxDocumentHost({
     store: createMemoryCmxDocumentStore(),
-    verifyPublicationUpdate: async (update, loadDocument) => {
-      const incoming = (await loadDocument("home"))!;
+    verifyPublicationUpdate: async (update, publication) => {
+      const names = publication.getEntryNames() as string[];
+      names.splice(0, 1, "extra");
+      const incoming = (await publication.loadDocument("home"))!;
       retained.push(incoming, update.upsert.home);
       incoming.content.default = "changed through loader";
       update.upsert.home.content.default = "changed through update";
       update.remove.push("home");
       delete update.upsert.home;
       update.upsert.extra = document("extra Document");
-      expect(await loadDocument("home")).toEqual(document("published"));
+      namesAfterMutation = publication.getEntryNames();
+      expect(await publication.loadDocument("home")).toEqual(
+        document("published"),
+      );
+      expect(await publication.loadDocument("extra")).toBeUndefined();
       return { valid: true };
     },
   });
   const original = document("published");
   const target = await createCmxPublicationState({ home: original });
   expect((await publish(host, { home: original })).status).toBe(200);
+  expect(namesAfterMutation).toEqual(["home"]);
   original.content.default = "changed by caller";
   for (const value of retained)
     value.content.default = "changed after verification";
@@ -385,6 +393,159 @@ it.each([
   },
 );
 
+it("checks complete proposed entry membership without loading Documents", async () => {
+  const memory = createMemoryCmxDocumentStore();
+  const acceptedHost = createCmxDocumentHost({ store: memory });
+  const initial = {
+    home: document("old home"),
+    unchanged: document("unchanged page"),
+    archived: document("removed page"),
+  };
+  expect((await publish(acceptedHost, initial)).status).toBe(200);
+  const state = await memory.getState();
+  const upsert = Object.fromEntries([
+    ["home", document("new home")],
+    ["blog/日本語", document("new page")],
+    ["__proto__", document("prototype page")],
+    ["constructor", document("constructor page")],
+    ["toString", document("toString page")],
+  ]);
+  const target = await createCmxPublicationState({
+    unchanged: initial.unchanged,
+    ...upsert,
+  });
+  let observed: readonly string[] = [];
+  let storageReads = 0;
+  const host = createCmxDocumentHost({
+    store: {
+      ...memory,
+      async getDocument() {
+        storageReads += 1;
+        throw new Error("Membership verification must not load Documents");
+      },
+    },
+    verifyPublicationUpdate(_update, publication) {
+      observed = publication.getEntryNames();
+      return observed.includes("home") && !observed.includes("archived")
+        ? { valid: true }
+        : {
+            valid: false,
+            diagnostics: [
+              {
+                severity: "error",
+                code: "app/entry-membership",
+                message:
+                  "Home must remain available and archived must be removed.",
+              },
+            ],
+          };
+    },
+  });
+  const response = await host.handlePublication(
+    put({
+      baseContentHash: state.contentHash,
+      targetContentHash: target.contentHash,
+      upsert,
+      remove: ["archived"],
+    }),
+  );
+  expect(response.status).toBe(200);
+  expect([...observed].sort()).toEqual([
+    "__proto__",
+    "blog/日本語",
+    "constructor",
+    "home",
+    "toString",
+    "unchanged",
+  ]);
+  expect(storageReads).toBe(0);
+  expect(
+    await (await host.handlePublication(new Request(endpoint))).json(),
+  ).toEqual(target);
+  const rejected = await host.handlePublication(
+    put({
+      baseContentHash: target.contentHash,
+      targetContentHash: (
+        await createCmxPublicationState({
+          unchanged: initial.unchanged,
+          ...Object.fromEntries(
+            Object.entries(upsert).filter(([name]) => name !== "home"),
+          ),
+        })
+      ).contentHash,
+      upsert: {},
+      remove: ["home"],
+    }),
+  );
+  expect(rejected.status).toBe(422);
+  expect(await rejected.json()).toMatchObject({
+    diagnostics: [expect.objectContaining({ code: "app/entry-membership" })],
+  });
+  expect(storageReads).toBe(0);
+  expect(
+    await (await host.handlePublication(new Request(endpoint))).json(),
+  ).toEqual(target);
+});
+
+it("rejects a duplicate route against an unchanged Document and preserves the accepted Publication", async () => {
+  const initial = {
+    home: document("home page"),
+    guide: document("guide page"),
+  };
+  const checked: string[] = [];
+  const host = createCmxDocumentHost({
+    store: createMemoryCmxDocumentStore(),
+    async verifyPublicationUpdate(_update, publication) {
+      const routes = new Set<string>();
+      for (const name of publication.getEntryNames()) {
+        const route = `/${name.replace(/\/index$/, "")}`;
+        checked.push(name);
+        if (routes.has(route))
+          return {
+            valid: false,
+            diagnostics: [
+              {
+                severity: "error",
+                code: "app/duplicate-route",
+                message: `The route ${route} belongs to more than one Document.`,
+              },
+            ],
+          };
+        routes.add(route);
+      }
+      return { valid: true };
+    },
+  });
+  expect((await publish(host, initial)).status).toBe(200);
+  checked.length = 0;
+  const state = await (
+    await host.handlePublication(new Request(endpoint))
+  ).json();
+  const rejected = await publish(host, {
+    "guide/index": document("duplicate guide page"),
+  });
+  expect(rejected.status).toBe(422);
+  expect(await rejected.json()).toEqual({
+    message: "Publication Update rejected.",
+    diagnostics: [
+      {
+        severity: "error",
+        code: "app/duplicate-route",
+        message: "The route /guide belongs to more than one Document.",
+      },
+    ],
+  });
+  expect(checked).toEqual(expect.arrayContaining(["guide", "guide/index"]));
+  expect(await host.getDocument("guide")).toEqual(initial.guide);
+  expect(await host.getDocument("guide/index")).toBeUndefined();
+  expect(
+    await (await host.handlePublication(new Request(endpoint))).json(),
+  ).toEqual(state);
+  expect((await publish(host, { news: document("news page") })).status).toBe(
+    200,
+  );
+});
+
 it("verifies a Publication Update through received changes and selective proposed Document reads", async () => {
   const memory = createMemoryCmxDocumentStore();
   const acceptedHost = createCmxDocumentHost({ store: memory });
@@ -430,7 +591,7 @@ it("verifies a Publication Update through received changes and selective propose
         return memory.getDocument(name);
       },
     },
-    async verifyPublicationUpdate(update, loadDocument) {
+    async verifyPublicationUpdate(update, { loadDocument }) {
       const site = await loadDocument("_site");
       const names = site!.content.default as string[];
       observed = {
@@ -488,7 +649,7 @@ it.each(["replaced", "removed"])(
           return memory.getDocument(name);
         },
       },
-      async verifyPublicationUpdate(_update, loadDocument) {
+      async verifyPublicationUpdate(_update, { loadDocument }) {
         await loadDocument("related").catch(() => undefined);
         return {
           valid: false,
@@ -569,6 +730,7 @@ it.each(["replacement", "empty update"])(
     const initial = {
       home: document("accepted"),
       related: document("accepted related"),
+      obsolete: document("removed concurrently"),
     };
     expect((await publish(acceptedHost, initial)).status).toBe(200);
     const state = await memory.getState();
@@ -583,6 +745,7 @@ it.each(["replacement", "empty update"])(
       release = resolve;
     });
     const loaded: Array<CmxDocument | undefined> = [];
+    const inventories: Array<readonly string[]> = [];
     let storageReads = 0;
     const host = createCmxDocumentHost({
       store: {
@@ -592,7 +755,8 @@ it.each(["replacement", "empty update"])(
           return memory.getDocument(name);
         },
       },
-      async verifyPublicationUpdate(_update, loadDocument) {
+      async verifyPublicationUpdate(_update, { getEntryNames, loadDocument }) {
+        inventories.push(getEntryNames());
         const concurrent = await Promise.all([
           loadDocument("related"),
           loadDocument("related"),
@@ -601,6 +765,7 @@ it.each(["replacement", "empty update"])(
         concurrent[0]!.content.default = "verifier mutation";
         entered();
         await released;
+        inventories.push(getEntryNames());
         loaded.push(await loadDocument("related"));
         return { valid: true };
       },
@@ -616,19 +781,35 @@ it.each(["replacement", "empty update"])(
     await verifying;
     try {
       expect(
-        (await publish(acceptedHost, { related: document("concurrent") }))
-          .status,
+        (
+          await publish(
+            acceptedHost,
+            {
+              related: document("concurrent"),
+              newer: document("added concurrently"),
+            },
+            ["obsolete"],
+          )
+        ).status,
       ).toBe(200);
     } finally {
       release();
     }
     const response = await publishing;
     expect(response.status).toBe(409);
+    expect(inventories.map((names) => [...names].sort())).toEqual([
+      ["home", "obsolete", "related"],
+      ["home", "obsolete", "related"],
+    ]);
     expect(loaded.slice(1)).toEqual([initial.related, initial.related]);
     expect(storageReads).toBe(1);
     expect(await acceptedHost.getDocument("home")).toEqual(initial.home);
     expect(await acceptedHost.getDocument("related")).toEqual(
       document("concurrent"),
+    );
+    expect(await acceptedHost.getDocument("obsolete")).toBeUndefined();
+    expect(await acceptedHost.getDocument("newer")).toEqual(
+      document("added concurrently"),
     );
   },
 );
@@ -652,7 +833,7 @@ it("keeps lazy storage failures distinct from rejection even if the application 
         throw new Error("private database detail");
       },
     },
-    async verifyPublicationUpdate(_update, loadDocument) {
+    async verifyPublicationUpdate(_update, { loadDocument }) {
       await loadDocument("home").catch(() => undefined);
       return { valid: true };
     },
@@ -688,7 +869,7 @@ it("contains a prefetched Document read failure when synchronous verification re
         throw new Error("private database detail");
       },
     },
-    verifyPublicationUpdate(_update, loadDocument) {
+    verifyPublicationUpdate(_update, { loadDocument }) {
       void loadDocument("home");
       return { valid: true };
     },
@@ -734,7 +915,7 @@ it("rejects an incoherent lazy read when concurrent Publications restore the ori
         return intermediate;
       },
     },
-    async verifyPublicationUpdate(_update, loadDocument) {
+    async verifyPublicationUpdate(_update, { loadDocument }) {
       await loadDocument("related").catch(() => undefined);
       return { valid: true };
     },

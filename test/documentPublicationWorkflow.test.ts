@@ -81,7 +81,7 @@ it("reports rejected fallback removal without replacing the accepted publication
   ];
   const host = createCmxDocumentHost({
     store: createMemoryCmxDocumentStore(),
-    async verifyPublicationUpdate(_update, loadDocument) {
+    async verifyPublicationUpdate(_update, { loadDocument }) {
       return (await loadDocument("404")) === undefined
         ? { valid: false, diagnostics }
         : { valid: true };
