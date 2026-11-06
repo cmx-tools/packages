@@ -2,17 +2,14 @@ import type {
   CmxDocument,
   CmxDocumentVerificationResult,
 } from "@cmx-tools/contracts";
+import type { CmxProposedPublication } from "./CmxProposedPublication.js";
 
 export type CmxPublicationUpdate = {
   upsert: Record<string, CmxDocument>;
   remove: string[];
 };
 
-export type CmxPublicationDocumentLoader = (
-  entryName: string,
-) => Promise<CmxDocument | undefined>;
-
 export type CmxVerifyPublicationUpdate = (
   update: CmxPublicationUpdate,
-  loadDocument: CmxPublicationDocumentLoader,
+  publication: CmxProposedPublication,
 ) => CmxDocumentVerificationResult | Promise<CmxDocumentVerificationResult>;

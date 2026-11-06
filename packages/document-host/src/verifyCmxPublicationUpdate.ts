@@ -4,8 +4,8 @@ import {
   type CmxPublicationManifest,
 } from "@cmx-tools/publish";
 import type { CmxDocumentStore } from "./CmxDocumentStore.js";
+import type { CmxPublicationDocumentLoader } from "./CmxProposedPublication.js";
 import type {
-  CmxPublicationDocumentLoader,
   CmxPublicationUpdate,
   CmxVerifyPublicationUpdate,
 } from "./CmxVerifyPublicationUpdate.js";
@@ -37,10 +37,10 @@ export async function verifyCmxPublicationUpdate({
     return isolated;
   };
   try {
-    const result = await verifyPublicationUpdate(
-      structuredClone(update),
+    const result = await verifyPublicationUpdate(structuredClone(update), {
+      getEntryNames: () => Object.keys(manifest),
       loadDocument,
-    );
+    });
     await Promise.all(reads.values());
     return result;
   } catch (cause) {
