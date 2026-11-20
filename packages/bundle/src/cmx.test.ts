@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { rolldown } from "rolldown";
@@ -224,6 +224,175 @@ describe("cmx", () => {
     },
   );
 
+  it("declares generated component references from configured contracts without source imports", async () => {
+    const fixtureRoot = path.resolve(".cmx");
+    await mkdir(fixtureRoot, { recursive: true });
+    const tempDir = await mkdtemp(
+      path.join(fixtureRoot, "generated-contract-"),
+    );
+    try {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        JSON.stringify({
+          name: "generated-prose-fixture",
+          private: true,
+          dependencies: { "@my-app/prose": "^2.0.0" },
+        }),
+      );
+      await writeStubPackageWithSubpath(
+        tempDir,
+        "@my-app/prose",
+        "markdown",
+        "2.1.0",
+      );
+      const generatedEntry = await writeFixture(
+        tempDir,
+        "generated.ts",
+        [
+          'import { jsx, __registerExternal } from "@cmx-tools/runtime/jsx-runtime";',
+          'const from = "@my-app/prose/markdown";',
+          'const Heading = __registerExternal({ from, import: "h1" });',
+          'export default jsx(Heading, { children: "Generated heading" });',
+        ].join("\n"),
+      );
+      const nativeEntry = await writeFixture(
+        tempDir,
+        "native.tsx",
+        "export default <p>Native text</p>;",
+      );
+      const outDir = path.join(tempDir, "dist");
+      await compileCmxBundle({
+        cwd: tempDir,
+        entries: { generated: generatedEntry, native: nativeEntry },
+        outDir,
+        externals: ["@my-app/prose"],
+        exports: defaultExports,
+        getIntegrity: () => "sha512-generated-contract",
+      });
+
+      const rendered = await renderCmxDocuments({ bundleDir: outDir });
+      expect(rendered.result).toBe("complete");
+      if (rendered.result !== "complete")
+        throw new Error("Generated content failed to render");
+      expect(rendered.entries.generated.document.interface.imports).toEqual({
+        "@my-app/prose": {
+          name: "@my-app/prose",
+          version: "2.1.0",
+          specifier: "^2.0.0",
+          integrity: "sha512-generated-contract",
+        },
+      });
+      expect(rendered.entries.native.document.interface.imports).toEqual({});
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("leaves unused missing or invalid configured contracts out of native documents", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        JSON.stringify({
+          name: "unused-contracts-fixture",
+          private: true,
+          dependencies: {
+            "@unused/missing": "^1.0.0",
+            "@unused/invalid-version": "^1.0.0",
+            "@unused/invalid-name": "^1.0.0",
+            "@unused/invalid-json": "^1.0.0",
+            "@other/prose": "^1.0.0",
+          },
+        }),
+      );
+      await writeStubPackage(tempDir, "@unused/undeclared", "1.0.0");
+      await writeStubPackage(tempDir, "@unused/invalid-version", "");
+      await writeFixture(
+        tempDir,
+        "node_modules/@unused/invalid-name/package.json",
+        "null",
+      );
+      await writeFixture(
+        tempDir,
+        "node_modules/@unused/invalid-json/package.json",
+        "{",
+      );
+      await writeFixture(
+        tempDir,
+        "node_modules/@unused/mismatched/package.json",
+        JSON.stringify({
+          name: "@other/prose",
+          version: "1.0.0",
+          main: "index.js",
+        }),
+      );
+      await writeFixture(
+        tempDir,
+        "node_modules/@unused/mismatched/index.js",
+        "export default null;",
+      );
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.ts",
+        'export default "Native content";',
+      );
+      const outDir = path.join(tempDir, "dist");
+      await compileCmxBundle({
+        cwd: tempDir,
+        entries: { entry: entryFile },
+        outDir,
+        externals: [
+          "@unused/missing",
+          "@unused/undeclared",
+          "@unused/invalid-version",
+          "@unused/invalid-name",
+          "@unused/invalid-json",
+          "@unused/mismatched",
+        ],
+        exports: defaultExports,
+      });
+
+      const rendered = await renderCmxDocuments({ bundleDir: outDir });
+      expect(rendered.result).toBe("complete");
+      if (rendered.result !== "complete")
+        throw new Error("Native content failed to render");
+      expect(rendered.entries.entry.document.interface.imports).toEqual({});
+      expect((await readBundle(outDir)).dependencies).toEqual([]);
+    });
+  });
+
+  it("reports integrity provider failures while cataloging configured contracts", async () => {
+    await withTempDir(async (tempDir) => {
+      await writeFixture(
+        tempDir,
+        "package.json",
+        JSON.stringify({
+          name: "contract-integrity-fixture",
+          private: true,
+          dependencies: { "@theme/ui": "^1.0.0" },
+        }),
+      );
+      await writeStubPackage(tempDir, "@theme/ui", "1.0.0");
+      const entryFile = await writeFixture(
+        tempDir,
+        "entry.ts",
+        'export default "Native content";',
+      );
+      await expect(
+        compileCmxBundle({
+          cwd: tempDir,
+          entries: { entry: entryFile },
+          outDir: path.join(tempDir, "dist"),
+          externals: ["@theme/ui"],
+          exports: defaultExports,
+          getIntegrity: () => {
+            throw new SyntaxError("Integrity response is invalid");
+          },
+        }),
+      ).rejects.toThrow("Integrity response is invalid");
+    });
+  });
   it("emits ESM, external sourcemap, and minimal CMX bundle for TSX entry", async () => {
     await withTempDir(async (tempDir) => {
       const entryFile = await writeFixture(
@@ -592,7 +761,8 @@ describe("cmx", () => {
             exports: defaultExports,
             externals: ["@theme/ui"],
             cwd: tempDir,
-            getIntegrity: () => "sha512-test",
+            getIntegrity: ({ importerId }) =>
+              importerId === entryFile ? "sha512-test" : "unexpected-importer",
           }),
         ],
       });

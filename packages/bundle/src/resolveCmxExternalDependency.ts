@@ -15,12 +15,27 @@ export async function resolveAndRecordCmxExternalDependency(
     consumerPackage: ConsumerPackageJson;
     bundleDependencies: Map<string, CmxDependency>;
     getIntegrity?: CmxGetIntegrity;
+    optional?: boolean;
   },
 ): Promise<void> {
   const packageIdentity = await resolveCmxPackageIdentity(context, {
     importSpecifier: input.importSpecifier,
     importerId: input.importerId,
+  }).catch((error: unknown) => {
+    if (input.optional && error instanceof SyntaxError) {
+      return undefined;
+    }
+    throw error;
   });
+
+  if (
+    !packageIdentity ||
+    (input.optional &&
+      (packageIdentity.result !== "resolved" ||
+        packageIdentity.packageName !== input.importSpecifier))
+  ) {
+    return;
+  }
 
   if (packageIdentity.result === "unresolved") {
     context.error({
@@ -68,6 +83,9 @@ export async function resolveAndRecordCmxExternalDependency(
     packageName,
   );
   if (specifier === undefined) {
+    if (input.optional) {
+      return;
+    }
     context.error({
       code: "cmx-external-missing-consumer-dependency",
       message: `Package ${JSON.stringify(packageName)} must be listed in the consumer package.json (dependencies, devDependencies, peerDependencies, or optionalDependencies) for CMX external imports.`,

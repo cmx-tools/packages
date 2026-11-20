@@ -201,7 +201,21 @@ export function cmx(options: CmxConfig): Plugin {
         resolveRecorder,
       );
     },
-    generateBundle(_outputOptions, outputBundle) {
+    async generateBundle(_outputOptions, outputBundle) {
+      for (const contract of externalPolicy.contracts) {
+        if (bundleDependencies.has(contract)) {
+          continue;
+        }
+        await resolveAndRecordCmxExternalDependency(this, {
+          importSpecifier: contract,
+          importerId: consumerPackageJsonPathResolved,
+          consumerPackageJsonPath: consumerPackageJsonPathResolved,
+          consumerPackage,
+          bundleDependencies,
+          getIntegrity: options.getIntegrity,
+          optional: true,
+        });
+      }
       emitEntryFacadeSourcemaps(this, outputBundle);
       const cmxBundle = createCmxBundleArtifact({
         dangerouslyAllowInnerHtml: options.dangerouslyAllowInnerHtml === true,

@@ -80,7 +80,11 @@ export async function resolveCmxPackageIdentity(
     name?: unknown;
     version?: unknown;
   };
-  if (typeof packageJson.name !== "string" || packageJson.name.length === 0) {
+  if (
+    packageJson === null ||
+    typeof packageJson.name !== "string" ||
+    packageJson.name.length === 0
+  ) {
     return {
       result: "invalid-package-name",
       packageJsonPath,
