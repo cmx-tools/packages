@@ -4,6 +4,11 @@ Compile JSX content into a portable CMX Bundle, then render it with `@cmx-tools/
 
 Bundles target Node by default. Direct Rolldown callers can override `platform`.
 
+Bundle metadata includes available configured external contracts, including contracts
+referenced by authoring helpers without source imports. Contracts must resolve to an
+installed package declared by the Content Project. Unavailable unused contracts are
+omitted. Documents declare only contracts referenced by their evaluated content.
+
 ```sh
 pnpm add -D @cmx-tools/cli @cmx-tools/bundle @cmx-tools/document @cmx-tools/contracts
 ```
