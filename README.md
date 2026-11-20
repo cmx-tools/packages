@@ -11,6 +11,10 @@ Use [`@cmx-tools/markdown`](packages/markdown/README.md) inside authored content
 ```tsx
 import { md } from "@cmx-tools/markdown";
 
+function MyComponent() {
+  return <span>inline JSX</span>;
+}
+
 export default function Page() {
   return (
     <article>
