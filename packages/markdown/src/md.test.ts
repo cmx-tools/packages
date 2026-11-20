@@ -6,7 +6,7 @@ import { renderCmxDocuments } from "@cmx-tools/document";
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { cmx } from "@cmx-tools/react";
-import { defaultCmxMarkdown } from "./index.js";
+import { defaultCmxMarkdown } from "@cmx-tools/markdown-renderers";
 import type { CmxDocument } from "@cmx-tools/contracts";
 
 it("authors indented prose as sibling CMX blocks with visible source line breaks", async () => {
