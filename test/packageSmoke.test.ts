@@ -27,6 +27,7 @@ const EXPORT_CHECKS = [
   { packageDir: "intrinsics", entryFile: "dist/index.js", typeOnly: true },
   { packageDir: "intrinsics", entryFile: "dist/jsx-runtime.js" },
   { packageDir: "intrinsics", entryFile: "dist/jsx-dev-runtime.js" },
+  { packageDir: "markdown", entryFile: "dist/index.js" },
   { packageDir: "publish", entryFile: "dist/src/index.js" },
   { packageDir: "contracts", entryFile: "dist/index.js" },
   { packageDir: "react", entryFile: "dist/index.js" },

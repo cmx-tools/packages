@@ -4,6 +4,28 @@ CMX turns content authored as JSX or TSX into static JSON Documents. An applicat
 
 The source of truth stays in Git. The application owns its rendering and deployment.
 
+## Write prose with Markdown
+
+Use [`@cmx-tools/markdown`](packages/markdown/README.md) inside authored content:
+
+```tsx
+import { md } from "@cmx-tools/markdown";
+
+export default function Page() {
+  return (
+    <article>
+      {md`
+        # A readable introduction
+
+        Some **important** prose with ${(<MyComponent />)}.
+      `}
+    </article>
+  );
+}
+```
+
+The helper produces CMX nodes during Document Rendering. Hosts consume the resulting Documents through their existing adapters. Use `md({ from: "@my-app/prose" })` to route Markdown elements to host bindings, with `defaultCmxMarkdown` providing the native defaults.
+
 ## Import Assets with typed metadata
 
 Configure [project Asset loaders](packages/assets/README.md), then import colocated files:
