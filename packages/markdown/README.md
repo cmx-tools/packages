@@ -9,6 +9,13 @@ pnpm add @cmx-tools/markdown
 ```tsx
 import { md } from "@cmx-tools/markdown";
 
+const label = "the guide";
+const url = "/guide";
+
+function Gallery() {
+  return <aside>More content</aside>;
+}
+
 export default function Page() {
   return (
     <article>
