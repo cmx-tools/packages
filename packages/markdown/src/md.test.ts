@@ -385,6 +385,29 @@ it("lets a host override headings while keeping default prose renderers and embe
   );
 });
 
+it("hydrates namespaced prose when the content has no component imports", async () => {
+  const document = await renderMarkdown(`
+    const prose = md({from:"@my-app/prose"});
+    export default prose\u0060
+      # A quiet afternoon
+
+      Reading **together**.
+    \u0060;
+  `);
+  const hydrated = cmx(document, {
+    dependencies: Object.values(document.interface.imports),
+    imports: { "@my-app/prose": { ...defaultCmxMarkdown } },
+  });
+  expect(document.interface.imports["@my-app/prose"]).toMatchObject({
+    name: "@my-app/prose",
+    specifier: "1.0.0",
+    version: "1.0.0",
+  });
+  expect(renderToStaticMarkup(hydrated.default as ReactNode)).toBe(
+    "<h1>A quiet afternoon</h1><p>Reading <strong>together</strong>.</p>",
+  );
+});
+
 it("keeps paragraph spacing when a reading list includes notes and separate items", async () => {
   const document = await renderMarkdown(`export default md\u0060
     - First book
