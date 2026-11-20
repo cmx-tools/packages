@@ -7,6 +7,7 @@ export const REAL_PACKAGE_DIRS = [
   "document-host",
   "environment",
   "intrinsics",
+  "markdown",
   "publish",
   "react",
   "reduce",
