@@ -2,6 +2,8 @@
 
 Compile JSX content into a portable CMX Bundle, then render it with `@cmx-tools/document`.
 
+Bundles target Node by default. Direct Rolldown callers can override `platform`.
+
 ```sh
 pnpm add -D @cmx-tools/cli @cmx-tools/bundle @cmx-tools/document @cmx-tools/contracts
 ```
