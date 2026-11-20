@@ -8,6 +8,7 @@ export const REAL_PACKAGE_DIRS = [
   "environment",
   "intrinsics",
   "markdown",
+  "markdown-renderers",
   "publish",
   "react",
   "reduce",

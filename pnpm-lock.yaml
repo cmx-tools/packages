@@ -32,6 +32,9 @@ importers:
       '@cmx-tools/markdown':
         specifier: workspace:^
         version: link:packages/markdown
+      '@cmx-tools/markdown-renderers':
+        specifier: workspace:^
+        version: link:packages/markdown-renderers
       '@cmx-tools/publish':
         specifier: workspace:^
         version: link:packages/publish
@@ -333,6 +336,8 @@ importers:
       '@types/mdast':
         specifier: ^4.0.4
         version: 4.0.4
+
+  packages/markdown-renderers: {}
 
   packages/publish:
     dependencies:

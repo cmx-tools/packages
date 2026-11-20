@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -28,6 +28,7 @@ const EXPORT_CHECKS = [
   { packageDir: "intrinsics", entryFile: "dist/jsx-runtime.js" },
   { packageDir: "intrinsics", entryFile: "dist/jsx-dev-runtime.js" },
   { packageDir: "markdown", entryFile: "dist/index.js" },
+  { packageDir: "markdown-renderers", entryFile: "dist/index.js" },
   { packageDir: "publish", entryFile: "dist/src/index.js" },
   { packageDir: "contracts", entryFile: "dist/index.js" },
   { packageDir: "react", entryFile: "dist/index.js" },
@@ -101,6 +102,65 @@ describe("package smoke", () => {
       }
     }
   });
+
+  it("lets a host install Markdown renderers without parser or runtime dependencies", async () => {
+    const hostDir = await mkdtemp(path.join(os.tmpdir(), "cmx-renderer-host-"));
+    packedDirs.push(hostDir);
+    const rootManifest = JSON.parse(
+      await readFile(path.join(ROOT_DIR, "package.json"), "utf8"),
+    ) as { packageManager: string };
+    await writeFile(
+      path.join(hostDir, "package.json"),
+      JSON.stringify({
+        name: "renderer-host",
+        private: true,
+        type: "module",
+        packageManager: rootManifest.packageManager,
+      }),
+    );
+    const packed = await runCorepack(
+      ["pack", "--json", "--pack-destination", hostDir],
+      path.join(ROOT_DIR, "packages", "markdown-renderers"),
+    );
+    const output = JSON.parse(packed.stdout.trim()) as
+      | { filename: string }
+      | Array<{ filename: string }>;
+    const filename = Array.isArray(output)
+      ? output.at(-1)!.filename
+      : output.filename;
+    await runCorepack(
+      [
+        "add",
+        "--offline",
+        "--ignore-scripts",
+        "--no-lockfile",
+        path.resolve(hostDir, filename),
+      ],
+      hostDir,
+    );
+    const installed = await runCorepack(
+      ["list", "--prod", "--depth", "Infinity", "--json"],
+      hostDir,
+    );
+    const [host] = JSON.parse(installed.stdout) as Array<{
+      dependencies: Record<string, { dependencies?: Record<string, unknown> }>;
+    }>;
+    expect(Object.keys(host!.dependencies)).toEqual([
+      "@cmx-tools/markdown-renderers",
+    ]);
+    expect(
+      host!.dependencies["@cmx-tools/markdown-renderers"]!.dependencies ?? {},
+    ).toEqual({});
+    const imported = await runNode(
+      [
+        "--input-type=module",
+        "-e",
+        'import { defaultCmxMarkdown } from "@cmx-tools/markdown-renderers"; console.log(defaultCmxMarkdown.h1);',
+      ],
+      hostDir,
+    );
+    expect(imported.stdout.trim()).toBe("h1");
+  }, 120_000);
 
   it("rewrites workspace:^ dependencies to caret ranges in packed output", async () => {
     for (const packageDir of REAL_PACKAGE_DIRS) {

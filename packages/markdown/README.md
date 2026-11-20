@@ -58,10 +58,16 @@ export default {
 };
 ```
 
-The host provides bindings for that contract. It can start with the complete default map and override individual components:
+The host installs the separate renderer package and supplies bindings for that contract:
+
+```sh
+pnpm add @cmx-tools/markdown-renderers
+```
+
+It can start with the complete default map and override individual components:
 
 ```tsx
-import { defaultCmxMarkdown } from "@cmx-tools/markdown";
+import { defaultCmxMarkdown } from "@cmx-tools/markdown-renderers";
 
 const imports = {
   "@my-app/prose": {
