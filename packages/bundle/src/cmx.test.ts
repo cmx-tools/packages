@@ -9,7 +9,8 @@ import {
   parseCmxBundleJson,
   type CmxBundle,
 } from "@cmx-tools/contracts";
-import { cmx } from "./cmx.js";
+import { cmx, compileCmxBundle } from "./index.js";
+import { renderCmxDocuments } from "@cmx-tools/document";
 
 async function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "cmx-bundle-"));
@@ -141,6 +142,88 @@ async function writeAliasedStubPackageWithSubpath(
 }
 
 describe("cmx", () => {
+  it.each([
+    {
+      name: "the default Node target",
+      platform: undefined,
+      expected: "Node content",
+    },
+    {
+      name: "an explicit browser target",
+      platform: "browser" as const,
+      expected: "Browser content",
+    },
+  ])(
+    "renders conditional dependencies for $name",
+    async ({ platform, expected }) => {
+      await withTempDir(async (tempDir) => {
+        await writeFixture(
+          tempDir,
+          "package.json",
+          JSON.stringify({
+            name: "conditional-runtime-fixture",
+            private: true,
+          }),
+        );
+        await writeFixture(
+          tempDir,
+          "node_modules/conditional-content/package.json",
+          JSON.stringify({
+            name: "conditional-content",
+            version: "1.0.0",
+            type: "module",
+            exports: {
+              browser: "./browser.js",
+              node: "./node.js",
+              default: "./browser.js",
+            },
+          }),
+        );
+        await writeFixture(
+          tempDir,
+          "node_modules/conditional-content/node.js",
+          'export default "Node content";',
+        );
+        await writeFixture(
+          tempDir,
+          "node_modules/conditional-content/browser.js",
+          'export default "Browser content";',
+        );
+        const entryFile = await writeFixture(
+          tempDir,
+          "entry.ts",
+          'import content from "conditional-content"; export default content;',
+        );
+        const outDir = path.join(tempDir, "dist");
+        if (platform) {
+          const bundle = await rolldown({
+            input: entryFile,
+            platform,
+            plugins: [cmx({ cwd: tempDir, exports: defaultExports })],
+          });
+          try {
+            await bundle.write({ dir: outDir, entryFileNames: "entry.js" });
+          } finally {
+            await bundle.close();
+          }
+        } else {
+          await compileCmxBundle({
+            cwd: tempDir,
+            entries: { entry: entryFile },
+            outDir,
+            exports: defaultExports,
+          });
+        }
+
+        const rendered = await renderCmxDocuments({ bundleDir: outDir });
+        expect(rendered.result).toBe("complete");
+        if (rendered.result !== "complete")
+          throw new Error("Conditional content failed to render");
+        expect(rendered.entries.entry.document.content.default).toBe(expected);
+      });
+    },
+  );
+
   it("emits ESM, external sourcemap, and minimal CMX bundle for TSX entry", async () => {
     await withTempDir(async (tempDir) => {
       const entryFile = await writeFixture(

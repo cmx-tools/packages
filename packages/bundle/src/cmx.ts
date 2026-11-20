@@ -256,6 +256,7 @@ function withCmxJsxRuntime(inputOptions: InputOptions): InputOptions {
 
   return {
     ...inputOptions,
+    platform: inputOptions.platform ?? "node",
     transform: {
       ...existingTransform,
       jsx: {
