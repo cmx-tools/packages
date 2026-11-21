@@ -21,6 +21,7 @@ const markdown = new Marked({
     tag() {},
     table() {},
     link(source) {
+      if (this.lexer.state.linkParenPossible === false) return;
       const label = this.rules.inline.link.exec(source)?.[1];
       return Tokenizer.prototype.link.call(literalProps(this, label), source);
     },
