@@ -28,7 +28,7 @@ export default function Page() {
 }
 ```
 
-The helper produces CMX nodes during Document Rendering. Hosts consume the resulting Documents through their existing adapters. Use `md({ from: "@my-app/prose" })` to route Markdown elements to host bindings. Both `@cmx-tools/react` and `@cmx-tools/remix` export `defaultCmxMarkdown` with native defaults for hosts.
+The helper produces CMX nodes during Document Rendering. Hosts consume the resulting Documents through their existing adapters. Use `md({ from: "@my-app/prose" })` to route Markdown elements to host bindings. The `@cmx-tools/contracts/markdown` entry exports `defaultCmxMarkdown` with native defaults for hosts.
 
 ## Import Assets with typed metadata
 

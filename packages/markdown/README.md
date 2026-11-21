@@ -60,10 +60,10 @@ export default {
 };
 ```
 
-The host can import the complete default map from its existing CMX framework adapter and override individual components:
+The host can import the complete default map from the existing contracts package and override individual components:
 
 ```tsx
-import { defaultCmxMarkdown } from "@cmx-tools/react";
+import { defaultCmxMarkdown } from "@cmx-tools/contracts/markdown";
 
 const imports = {
   "@my-app/prose": {
@@ -73,7 +73,7 @@ const imports = {
 };
 ```
 
-The defaults are native tag strings. Remix hosts import the same map from `@cmx-tools/remix`. Interpolated components retain their original identity.
+The defaults are native tag strings and work across framework adapters. Interpolated components retain their original identity.
 
 ## Syntax
 
