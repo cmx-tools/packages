@@ -30,6 +30,7 @@ const EXPORT_CHECKS = [
   { packageDir: "markdown", entryFile: "dist/index.js" },
   { packageDir: "publish", entryFile: "dist/src/index.js" },
   { packageDir: "contracts", entryFile: "dist/index.js" },
+  { packageDir: "contracts", entryFile: "dist/defaultCmxMarkdown.js" },
   { packageDir: "react", entryFile: "dist/index.js" },
   { packageDir: "reduce", entryFile: "dist/index.js" },
   { packageDir: "remix", entryFile: "dist/index.js" },
@@ -133,7 +134,6 @@ describe("package smoke", () => {
     const hostDir = await mkdtemp(path.join(os.tmpdir(), "cmx-markdown-host-"));
     packedDirs.push(hostDir);
     const contracts = await packPackage("contracts", hostDir);
-    const reduce = await packPackage("reduce", hostDir);
     const rootManifest = JSON.parse(
       await readFile(path.join(ROOT_DIR, "package.json"), "utf8"),
     ) as { packageManager: string };
@@ -146,12 +146,8 @@ describe("package smoke", () => {
         packageManager: rootManifest.packageManager,
       }),
     );
-    await writeFile(
-      path.join(hostDir, "pnpm-workspace.yaml"),
-      `overrides:\n  '@cmx-tools/contracts': ${JSON.stringify(`file:${contracts}`)}\n`,
-    );
     await runCorepack(
-      ["add", "--offline", "--ignore-scripts", "--no-lockfile", reduce],
+      ["add", "--offline", "--ignore-scripts", "--no-lockfile", contracts],
       hostDir,
     );
     const installed = await runCorepack(
@@ -169,17 +165,15 @@ describe("package smoke", () => {
         }
       >;
     }>;
-    expect(Object.keys(host!.dependencies)).toEqual(["@cmx-tools/reduce"]);
-    const dependencies = host!.dependencies["@cmx-tools/reduce"]!.dependencies;
-    expect(Object.keys(dependencies)).toEqual(["@cmx-tools/contracts"]);
-    expect(dependencies["@cmx-tools/contracts"]!.dependencies ?? {}).toEqual(
-      {},
-    );
+    expect(Object.keys(host!.dependencies)).toEqual(["@cmx-tools/contracts"]);
+    expect(
+      host!.dependencies["@cmx-tools/contracts"]!.dependencies ?? {},
+    ).toEqual({});
     const imported = await runNode(
       [
         "--input-type=module",
         "-e",
-        'import { defaultCmxMarkdown } from "@cmx-tools/reduce"; console.log(defaultCmxMarkdown.h1);',
+        'import { defaultCmxMarkdown } from "@cmx-tools/contracts/markdown"; console.log(defaultCmxMarkdown.h1);',
       ],
       hostDir,
     );

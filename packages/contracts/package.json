@@ -6,6 +6,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./markdown": {
+      "types": "./dist/defaultCmxMarkdown.d.ts",
+      "import": "./dist/defaultCmxMarkdown.js"
     }
   },
   "files": [

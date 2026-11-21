@@ -13,10 +13,6 @@ const html = await renderToString(page.default);
 
 The Environment supplies imported components. Omit it for Documents without imports. `cmx(document, environment?)` verifies the Contract and hydrates declared slots. Other component props and metadata retain their application-defined meaning.
 
-For Markdown component contracts, import `defaultCmxMarkdown` from this package and
-spread it into the contract's Environment import bindings. Override individual
-bindings as needed. The defaults use native tag strings and add no parser dependencies.
-
 ## Raw HTML
 
 CMX intrinsic `innerHTML: string` becomes Remix's native `unsafeHTML` value during Hydration. Ordinary text remains escaped. The adapter does not convert React's `dangerouslySetInnerHTML` prop.

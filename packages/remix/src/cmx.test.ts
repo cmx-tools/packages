@@ -12,7 +12,8 @@ import {
   type CmxEnvironment,
   type CmxNode,
 } from "@cmx-tools/contracts";
-import { CmxRemixError, cmx, defaultCmxMarkdown } from "@cmx-tools/remix";
+import { defaultCmxMarkdown } from "@cmx-tools/contracts/markdown";
+import { CmxRemixError, cmx } from "@cmx-tools/remix";
 
 const theme = {
   name: "@site/theme",
