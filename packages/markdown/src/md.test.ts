@@ -639,6 +639,15 @@ it("keeps formatted image descriptions literal when their text resembles an inte
   });
 });
 
+it("renders a long pasted passage containing unfinished links", async () => {
+  const passage = "[a](b".repeat(40_000);
+  const document = await renderMarkdown("export default md`" + passage + "`;");
+  expect(document.content.default).toEqual({
+    type: "fragment",
+    children: [{ type: "element", tag: "p", children: [passage] }],
+  });
+}, 10_000);
+
 async function renderMarkdown(source: string): Promise<CmxDocument> {
   await mkdir(".cmx", { recursive: true });
   const root = await mkdtemp(path.resolve(".cmx/markdown-"));
