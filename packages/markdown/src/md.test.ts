@@ -532,6 +532,50 @@ it("keeps numeric character references literal beside interpolated prose", async
   });
 });
 
+it("writes character references and their escaped examples without changing code or link values", async () => {
+  const document = await renderMarkdown(`export default md\u0060
+    &copy; &#x80; &amp;copy; &#000000169;.
+
+    Escaped: \\\\&copy;.
+
+    [Copyright](\\\\&copy; "\\\\&copy;")
+
+    ![\\\\&copy;](cover.png)
+
+    Use \\u0060&copy;\\u0060.
+
+    ~~~text
+    &copy;
+    ~~~
+  \u0060;`);
+  const hydrated = cmx(document);
+  expect(renderToStaticMarkup(hydrated.default as ReactNode)).toBe(
+    '<link rel="preload" as="image" href="cover.png"/><p>© € &amp;copy; &amp;#000000169;.</p><p>Escaped: &amp;copy;.</p><p><a href="&amp;copy;" title="&amp;copy;">Copyright</a></p><p><img src="cover.png" alt="&amp;copy;"/></p><p>Use <code>&amp;copy;</code>.</p><pre><code class="language-text">&amp;copy;\n</code></pre>',
+  );
+});
+
+it("keeps an empty description on a decorative image", async () => {
+  const document = await renderMarkdown(
+    "export default md`![](/divider.svg)`;",
+  );
+  expect(document.content.default).toEqual({
+    type: "fragment",
+    children: [
+      {
+        type: "element",
+        tag: "p",
+        children: [
+          {
+            type: "element",
+            tag: "img",
+            props: { src: "/divider.svg", alt: "" },
+          },
+        ],
+      },
+    ],
+  });
+});
+
 async function renderMarkdown(source: string): Promise<CmxDocument> {
   await mkdir(".cmx", { recursive: true });
   const root = await mkdtemp(path.resolve(".cmx/markdown-"));

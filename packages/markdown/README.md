@@ -2,6 +2,8 @@
 
 Write prose with Markdown syntax inside CMX source. The helper produces CMX nodes.
 
+The authoring package uses Marked and entities. Both have zero runtime dependencies.
+
 ```sh
 pnpm add @cmx-tools/markdown
 ```

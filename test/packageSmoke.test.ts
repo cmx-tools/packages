@@ -177,6 +177,73 @@ describe("package smoke", () => {
     expect(imported.stdout.trim()).toBe("h1");
   }, 120_000);
 
+  it("installs the Markdown helper with no subdependencies", async () => {
+    const contentDir = await mkdtemp(
+      path.join(os.tmpdir(), "cmx-prose-content-"),
+    );
+    packedDirs.push(contentDir);
+    const runtime = await packPackage("runtime", contentDir);
+    const markdown = await packPackage("markdown", contentDir);
+    const rootManifest = JSON.parse(
+      await readFile(path.join(ROOT_DIR, "package.json"), "utf8"),
+    ) as { packageManager: string };
+    await writeFile(
+      path.join(contentDir, "package.json"),
+      JSON.stringify({
+        name: "prose-content",
+        private: true,
+        type: "module",
+        packageManager: rootManifest.packageManager,
+      }),
+    );
+    await writeFile(
+      path.join(contentDir, "pnpm-workspace.yaml"),
+      `overrides:\n  '@cmx-tools/runtime': ${JSON.stringify(`file:${runtime}`)}\n`,
+    );
+    const store = await runCorepack(["store", "path"]);
+    await runCorepack(
+      [
+        "add",
+        "--offline",
+        "--ignore-scripts",
+        "--no-lockfile",
+        "--store-dir",
+        path.dirname(store.stdout.trim()),
+        markdown,
+      ],
+      contentDir,
+    );
+    const installed = await runCorepack(
+      ["list", "--prod", "--depth", "Infinity", "--json"],
+      contentDir,
+    );
+    const [content] = JSON.parse(installed.stdout) as Array<{
+      dependencies: Record<
+        string,
+        {
+          dependencies: Record<
+            string,
+            { dependencies?: Record<string, unknown> }
+          >;
+        }
+      >;
+    }>;
+    const dependencies =
+      content!.dependencies["@cmx-tools/markdown"]!.dependencies;
+    expect(Object.keys(dependencies).length).toBeLessThanOrEqual(3);
+    for (const [name, dependency] of Object.entries(dependencies)) {
+      expect(dependency.dependencies ?? {}, name).toEqual({});
+    }
+    await runNode(
+      [
+        "--input-type=module",
+        "-e",
+        'import { md } from "@cmx-tools/markdown"; md`# Hello`; ',
+      ],
+      contentDir,
+    );
+  }, 120_000);
+
   it("rewrites workspace:^ dependencies to caret ranges in packed output", async () => {
     for (const packageDir of REAL_PACKAGE_DIRS) {
       const cwd = path.join(ROOT_DIR, "packages", packageDir);
