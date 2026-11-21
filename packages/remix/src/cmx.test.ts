@@ -12,7 +12,7 @@ import {
   type CmxEnvironment,
   type CmxNode,
 } from "@cmx-tools/contracts";
-import { CmxRemixError, cmx } from "@cmx-tools/remix";
+import { CmxRemixError, cmx, defaultCmxMarkdown } from "@cmx-tools/remix";
 
 const theme = {
   name: "@site/theme",
@@ -21,6 +21,51 @@ const theme = {
 };
 
 describe("cmx", () => {
+  it("renders Markdown host defaults alongside a custom heading", async () => {
+    function Heading(handle: Handle<{ children?: RemixNode }>) {
+      return () => createElement("h2", {}, handle.props.children);
+    }
+    const document = createDocument(
+      {
+        default: {
+          type: "fragment",
+          children: [
+            {
+              type: "component",
+              from: theme.name,
+              import: "h1",
+              children: ["Guide"],
+            },
+            {
+              type: "component",
+              from: theme.name,
+              import: "pre",
+              children: [
+                {
+                  type: "component",
+                  from: theme.name,
+                  import: "code",
+                  props: { className: "language-ts" },
+                  children: ["<sample>"],
+                },
+              ],
+            },
+          ],
+        },
+      },
+      undefined,
+      { [theme.name]: theme },
+    );
+    const page = cmx<{ default: CmxNode }>(document, {
+      dependencies: [theme],
+      imports: { [theme.name]: { ...defaultCmxMarkdown, h1: Heading } },
+    });
+
+    expect(await renderToString(page.default)).toBe(
+      '<h2>Guide</h2><pre><code class="language-ts">&lt;sample&gt;</code></pre>',
+    );
+  });
+
   it("renders canonical CMX raw HTML through the native Remix renderer", async () => {
     const document = createDocument({
       default: {

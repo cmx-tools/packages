@@ -18,7 +18,7 @@ CMX language spans three layers:
 - **Content Repository** — Source-side location the build side watches or checks out.
 - **Content Source** — Authored modules selected for CMX processing.
 - **CMX Intrinsics** — Optional intrinsic JSX authoring types for Content Projects targeting bare CMX. They describe intrinsic elements and their document-facing props, independently of application content policies.
-- **Markdown Helper**: Optional `@cmx-tools/markdown` authoring tag that produces CMX nodes from Markdown prose and interpolated JSX values. Hosts hydrate the resulting Document through native elements or configured Component References. The dependency-free `@cmx-tools/markdown-renderers` package supplies default host bindings.
+- **Markdown Helper**: Optional `@cmx-tools/markdown` authoring tag that produces CMX nodes from Markdown prose and interpolated JSX values. Hosts hydrate the resulting Document through native elements or configured Component References. Framework adapters export `defaultCmxMarkdown` from their shared `@cmx-tools/reduce` dependency.
 - **Asset** — Non-code content colocated with Content Source.
 - **Asset Reference** — Document Content value that points to a host-distributed Asset.
 
