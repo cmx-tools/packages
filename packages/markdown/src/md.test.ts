@@ -577,6 +577,23 @@ it("keeps an empty description on a decorative image", async () => {
   });
 });
 
+it("keeps escaped brackets in linked prose and image descriptions beside reference definitions", async () => {
+  const document = await renderMarkdown(`export default md\u0060
+    [a \\\\[b\\\\]](/url)
+    ![a \\\\[b\\\\]](/cover.png)
+    [a \\\\[b\\\\]][guide]
+    ![a \\\\[b\\\\]][cover]
+
+    [b]: /inner
+    [guide]: /guide
+    [cover]: /reference.png
+  \u0060;`);
+  const hydrated = cmx(document);
+  expect(renderToStaticMarkup(hydrated.default as ReactNode)).toBe(
+    '<link rel="preload" as="image" href="/cover.png"/><link rel="preload" as="image" href="/reference.png"/><p><a href="/url">a [b]</a><br/><img src="/cover.png" alt="a [b]"/><br/><a href="/guide">a [b]</a><br/><img src="/reference.png" alt="a [b]"/></p>',
+  );
+});
+
 async function renderMarkdown(source: string): Promise<CmxDocument> {
   await mkdir(".cmx", { recursive: true });
   const root = await mkdtemp(path.resolve(".cmx/markdown-"));

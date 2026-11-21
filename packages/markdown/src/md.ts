@@ -21,7 +21,17 @@ const markdown = new Marked({
     tag() {},
     table() {},
     link(source) {
-      return Tokenizer.prototype.link.call(literalProps(this), source);
+      const label = this.rules.inline.link.exec(source)?.[1];
+      return Tokenizer.prototype.link.call(literalProps(this, label), source);
+    },
+    reflink(source, links) {
+      const label = (this.rules.inline.reflink.exec(source) ??
+        this.rules.inline.nolink.exec(source))?.[1];
+      return Tokenizer.prototype.reflink.call(
+        literalProps(this, label),
+        source,
+        links,
+      );
     },
     def(source) {
       return Tokenizer.prototype.def.call(literalProps(this), source);
@@ -209,9 +219,15 @@ function renderMarkdown(
   }
 }
 
-function literalProps(tokenizer: Tokenizer): Tokenizer {
+function literalProps(tokenizer: Tokenizer, label?: string): Tokenizer {
   const context = new Tokenizer(tokenizer.options);
   context.lexer = tokenizer.lexer;
+  if (label !== undefined) {
+    const lexer = tokenizer.lexer;
+    context.lexer = Object.create(lexer);
+    context.lexer.inlineTokens = (_source, tokens) =>
+      lexer.inlineTokens(label, tokens);
+  }
   context.rules = {
     ...tokenizer.rules,
     inline: { ...tokenizer.rules.inline, anyPunctuation: /(?!)()/g },
