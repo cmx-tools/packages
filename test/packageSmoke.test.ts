@@ -28,7 +28,6 @@ const EXPORT_CHECKS = [
   { packageDir: "intrinsics", entryFile: "dist/jsx-runtime.js" },
   { packageDir: "intrinsics", entryFile: "dist/jsx-dev-runtime.js" },
   { packageDir: "markdown", entryFile: "dist/index.js" },
-  { packageDir: "markdown-renderers", entryFile: "dist/index.js" },
   { packageDir: "publish", entryFile: "dist/src/index.js" },
   { packageDir: "contracts", entryFile: "dist/index.js" },
   { packageDir: "react", entryFile: "dist/index.js" },
@@ -68,6 +67,24 @@ async function runCorepack(
   });
 }
 
+async function packPackage(
+  packageDir: string,
+  destination: string,
+): Promise<string> {
+  const packed = await runCorepack(
+    ["pack", "--json", "--pack-destination", destination],
+    path.join(ROOT_DIR, "packages", packageDir),
+  );
+  const output = JSON.parse(packed.stdout.trim()) as
+    | { filename: string }
+    | Array<{ filename: string }>;
+  const filename = Array.isArray(output)
+    ? output.at(-1)?.filename
+    : output.filename;
+  expect(filename).toBeTruthy();
+  return path.resolve(destination, filename!);
+}
+
 describe("package smoke", () => {
   it("keeps built CLI entrypoints invokable", async () => {
     for (const binary of DIST_BINARIES) {
@@ -103,39 +120,29 @@ describe("package smoke", () => {
     }
   });
 
-  it("lets a host install Markdown renderers without parser or runtime dependencies", async () => {
-    const hostDir = await mkdtemp(path.join(os.tmpdir(), "cmx-renderer-host-"));
+  it("lets a host use default Markdown bindings without authoring dependencies", async () => {
+    const hostDir = await mkdtemp(path.join(os.tmpdir(), "cmx-markdown-host-"));
     packedDirs.push(hostDir);
+    const contracts = await packPackage("contracts", hostDir);
+    const reduce = await packPackage("reduce", hostDir);
     const rootManifest = JSON.parse(
       await readFile(path.join(ROOT_DIR, "package.json"), "utf8"),
     ) as { packageManager: string };
     await writeFile(
       path.join(hostDir, "package.json"),
       JSON.stringify({
-        name: "renderer-host",
+        name: "markdown-host",
         private: true,
         type: "module",
         packageManager: rootManifest.packageManager,
       }),
     );
-    const packed = await runCorepack(
-      ["pack", "--json", "--pack-destination", hostDir],
-      path.join(ROOT_DIR, "packages", "markdown-renderers"),
+    await writeFile(
+      path.join(hostDir, "pnpm-workspace.yaml"),
+      `overrides:\n  '@cmx-tools/contracts': ${JSON.stringify(`file:${contracts}`)}\n`,
     );
-    const output = JSON.parse(packed.stdout.trim()) as
-      | { filename: string }
-      | Array<{ filename: string }>;
-    const filename = Array.isArray(output)
-      ? output.at(-1)!.filename
-      : output.filename;
     await runCorepack(
-      [
-        "add",
-        "--offline",
-        "--ignore-scripts",
-        "--no-lockfile",
-        path.resolve(hostDir, filename),
-      ],
+      ["add", "--offline", "--ignore-scripts", "--no-lockfile", reduce],
       hostDir,
     );
     const installed = await runCorepack(
@@ -143,19 +150,27 @@ describe("package smoke", () => {
       hostDir,
     );
     const [host] = JSON.parse(installed.stdout) as Array<{
-      dependencies: Record<string, { dependencies?: Record<string, unknown> }>;
+      dependencies: Record<
+        string,
+        {
+          dependencies: Record<
+            string,
+            { dependencies?: Record<string, unknown> }
+          >;
+        }
+      >;
     }>;
-    expect(Object.keys(host!.dependencies)).toEqual([
-      "@cmx-tools/markdown-renderers",
-    ]);
-    expect(
-      host!.dependencies["@cmx-tools/markdown-renderers"]!.dependencies ?? {},
-    ).toEqual({});
+    expect(Object.keys(host!.dependencies)).toEqual(["@cmx-tools/reduce"]);
+    const dependencies = host!.dependencies["@cmx-tools/reduce"]!.dependencies;
+    expect(Object.keys(dependencies)).toEqual(["@cmx-tools/contracts"]);
+    expect(dependencies["@cmx-tools/contracts"]!.dependencies ?? {}).toEqual(
+      {},
+    );
     const imported = await runNode(
       [
         "--input-type=module",
         "-e",
-        'import { defaultCmxMarkdown } from "@cmx-tools/markdown-renderers"; console.log(defaultCmxMarkdown.h1);',
+        'import { defaultCmxMarkdown } from "@cmx-tools/reduce"; console.log(defaultCmxMarkdown.h1);',
       ],
       hostDir,
     );
@@ -170,23 +185,7 @@ describe("package smoke", () => {
       );
       packedDirs.push(packDir);
 
-      const packResult = await runCorepack(
-        ["pack", "--json", "--pack-destination", packDir],
-        cwd,
-      );
-
-      const packOutput = JSON.parse(packResult.stdout.trim()) as
-        | { filename: string }
-        | Array<{ filename: string }>;
-      const tarball = Array.isArray(packOutput)
-        ? packOutput.at(-1)?.filename
-        : packOutput.filename;
-
-      expect(tarball).toBeTruthy();
-
-      const tarballPath = tarball?.startsWith("/")
-        ? tarball
-        : path.join(packDir, tarball ?? "");
+      const tarballPath = await packPackage(packageDir, packDir);
       await execFileAsync("tar", ["-xzf", tarballPath, "-C", packDir], {
         timeout: 120_000,
         maxBuffer: 10 * 1024 * 1024,

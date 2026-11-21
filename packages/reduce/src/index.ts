@@ -9,3 +9,4 @@ export type {
   CmxSlotResolver,
   CmxSlotResolverResult,
 } from "./resolveCmxSlots.js";
+export { defaultCmxMarkdown } from "./defaultCmxMarkdown.js";

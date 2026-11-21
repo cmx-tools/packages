@@ -58,16 +58,10 @@ export default {
 };
 ```
 
-The host installs the separate renderer package and supplies bindings for that contract:
-
-```sh
-pnpm add @cmx-tools/markdown-renderers
-```
-
-It can start with the complete default map and override individual components:
+The host can import the complete default map from its existing CMX framework adapter and override individual components:
 
 ```tsx
-import { defaultCmxMarkdown } from "@cmx-tools/markdown-renderers";
+import { defaultCmxMarkdown } from "@cmx-tools/react";
 
 const imports = {
   "@my-app/prose": {
@@ -77,7 +71,7 @@ const imports = {
 };
 ```
 
-The defaults are native tag strings. Interpolated components retain their original identity.
+The defaults are native tag strings. Remix hosts import the same map from `@cmx-tools/remix`. Interpolated components retain their original identity.
 
 ## Syntax
 

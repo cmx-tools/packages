@@ -56,7 +56,6 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "@cmx-tools/assets": "workspace:^",
-    "@cmx-tools/markdown": "workspace:^",
-    "@cmx-tools/markdown-renderers": "workspace:^"
+    "@cmx-tools/markdown": "workspace:^"
   }
 }
