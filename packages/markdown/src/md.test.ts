@@ -648,6 +648,46 @@ it("renders a long pasted passage containing unfinished links", async () => {
   });
 }, 10_000);
 
+it("preserves an intentional trailing blank line in a fenced example while keeping empty examples empty", async () => {
+  const document = await renderMarkdown(`export default md\u0060
+    ~~~text
+    status
+
+    ~~~
+
+    ~~~text
+    ~~~
+  \u0060;`);
+  expect(document.content.default).toEqual({
+    type: "fragment",
+    children: [
+      {
+        type: "element",
+        tag: "pre",
+        children: [
+          {
+            type: "element",
+            tag: "code",
+            props: { className: "language-text" },
+            children: ["status\n\n"],
+          },
+        ],
+      },
+      {
+        type: "element",
+        tag: "pre",
+        children: [
+          {
+            type: "element",
+            tag: "code",
+            props: { className: "language-text" },
+          },
+        ],
+      },
+    ],
+  });
+});
+
 async function renderMarkdown(source: string): Promise<CmxDocument> {
   await mkdir(".cmx", { recursive: true });
   const root = await mkdtemp(path.resolve(".cmx/markdown-"));

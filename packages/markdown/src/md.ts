@@ -189,7 +189,9 @@ function renderMarkdown(
             ...(node.lang
               ? { className: prop(`language-${node.lang.split(/\s/)[0]}`) }
               : {}),
-            children: parts(node.text + (node.text ? "\n" : "")),
+            children: parts(
+              node.text + (node.text && !node.text.endsWith("\n") ? "\n" : ""),
+            ),
           }),
         });
       case "heading":
