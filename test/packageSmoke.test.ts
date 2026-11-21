@@ -60,11 +60,18 @@ async function runCorepack(
   args: string[],
   cwd = ROOT_DIR,
 ): Promise<{ stdout: string; stderr: string }> {
-  return execFileAsync("corepack", ["pnpm", ...args], {
-    cwd,
-    timeout: 120_000,
-    maxBuffer: 10 * 1024 * 1024,
-  });
+  try {
+    return await execFileAsync("corepack", ["pnpm", ...args], {
+      cwd,
+      timeout: 120_000,
+      maxBuffer: 10 * 1024 * 1024,
+    });
+  } catch (error) {
+    const failure = error as Error & { stdout?: string };
+    throw new Error(`${failure.message}\n${failure.stdout ?? ""}`, {
+      cause: error,
+    });
+  }
 }
 
 async function packPackage(
@@ -73,7 +80,9 @@ async function packPackage(
 ): Promise<string> {
   const packed = await runCorepack(
     ["pack", "--json", "--pack-destination", destination],
-    path.join(ROOT_DIR, "packages", packageDir),
+    path.isAbsolute(packageDir)
+      ? packageDir
+      : path.join(ROOT_DIR, "packages", packageDir),
   );
   const output = JSON.parse(packed.stdout.trim()) as
     | { filename: string }
@@ -182,7 +191,23 @@ describe("package smoke", () => {
       path.join(os.tmpdir(), "cmx-prose-content-"),
     );
     packedDirs.push(contentDir);
-    const runtime = await packPackage("runtime", contentDir);
+    const production = await runCorepack([
+      "--filter",
+      "@cmx-tools/markdown",
+      "list",
+      "--prod",
+      "--depth",
+      "0",
+      "--json",
+    ]);
+    const [authoring] = JSON.parse(production.stdout) as Array<{
+      dependencies: Record<string, { path: string }>;
+    }>;
+    const overrides: Record<string, string> = {};
+    for (const [name, dependency] of Object.entries(authoring!.dependencies)) {
+      overrides[name] =
+        `file:${await packPackage(dependency.path, contentDir)}`;
+    }
     const markdown = await packPackage("markdown", contentDir);
     const rootManifest = JSON.parse(
       await readFile(path.join(ROOT_DIR, "package.json"), "utf8"),
@@ -198,9 +223,13 @@ describe("package smoke", () => {
     );
     await writeFile(
       path.join(contentDir, "pnpm-workspace.yaml"),
-      `overrides:\n  '@cmx-tools/runtime': ${JSON.stringify(`file:${runtime}`)}\n`,
+      `overrides:\n${Object.entries(overrides)
+        .map(
+          ([name, tarball]) =>
+            `  ${JSON.stringify(name)}: ${JSON.stringify(tarball)}`,
+        )
+        .join("\n")}\n`,
     );
-    const store = await runCorepack(["store", "path"]);
     await runCorepack(
       [
         "add",
@@ -208,7 +237,7 @@ describe("package smoke", () => {
         "--ignore-scripts",
         "--no-lockfile",
         "--store-dir",
-        path.dirname(store.stdout.trim()),
+        path.join(contentDir, "empty-store"),
         markdown,
       ],
       contentDir,
