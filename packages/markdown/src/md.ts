@@ -60,6 +60,8 @@ const markdown = new Marked({
   },
 });
 
+type TemplatePart = { text: string } | { interpolation: number };
+
 export type MarkdownOptions = { from: string };
 export type MarkdownTag = (
   strings: TemplateStringsArray,
@@ -117,15 +119,21 @@ function renderMarkdown(
     value: string,
     literal: (value: string) => unknown[] = (value) => [value],
   ): unknown[] {
-    const output: unknown[] = [];
+    return templateParts(value).flatMap((part) =>
+      "text" in part ? literal(part.text) : [values[part.interpolation]],
+    );
+  }
+
+  function templateParts(value: string): TemplatePart[] {
+    const output: TemplatePart[] = [];
     let offset = 0;
     for (const match of value.matchAll(slot)) {
       if (match.index > offset)
-        output.push(...literal(value.slice(offset, match.index)));
-      output.push(values[Number(match[1])]);
+        output.push({ text: value.slice(offset, match.index) });
+      output.push({ interpolation: Number(match[1]) });
       offset = match.index + match[0].length;
     }
-    if (offset < value.length) output.push(...literal(value.slice(offset)));
+    if (offset < value.length) output.push({ text: value.slice(offset) });
     return output;
   }
 
@@ -156,7 +164,7 @@ function renderMarkdown(
       case "image":
         return element("img", {
           src: prop(node.href),
-          alt: propertyLiteral(imageText(node.tokens)),
+          alt: imageDescription(node.tokens),
           ...(node.title != null ? { title: prop(node.title) } : {}),
         });
       case "list":
@@ -206,16 +214,36 @@ function renderMarkdown(
         : "";
   }
 
-  function imageText(tokens: Token[]): string {
-    return tokens
-      .map((token) => {
-        if (token.type === "br") return "\n";
-        if (token.type === "text") return decodeMarkdown(token.raw);
-        if (token.type === "link" && token.autolink) return token.text;
-        if ("tokens" in token && token.tokens) return imageText(token.tokens);
-        return "text" in token ? token.text : "";
-      })
-      .join("");
+  function imageDescription(tokens: Token[]): unknown {
+    const combined: TemplatePart[] = [];
+    for (const part of imageParts(tokens)) {
+      const previous = combined.at(-1);
+      if ("text" in part && previous && "text" in previous)
+        previous.text += part.text;
+      else combined.push(part);
+    }
+    const children = combined.map((part) =>
+      "text" in part ? part.text : values[part.interpolation],
+    );
+    return children.length === 1
+      ? children[0]
+      : children.length
+        ? jsx(Fragment, { children })
+        : "";
+  }
+
+  function imageParts(tokens: Token[]): TemplatePart[] {
+    return tokens.flatMap((token): TemplatePart[] => {
+      if (token.type === "br") return [{ text: "\n" }];
+      if (token.type === "text")
+        return templateParts(token.raw).map((part) =>
+          "text" in part ? { text: decodeMarkdown(part.text) } : part,
+        );
+      if (token.type === "link" && token.autolink)
+        return templateParts(token.text);
+      if ("tokens" in token && token.tokens) return imageParts(token.tokens);
+      return "text" in token ? templateParts(token.text) : [];
+    });
   }
 }
 

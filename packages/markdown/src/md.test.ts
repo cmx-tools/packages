@@ -594,6 +594,51 @@ it("keeps escaped brackets in linked prose and image descriptions beside referen
   );
 });
 
+it("keeps formatted image descriptions literal when their text resembles an interpolation", async () => {
+  const document = await renderMarkdown(`export default md\u0060
+    ![&#xE000;CM**X**0&#xE001;](/cover.png) \${"value"}.
+    ![Prefix \${"caption"} suffix](/mixed.png)
+    ![\${"plain"}](/plain.png)
+  \u0060;`);
+  expect(document.content.default).toMatchObject({
+    type: "fragment",
+    children: [
+      {
+        type: "element",
+        tag: "p",
+        children: [
+          {
+            type: "element",
+            tag: "img",
+            props: { src: "/cover.png", alt: "\uE000CMX0\uE001" },
+          },
+          " ",
+          "value",
+          ".",
+          { type: "element", tag: "br" },
+          {
+            type: "element",
+            tag: "img",
+            props: {
+              src: "/mixed.png",
+              alt: {
+                type: "fragment",
+                children: ["Prefix ", "caption", " suffix"],
+              },
+            },
+          },
+          { type: "element", tag: "br" },
+          {
+            type: "element",
+            tag: "img",
+            props: { src: "/plain.png", alt: "plain" },
+          },
+        ],
+      },
+    ],
+  });
+});
+
 async function renderMarkdown(source: string): Promise<CmxDocument> {
   await mkdir(".cmx", { recursive: true });
   const root = await mkdtemp(path.resolve(".cmx/markdown-"));
