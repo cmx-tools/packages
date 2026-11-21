@@ -28,7 +28,8 @@
   },
   "homepage": "https://github.com/cmx-tools/packages#readme",
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "dependencies": {
     "@cmx-tools/runtime": "workspace:^",
